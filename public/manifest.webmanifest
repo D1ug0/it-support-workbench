@@ -1,0 +1,12 @@
+{
+  "name": "IT Support Workbench",
+  "short_name": "Workbench",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111410",
+  "theme_color": "#111410",
+  "description": "Локальная диагностика и обучение инженера IT-поддержки",
+  "icons": [{ "src": "./app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

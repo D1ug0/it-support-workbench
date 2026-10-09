@@ -1,0 +1,9 @@
+Windows IP Configuration
+
+Ethernet adapter <img src=x onerror=alert('unsafe')>:
+   Description . . . . . . . . . : <script>alert('unsafe')</script>
+   DHCP Enabled . . . . . . . . : No
+   IPv4 Address . . . . . . . . : 192.0.2.10
+   Subnet Mask . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . : 192.0.2.1
+   DNS Servers . . . . . . . . . : 192.0.2.53

@@ -1,0 +1,7 @@
+Сервер:  dns.lab.example
+Address:  192.0.2.53
+
+Не заслуживающий доверия ответ:
+Имя:     example.com
+Addresses:  2001:db8::20
+          192.0.2.20

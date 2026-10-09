@@ -1,0 +1,15 @@
+name: Улучшение
+description: Полезный сценарий или новая возможность
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую задачу решает улучшение?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Предлагаемое поведение
+    validations:
+      required: true

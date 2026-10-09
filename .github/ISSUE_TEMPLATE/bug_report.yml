@@ -1,0 +1,27 @@
+name: Ошибка
+description: Воспроизводимая ошибка на синтетическом примере
+body:
+  - type: markdown
+    attributes:
+      value: Не публикуйте корпоративные логи, реальные IP, hostname, MAC и другие идентификаторы. Создайте синтетический пример.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемый и фактический результат
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Синтетический пример
+      description: Документационные диапазоны и вымышленные имена.
+  - type: input
+    id: browser
+    attributes:
+      label: Браузер и версия приложения

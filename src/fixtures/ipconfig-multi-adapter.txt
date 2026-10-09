@@ -1,0 +1,22 @@
+Windows IP Configuration
+
+Ethernet adapter Ethernet:
+   DHCP Enabled . . . . . . . . : Yes
+   IPv4 Address . . . . . . . . : 192.0.2.10(Preferred)
+   Subnet Mask . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . : 192.0.2.1
+                                  2001:db8::1
+   DNS Servers . . . . . . . . . : 192.0.2.53
+                                  2001:db8::53
+
+Ethernet adapter Demo VPN:
+   Description . . . . . . . . . : Demo Virtual Adapter
+   DHCP Enabled . . . . . . . . : No
+   IPv4 Address . . . . . . . . : 203.0.113.5(Preferred)
+   Subnet Mask . . . . . . . . . : 255.255.255.252
+   Default Gateway . . . . . . . :
+   DNS Servers . . . . . . . . . : 203.0.113.53
+
+Tunnel adapter IPv6:
+   IPv6 Address . . . . . . . . . : 2001:db8:2::8(Preferred)
+   DNS Servers . . . . . . . . . : 2001:db8::53

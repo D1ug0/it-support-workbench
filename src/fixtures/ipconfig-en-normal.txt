@@ -1,0 +1,29 @@
+Windows IP Configuration
+
+   Host Name . . . . . . . . . . . : DEMO-PC
+   Primary DNS Suffix . . . . . . : lab.example
+   Node Type . . . . . . . . . . : Hybrid
+   IP Routing Enabled . . . . . : No
+   WINS Proxy Enabled . . . . . : No
+
+Ethernet adapter Ethernet:
+
+   Connection-specific DNS Suffix . : lab.example
+   Description . . . . . . . . . . : Demo Ethernet Adapter
+   Physical Address . . . . . . . : 02-00-00-00-00-01
+   DHCP Enabled . . . . . . . . . : Yes
+   Autoconfiguration Enabled . . : Yes
+   IPv6 Address . . . . . . . . . : 2001:db8::10(Preferred)
+   IPv4 Address . . . . . . . . . : 192.0.2.10(Preferred)
+   Subnet Mask . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . : 192.0.2.1
+   DHCP Server . . . . . . . . . : 192.0.2.2
+   DNS Servers . . . . . . . . . : 192.0.2.53
+                                  192.0.2.54
+   NetBIOS over Tcpip . . . . . . : Enabled
+
+Wireless LAN adapter Wi-Fi:
+
+   Media State . . . . . . . . . : Media disconnected
+   Description . . . . . . . . . : Demo Wireless Adapter
+   Physical Address . . . . . . . : 02-00-00-00-00-02

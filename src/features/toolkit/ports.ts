@@ -1,0 +1,16 @@
+export const ports = [
+  { port: 22, transport: 'TCP', service: 'SSH', purpose: 'Удалённый защищённый shell' },
+  { port: 25, transport: 'TCP', service: 'SMTP', purpose: 'Передача электронной почты' },
+  { port: 53, transport: 'UDP / TCP', service: 'DNS', purpose: 'Разрешение имён' },
+  { port: 67, transport: 'UDP', service: 'DHCP server', purpose: 'Получение IPv4-конфигурации' },
+  { port: 68, transport: 'UDP', service: 'DHCP client', purpose: 'Ответ DHCP клиенту' },
+  { port: 80, transport: 'TCP', service: 'HTTP', purpose: 'Веб-сервис без TLS' },
+  { port: 88, transport: 'UDP / TCP', service: 'Kerberos', purpose: 'Аутентификация' },
+  { port: 123, transport: 'UDP', service: 'NTP', purpose: 'Синхронизация времени' },
+  { port: 161, transport: 'UDP', service: 'SNMP', purpose: 'Управление и мониторинг' },
+  { port: 389, transport: 'TCP', service: 'LDAP', purpose: 'Служба каталогов' },
+  { port: 443, transport: 'TCP', service: 'HTTPS', purpose: 'Веб-сервис с TLS' },
+  { port: 445, transport: 'TCP', service: 'SMB', purpose: 'Файлы и сетевые ресурсы' },
+  { port: 636, transport: 'TCP', service: 'LDAPS', purpose: 'LDAP поверх TLS' },
+  { port: 3389, transport: 'TCP / UDP', service: 'RDP', purpose: 'Удалённый рабочий стол' },
+]

@@ -1,0 +1,7 @@
+Windows IP Configuration
+
+Ethernet adapter Ethernet:
+   Media State . . . . . . . . . : Media disconnected
+
+Wireless LAN adapter Wi-Fi:
+   Media State . . . . . . . . . : Media disconnected

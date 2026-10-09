@@ -1,0 +1,8 @@
+Windows IP Configuration
+
+Ethernet adapter Ethernet:
+   DHCP Enabled . . . . . . . . : Yes
+   IPv4 Address . . . . . . . . : 999.999.999.999(Preferred)
+   Subnet Mask . . . . . . . . . : 255.0.255.0
+   DNS Servers . . . . . . . . . : 192.0.2.53
+   Unexpected Field . . . . . . : Example

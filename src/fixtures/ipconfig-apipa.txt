@@ -1,0 +1,9 @@
+Windows IP Configuration
+
+Ethernet adapter Ethernet:
+   Description . . . . . . . . . : Demo Ethernet
+   DHCP Enabled . . . . . . . . . : Yes
+   Autoconfiguration IPv4 Address : 169.254.42.10(Preferred)
+   Subnet Mask . . . . . . . . . : 255.255.0.0
+   Default Gateway . . . . . . . :
+   DNS Servers . . . . . . . . . :
