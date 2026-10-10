@@ -3,7 +3,8 @@ import { onMounted, ref } from 'vue'
 const registration = ref<ServiceWorkerRegistration>()
 const busy = ref(false)
 const status = ref('')
-const error = ref('')
+const error = ref(''),
+  version = ref('')
 const available = !import.meta.env.DEV && 'serviceWorker' in navigator && globalThis.isSecureContext
 const scope = new URL('./', document.baseURI).href
 const script = new URL('sw.js', scope).href
@@ -17,6 +18,24 @@ async function refresh() {
   if (!available) return
   const reg = await navigator.serviceWorker.getRegistration(scope)
   registration.value = reg && owned(reg) ? reg : undefined
+  readVersion()
+}
+function readVersion() {
+  const worker = registration.value?.active
+  if (!worker) return
+  const channel = new window.MessageChannel()
+  const timer = globalThis.setTimeout(() => {
+    channel.port1.close()
+    channel.port2.close()
+  }, 3000)
+  channel.port1.onmessage = (event) => {
+    if (typeof event.data?.version === 'string' && /^[a-f0-9]{16}$/.test(event.data.version))
+      version.value = event.data.version
+    globalThis.clearTimeout(timer)
+    channel.port1.close()
+    channel.port2.close()
+  }
+  worker.postMessage({ type: 'GET_VERSION' }, [channel.port2])
 }
 async function waitForActivation(reg: ServiceWorkerRegistration) {
   if (reg.active?.state === 'activated') return
@@ -62,6 +81,7 @@ async function enable() {
     const reg = await navigator.serviceWorker.register(script, { scope, updateViaCache: 'none' })
     await waitForActivation(reg)
     registration.value = reg
+    readVersion()
     status.value =
       'Офлайн-доступ включён. Файлы приложения сохранены; пользовательские логи не кешируются.'
   } catch (cause) {
@@ -78,6 +98,7 @@ async function disable() {
     const prefix = 'it-workbench-static:' + encodeURIComponent(scope) + ':'
     for (const key of await caches.keys()) if (key.startsWith(prefix)) await caches.delete(key)
     registration.value = undefined
+    version.value = ''
     status.value =
       'Регистрация и кэш приложения удалены. Закройте вкладки приложения, чтобы прекратить управление текущей страницей.'
   } catch {
@@ -124,6 +145,9 @@ async function update() {
         </button></template
       >
     </div>
+    <p v-if="version">
+      Версия активного офлайн-пакета: <code>{{ version }}</code>
+    </p>
     <p v-if="status" role="status">{{ status }}</p>
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <p>

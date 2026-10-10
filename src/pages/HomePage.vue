@@ -36,7 +36,7 @@ function demo(id = 'normal') {
         <p>
           Понимайте вывод системных команд.<br class="desktop-only" />
           Находите признаки, проверяйте гипотезы.<br class="desktop-only" />
-          Всё локально — без отправки данных на сервер.
+          Диагностика выполняется локально — исходный ввод остаётся на устройстве.
         </p>
         <div class="hero-buttons">
           <RouterLink to="/guide" class="button primary"
@@ -49,7 +49,7 @@ function demo(id = 'normal') {
           </button>
         </div>
         <div class="hero-footnote">
-          <ShieldCheck :size="15" /> Без установки · Без аккаунта · Без AI API
+          <ShieldCheck :size="15" /> Без установки · Учебные функции работают без аккаунта
         </div>
       </div>
       <div class="hero-console">

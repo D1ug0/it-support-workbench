@@ -17,3 +17,8 @@ pnpm-debug.log*
 *.key
 *.p12
 *.pfx
+
+.workbench-data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

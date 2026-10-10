@@ -17,7 +17,10 @@ let observer: InstanceType<typeof window.ResizeObserver> | undefined,
   themeObserver: InstanceType<typeof window.MutationObserver> | undefined
 let line = '',
   history: string[] = [],
-  position = 0
+  position = 0,
+  caret = 0,
+  searchPosition = -1,
+  searchQuery = ''
 let frame = 0
 const clean = (value: string) =>
   [...value]
@@ -41,10 +44,13 @@ function prompt() {
   terminal?.write('PS C:\\Lab> ')
 }
 function repaint() {
-  terminal?.write(`\r\x1b[2KPS C:\\Lab> ${line}`)
+  terminal?.write(
+    `\r\x1b[2KPS C:\\Lab> ${line}${line.length > caret ? `\x1b[${line.length - caret}D` : ''}`,
+  )
 }
 function replaceInput(value: string) {
   line = value.slice(0, 512)
+  caret = line.length
   fallback.value = line
   repaint()
 }
@@ -57,6 +63,7 @@ function submit(value = line) {
   terminal?.write('\r\n')
   transcript.value += `PS C:\\Lab> ${command}\n`
   line = ''
+  caret = 0
   fallback.value = ''
   emit('command', command)
 }
@@ -73,6 +80,8 @@ function output(value: string, clear = false) {
 }
 function reset() {
   line = ''
+  caret = 0
+  searchPosition = -1
   history = []
   position = 0
   fallback.value = ''
@@ -121,14 +130,42 @@ onMounted(() => {
     reset()
     terminal.onData((data) => {
       if (props.disabled) return
+      if (data !== '\x12') searchPosition = -1
       if (data === '\r') submit()
       else if (data === '\x7f') {
-        line = line.slice(0, -1)
+        if (caret > 0) {
+          line = line.slice(0, caret - 1) + line.slice(caret)
+          caret--
+        }
         fallback.value = line
         repaint()
+      } else if (data === '\x1b[D' || data === '\x1b[C') {
+        caret = Math.max(0, Math.min(line.length, caret + (data === '\x1b[D' ? -1 : 1)))
+        repaint()
+      } else if (data === '\x1b[H' || data === '\x1b[1~' || data === '\x01') {
+        caret = 0
+        repaint()
+      } else if (data === '\x1b[F' || data === '\x1b[4~' || data === '\x05') {
+        caret = line.length
+        repaint()
+      } else if (data === '\x1b[3~') {
+        line = line.slice(0, caret) + line.slice(caret + 1)
+        fallback.value = line
+        repaint()
+      } else if (data === '\x12') {
+        if (searchPosition === -1) searchQuery = line
+        const matches = [...history]
+          .reverse()
+          .filter((c) => c.toLowerCase().includes(searchQuery.toLowerCase()))
+        if (matches.length) {
+          searchPosition = (searchPosition + 1) % matches.length
+          replaceInput(matches[searchPosition]!)
+          status.value = 'Поиск по истории: ' + line
+        }
       } else if (data === '\x03') {
         terminal?.writeln('^C')
         line = ''
+        caret = 0
         fallback.value = ''
         prompt()
       } else if (data === '\x1b[A' || data === '\x1b[B') {
@@ -141,7 +178,13 @@ onMounted(() => {
         if (matches.length === 1) replaceInput(matches[0]!)
       } else if (!data.includes('\x1b')) {
         // Multi-line clipboard input becomes one editable line, never execution.
-        replaceInput(line + clean(data).replace(/[\r\n\t]+/g, ' '))
+        const inserted = clean(data).replace(/[\r\n\t]+/g, ' ')
+        const next = line.slice(0, caret) + inserted + line.slice(caret)
+        const nextCaret = Math.min(512, caret + inserted.length)
+        replaceInput(next)
+        caret = nextCaret
+        repaint()
+        searchPosition = -1
       }
     })
     observer = new window.ResizeObserver(() => {
@@ -188,7 +231,8 @@ onBeforeUnmount(() => {
     </div>
     <p>
       Синтетическая среда. Команды не выполняются на вашем устройстве. ↑/↓ — история, Tab —
-      дополнение, Ctrl+C — очистить ввод.
+      дополнение, ←/→ и Home/End — курсор, Delete — удалить, Ctrl+R — поиск по истории, Ctrl+C —
+      очистить ввод.
     </p>
     <div v-show="!simple" ref="container" class="xterm-container" aria-label="Терминал xterm.js" />
     <template v-if="simple">

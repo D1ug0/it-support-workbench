@@ -1,6 +1,9 @@
 import { isIPv4 } from '../../domain/network'
 import type { CommandKind } from '../../domain/types/diagnostic'
 import { commandExamples, terminalLabs, type LabId } from './catalog'
+import { definitionState, variant } from './labDefinitions'
+import { createNetwork, assessNetwork, type LabDefinition, type NetworkState } from './networkModel'
+import { executeNetwork } from './networkEngine'
 
 export const HOST = 'portal.lab.example'
 export const PORTAL = '192.0.2.20'
@@ -22,6 +25,10 @@ export interface LabState {
   revision: number
   verifiedRevision: number | null
   events: LabEvent[]
+  network?: NetworkState
+  clock?: number
+  cacheExpires?: number
+  negativeUntil?: number
 }
 export interface CommandResult {
   state: LabState
@@ -30,7 +37,12 @@ export interface CommandResult {
   ok: boolean
   clear?: boolean
 }
-export function createEnvironment(labId: LabId): LabState {
+export function createEnvironment(labId: LabId, definition?: LabDefinition, seed = 0): LabState {
+  const network = definition
+    ? createNetwork(seed ? variant(definition, seed) : definition)
+    : definitionState(labId, seed)
+  if (!network && !terminalLabs.some((l) => l.id === labId))
+    throw new Error('Неизвестная лаборатория.')
   return {
     labId,
     dns: labId === 'TERM-DNS-SERVER' ? '192.0.2.54' : DNS,
@@ -38,6 +50,7 @@ export function createEnvironment(labId: LabId): LabState {
     revision: 0,
     verifiedRevision: null,
     events: [],
+    ...(network ? { network, dns: network.dns } : {}),
   }
 }
 function tokenize(command: string): string[] | undefined {
@@ -78,9 +91,16 @@ function lookup(state: LabState, name: string, server = state.dns): string | und
 function resolve(state: LabState, name: string, explicitServer?: string): string | undefined {
   if (isIPv4(name)) return name
   if (explicitServer) return lookup(state, name, explicitServer)
-  if (name === HOST && state.cache) return state.cache
+  if (name === HOST && state.cache && (state.cacheExpires ?? 300) > (state.clock ?? 0))
+    return state.cache
+  if (name === HOST && (state.negativeUntil ?? 0) > (state.clock ?? 0)) return undefined
   const answer = lookup(state, name)
-  if (name === HOST && answer) state.cache = answer
+  if (name === HOST && answer) {
+    state.cache = answer
+    state.cacheExpires = (state.clock ?? 0) + 300
+    state.negativeUntil = 0
+  }
+
   return answer
 }
 const known = (address: string | undefined) =>
@@ -115,6 +135,22 @@ export function executeCommand(original: LabState, command: string): CommandResu
     )
   if (state.revision >= 1000)
     return fail('Достигнут лимит изменений среды. Перезапустите лабораторию.')
+  if (state.network) {
+    const value = executeNetwork(state.network, tokens)
+    return {
+      ...value,
+      state: value.ok
+        ? {
+            ...state,
+            network: value.state,
+            dns: value.state.dns,
+            cache: value.state.cache?.address ?? null,
+            revision: value.state.revision,
+            verifiedRevision: value.state.verifiedRevision,
+          }
+        : original,
+    }
+  }
   const [name = '', ...raw] = tokens,
     cmd = name.toLowerCase(),
     args = raw.map((t) => t.toLowerCase())
@@ -124,6 +160,23 @@ export function executeCommand(original: LabState, command: string): CommandResu
     kind,
     ok: true,
   })
+  if (
+    cmd === 'wait' &&
+    args.length === 1 &&
+    /^\d+$/.test(args[0]!) &&
+    Number(args[0]) >= 1 &&
+    Number(args[0]) <= 3600
+  ) {
+    state.clock = Math.min(86400, (state.clock ?? 0) + Number(args[0]))
+    if (state.cache && (state.cacheExpires ?? 300) <= state.clock) {
+      state.cache = null
+      changed(state)
+    }
+    if ((state.negativeUntil ?? 0) <= state.clock) state.negativeUntil = 0
+    return result(
+      `Время лаборатории: ${state.clock} с. TTL кэша уменьшается; истёкшие записи удаляются.`,
+    )
+  }
   if (cmd === 'help' && !args.length)
     return result(
       `Учебная среда Windows: команды моделируются, ОС не запускается.\nЦель: ${HOST} (${PORTAL}), Ethernet / InterfaceIndex 12. Рабочий DNS: ${DNS}.\n\n${commandExamples.map(([c, d]) => `${c}\n  ${d}`).join('\n')}\n\nhelp · cls · история: ↑/↓ · дополнение: Tab · отмена ввода: Ctrl+C\nPowerShell здесь выдаёт выбранный JSON для анализатора. Полный язык и конвейеры не поддерживаются.`,
@@ -138,11 +191,13 @@ export function executeCommand(original: LabState, command: string): CommandResu
     if (args.length === 1 && args[0] === '/displaydns') {
       addEvent(state, 'cache')
       return result(
-        `Windows IP Configuration\n\n${state.cache ? `${HOST}\n  Record Type: 1\n  Time To Live: 300\n  A (Host) Record: ${state.cache}` : 'DNS Resolver Cache is empty.'}\n(Учебный кэш: TTL фиксирован; ход времени не моделируется.)`,
+        `Windows IP Configuration\n\n${state.cache ? `${HOST}\n  Record Type: 1\n  Time To Live: ${Math.max(0, (state.cacheExpires ?? 300) - (state.clock ?? 0))}\n  A (Host) Record: ${state.cache}` : 'DNS Resolver Cache is empty.'}\n(Учебное время: wait 120 продвигает часы на 120 секунд.)`,
       )
     }
     if (args.length === 1 && args[0] === '/flushdns') {
       state.cache = null
+      state.negativeUntil = 0
+      state.cacheExpires = 0
       changed(state)
       return result(
         'Windows IP Configuration\nSuccessfully flushed the DNS Resolver Cache.\nОчищен только кэш виртуального ПК; адрес DNS-сервера не изменён.',
@@ -212,7 +267,17 @@ export function executeCommand(original: LabState, command: string): CommandResu
     if (target === HOST && values['-server'] === DNS) addEvent(state, 'authority')
     return result(
       JSON.stringify(
-        [{ Name: target, Type: 'A', TTL: 300, Section: 'Answer', IPAddress: address }],
+        [
+          {
+            Name: target,
+            Type: 'A',
+            TTL: values['-server']
+              ? 300
+              : Math.max(0, (state.cacheExpires ?? 300) - (state.clock ?? 0)),
+            Section: 'Answer',
+            IPAddress: address,
+          },
+        ],
         null,
         2,
       ),
@@ -291,7 +356,7 @@ export function executeCommand(original: LabState, command: string): CommandResu
     if (!address) return result(`Unable to resolve target system name ${target}.`)
     const arrives = known(address) && !(address === PORTAL && state.labId === 'TERM-ICMP-TCP')
     return result(
-      `Tracing route to ${target} [${address}]\nover a maximum of 30 hops:\n\n  1    1 ms    1 ms    1 ms  192.0.2.1\n  2    ${arrives ? `1 ms    1 ms    1 ms  ${address}` : '*        *        *     Request timed out.'}\n\nTrace complete.`,
+      `Tracing route to ${target} [${address}]\nover a maximum of 30 hops:\n\n  1    ${arrives ? `1 ms    1 ms    1 ms  ${address}` : '*        *        *     Request timed out.'}\n\nTrace complete.`,
       'tracert',
     )
   }
@@ -305,6 +370,7 @@ export function executeCommand(original: LabState, command: string): CommandResu
   )
 }
 export function assessLab(state: LabState, diagnosis: number | undefined, hints = 0) {
+  if (state.network) return assessNetwork(state.network, diagnosis, hints)
   const lab = terminalLabs.find((l) => l.id === state.labId)!
   const checks: Array<{ label: string; met: boolean }> = []
   const event = (id: LabEvent) => state.events.includes(id)

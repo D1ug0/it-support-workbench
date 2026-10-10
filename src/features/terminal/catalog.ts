@@ -1,6 +1,12 @@
-export const labIds = ['TERM-DNS-SERVER', 'TERM-DNS-CACHE', 'TERM-ICMP-TCP'] as const
-export type LabId = (typeof labIds)[number]
-export const terminalLabs = [
+import { extendedLabs } from './labDefinitions'
+export const labIds = [
+  'TERM-DNS-SERVER',
+  'TERM-DNS-CACHE',
+  'TERM-ICMP-TCP',
+  ...extendedLabs.map((l) => l.id),
+] as const
+export type LabId = string
+const legacyLabs = [
   {
     id: labIds[0],
     title: 'Неверный DNS-сервер',
@@ -62,6 +68,7 @@ export const terminalLabs = [
       'В виртуальной среде ICMP Echo заблокирован независимо от TCP. Успешное соединение с портом подтверждает транспортную доступность, но для HTTP/TLS/авторизации нужны отдельные проверки. Изменять DNS или перезапускать сеть здесь не требуется.',
   },
 ] as const
+export const terminalLabs = [...legacyLabs, ...extendedLabs]
 export const commandExamples = [
   ['ipconfig /all', 'Настройки виртуального адаптера'],
   ['ipconfig /displaydns', 'Локальный DNS-кэш'],

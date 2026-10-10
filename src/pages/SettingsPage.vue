@@ -11,21 +11,31 @@ const analysis = useAnalysisStore(),
   learning = useLearningStore()
 import { listArchives } from '../features/sessions/archiveRepository'
 import { listScenarios } from '../features/simulator/customRepository'
-import { countCheckpoints } from '../features/terminal/repository'
+import {
+  countCheckpoints,
+  listCheckpointSummaries,
+  deleteCheckpoint,
+} from '../features/terminal/repository'
+import { useWorkshopStore } from '../features/workshop/useWorkshopStore'
 import { useTerminalStore } from '../features/terminal/useTerminalStore'
-const terminal = useTerminalStore()
-const checkpointCount = ref<number>()
+const terminal = useTerminalStore(),
+  workshop = useWorkshopStore()
+const checkpointCount = ref<number>(),
+  checkpoints = ref<Array<{ id: string; title: string }>>([]),
+  checkpointBusy = ref(false),
+  checkpointError = ref('')
 const archiveCount = ref<number>(),
   scenarioCount = ref<number>()
 const caseCount = ref<number>()
 const guide = useGuideStore()
 onMounted(async () => {
-  await learning.initialize()
+  await Promise.all([learning.initialize(), workshop.initialize()])
   const [archives, scenarios] = await Promise.allSettled([listArchives(), listScenarios()])
   archiveCount.value = archives.status === 'fulfilled' ? archives.value.length : undefined
   scenarioCount.value = scenarios.status === 'fulfilled' ? scenarios.value.length : undefined
   try {
     checkpointCount.value = await countCheckpoints()
+    checkpoints.value = await listCheckpointSummaries()
   } catch {
     checkpointCount.value = undefined
   }
@@ -35,6 +45,25 @@ onMounted(async () => {
     caseCount.value = undefined
   }
 })
+async function removeCheckpoint(id: string) {
+  if (
+    checkpointBusy.value ||
+    !window.confirm(
+      'Удалить только выбранную сохранённую контрольную точку? Экспортированный JSON и текущая попытка останутся.',
+    )
+  )
+    return
+  checkpointBusy.value = true
+  try {
+    await deleteCheckpoint(id)
+    checkpoints.value = checkpoints.value.filter((c) => c.id !== id)
+    checkpointCount.value = checkpoints.value.length
+  } catch {
+    checkpointError.value = 'Не удалось удалить выбранную контрольную точку.'
+  } finally {
+    checkpointBusy.value = false
+  }
+}
 function clearMemory() {
   if (
     !window.confirm(
@@ -45,7 +74,7 @@ function clearMemory() {
   analysis.clear()
   session.clear()
   guide.clear()
-  terminal.start(terminal.lab.id)
+  terminal.start('TERM-DNS-SERVER')
 }
 </script>
 <template>
@@ -101,6 +130,14 @@ function clearMemory() {
       <span>Учебный прогресс</span
       ><strong>{{ learning.enabled ? 'Запись включена' : 'Автозапись выключена' }}</strong>
     </div>
+    <div class="history-row">
+      <span>Практикум развития</span
+      ><strong
+        >{{ workshop.customLabs.length }} лабораторий, {{ workshop.customGraphs.length }} сценариев,
+        {{ workshop.customCourses.length }} авторских курсов,
+        {{ workshop.portfolio.length }} отчётов</strong
+      >
+    </div>
     <div class="button-row">
       <button class="button secondary small" @click="clearMemory">Очистить временные данные</button
       ><RouterLink class="button secondary small" to="/cases">Управлять кейсами</RouterLink
@@ -112,10 +149,26 @@ function clearMemory() {
         >Мои сценарии</RouterLink
       >
     </div>
+    <details v-if="checkpoints.length">
+      <summary>Управлять всеми контрольными точками ({{ checkpoints.length }}/50)</summary>
+      <div v-for="c in checkpoints" :key="c.id" class="history-row">
+        <RouterLink :to="`/terminal?checkpoint=${encodeURIComponent(c.id)}`">{{
+          c.title
+        }}</RouterLink
+        ><button
+          class="button ghost small"
+          :disabled="checkpointBusy"
+          @click="removeCheckpoint(c.id)"
+        >
+          Удалить сохранение {{ c.title }}
+        </button>
+      </div>
+    </details>
+    <p v-if="checkpointError" role="alert">{{ checkpointError }}</p>
     <p>
-      Кейсы, прогресс, архивы, сценарии и контрольные точки не шифруются приложением и не
-      синхронизируются. Экспортированные файлы, clipboard и резервные копии браузера удаляются
-      отдельно.
+      Кейсы, прогресс, архивы, сценарии и контрольные точки не шифруются приложением и по умолчанию
+      остаются на устройстве. Прогресс практикума можно вручную синхронизировать с собственным
+      companion. Экспортированные файлы, clipboard и резервные копии браузера удаляются отдельно.
     </p>
   </section>
   <section class="panel feature-section">

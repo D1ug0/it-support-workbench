@@ -5,6 +5,7 @@ import { Search, X } from '@lucide/vue'
 import { knowledgeEntries } from '../../features/knowledge/catalog'
 import { glossary } from '../../features/knowledge/glossary'
 import { practiceTasks } from '../../features/practice/catalog'
+import { matchesSearch } from '../search'
 import { terminalLabs } from '../../features/terminal/catalog'
 const router = useRouter()
 const dialog = ref<HTMLDialogElement>()
@@ -23,12 +24,14 @@ const pages = [
   ['Учебный терминал', '/terminal'],
   ['Учебный центр', '/learning'],
   ['Самостоятельная практика', '/learning?view=practice'],
+  ['Практикум развития', '/learning?view=workshop'],
   ['Журнал обучения', '/learning?view=journal'],
   ['Редактор инцидентов', '/simulator?view=editor'],
   ['Локальные кейсы', '/cases'],
   ['Настройки', '/settings'],
   ['О проекте', '/about'],
 ]
+const extraEntries = ref<Array<{ label: string; path: string; kind: string }>>([])
 const entries = [
   ...terminalLabs.map((lab) => ({
     label: `Терминал: ${lab.title}`,
@@ -55,17 +58,38 @@ const entries = [
   })),
 ]
 const results = computed(() =>
-  entries
-    .filter((entry) =>
-      `${entry.label} ${entry.kind}`.toLowerCase().includes(query.value.toLowerCase().trim()),
-    )
+  [...entries, ...extraEntries.value]
+    .filter((entry) => matchesSearch(`${entry.label} ${entry.kind}`, query.value))
     .slice(0, 20),
 )
 watch(query, () => (index.value = 0))
-function open() {
+async function open() {
   query.value = ''
   dialog.value?.showModal()
   input.value?.focus()
+  const [{ workshopCourses }, { useWorkshopStore }] = await Promise.all([
+    import('../../features/workshop/courses'),
+    import('../../features/workshop/useWorkshopStore'),
+  ])
+  const workshop = useWorkshopStore()
+  await workshop.initialize()
+  extraEntries.value = [
+    ...[...workshopCourses, ...workshop.customCourses].map((c) => ({
+      label: `Курс: ${c.title}`,
+      path: `/learning?view=workshop&lesson=${c.id}`,
+      kind: 'Материал практикума',
+    })),
+    ...workshop.customLabs.map((l) => ({
+      label: `Моя лаборатория: ${l.title}`,
+      path: `/terminal?lab=${l.id}`,
+      kind: 'Учебный сценарий',
+    })),
+    ...workshop.portfolio.map((r) => ({
+      label: `Отчёт: ${r.title}`,
+      path: '/learning?view=workshop&workshop=portfolio',
+      kind: 'Портфолио',
+    })),
+  ]
 }
 function select(position = index.value) {
   const item = results.value[position]
@@ -117,7 +141,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', shortcut))
     <p v-if="!results.length" role="status">Ничего не найдено.</p>
     <p class="sr-only" role="status">{{ results[index]?.label }}</p>
     <ul>
-      <li v-for="(item, position) in results" :key="item.path">
+      <li v-for="(item, position) in results" :key="`${item.path}:${item.label}`">
         <button :class="{ selected: index === position }" @click="select(position)">
           <span>{{ item.label }}</span
           ><span class="tag">{{ item.kind }}</span>

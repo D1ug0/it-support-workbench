@@ -38,6 +38,7 @@ self.addEventListener('fetch',event=>{
   // module requests include different Origin headers than install-time fetches.
   event.respondWith((async()=>{const cache=await caches.open(name);return (await cache.match(rootNavigation?shell:url.href,{ignoreVary:true}))||fetch(request);})());
 });
+self.addEventListener('message',event=>{if(event.data?.type==='GET_VERSION'&&event.ports[0])event.ports[0].postMessage({version:'${version}',assets:files.length});});
 // Updates wait for all existing tabs to close. No automatic reload/skipWaiting.
 `
 await writeFile(resolve(root, 'sw.js'), source)

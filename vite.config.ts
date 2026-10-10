@@ -1,10 +1,23 @@
 import { defineConfig } from 'vitest/config'
+import { loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
+import { getCompanionOrigins } from './src/shared/companionOrigins.ts'
 
-export default defineConfig({
+export default defineConfig(({ mode, command }) => ({
   base: './',
-  plugins: [vue(), tailwindcss()],
+  plugins: [
+    vue(),
+    tailwindcss(),
+    {
+      name: 'workbench-companion-csp',
+      transformIndexHtml(html) {
+        const origins = getCompanionOrigins(loadEnv(mode, process.cwd()).VITE_COMPANION_ORIGIN)
+        if (command === 'serve') origins.push('ws://127.0.0.1:5173')
+        return html.replace('__WORKBENCH_CONNECT_SOURCES__', origins.join(' '))
+      },
+    },
+  ],
   server: { port: 5173, strictPort: true },
   test: {
     environment: 'node',
@@ -32,6 +45,15 @@ export default defineConfig({
         'src/features/simulator/engine.ts',
         'src/features/terminal/engine.ts',
         'src/features/terminal/checkpoint.ts',
+        'src/features/terminal/networkModel.ts',
+        'src/features/terminal/networkEngine.ts',
+        'src/features/workshop/skills.ts',
+        'src/features/workshop/graph.ts',
+        'src/features/workshop/traces.ts',
+        'src/features/workshop/portfolio.ts',
+        'src/features/workshop/companion.ts',
+        'src/features/workshop/customCourses.ts',
+        'src/shared/companionOrigins.ts',
         'src/features/playbooks/catalog.ts',
       ],
       exclude: ['**/*.test.ts', '**/types/**', '**/parserRegistry.ts'],
@@ -39,4 +61,4 @@ export default defineConfig({
       thresholds: { statements: 85, branches: 85, functions: 85, lines: 85 },
     },
   },
-})
+}))

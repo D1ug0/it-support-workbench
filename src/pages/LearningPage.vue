@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  nextTick,
+  defineAsyncComponent,
+} from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { questions, quizCategories } from '../features/learning/questions'
 import { useLearningStore } from '../features/learning/useLearningStore'
@@ -17,6 +25,7 @@ import PracticePanel from '../features/practice/PracticePanel.vue'
 import { practiceTasks } from '../features/practice/catalog'
 import LearningJournal from '../features/learning/LearningJournal.vue'
 import { labIds } from '../features/terminal/catalog'
+const WorkshopPanel = defineAsyncComponent(() => import('../features/workshop/WorkshopPanel.vue'))
 const store = useLearningStore()
 onMounted(() => void store.initialize())
 const category = ref('Все')
@@ -67,7 +76,10 @@ const advanced = computed(
 )
 const practice = computed(() => !advanced.value && route.query.view === 'practice')
 const journal = computed(() => !advanced.value && route.query.view === 'journal')
-const basic = computed(() => !advanced.value && !practice.value && !journal.value)
+const workshop = computed(() => route.query.view === 'workshop')
+const basic = computed(
+  () => !advanced.value && !practice.value && !journal.value && !workshop.value,
+)
 watch(advanced, () => finish())
 watch(
   () => route.query.topic,
@@ -245,8 +257,15 @@ async function apply() {
       to="/learning?view=journal"
       >Журнал обучения</RouterLink
     >
+    <RouterLink :class="['button', workshop ? 'primary' : 'secondary']" to="/learning?view=workshop"
+      >Практикум развития</RouterLink
+    >
   </nav>
-  <section class="panel feature-section review-section" aria-labelledby="review-title">
+  <section
+    v-if="!workshop"
+    class="panel feature-section review-section"
+    aria-labelledby="review-title"
+  >
     <span class="eyebrow">ИНТЕРВАЛЬНОЕ ПОВТОРЕНИЕ</span>
     <h2 id="review-title">К повторению сейчас: {{ due.length }}</h2>
     <p>
@@ -275,6 +294,7 @@ async function apply() {
     </template>
     <button class="button ghost small" @click="now = Date.now()">Обновить расписание</button>
   </section>
+  <WorkshopPanel v-if="workshop" />
   <AcademyPanel v-if="advanced" />
   <PracticePanel v-if="practice" />
   <LearningJournal v-if="journal" />

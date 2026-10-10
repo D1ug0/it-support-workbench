@@ -5,6 +5,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { terminalLabs, labIds, commandExamples } from '../features/terminal/catalog'
 import { useTerminalStore } from '../features/terminal/useTerminalStore'
 import TerminalConsole from '../features/terminal/TerminalConsole.vue'
+import InvestigationPanel from '../features/workshop/InvestigationPanel.vue'
+import NetworkMap from '../features/terminal/NetworkMap.vue'
+import { networkCommands } from '../features/terminal/commandRegistry'
+import { extendedLabs } from '../features/terminal/labDefinitions'
+import { useWorkshopStore } from '../features/workshop/useWorkshopStore'
+import { createNetwork } from '../features/terminal/networkModel'
 import {
   parseCheckpoint,
   type Checkpoint,
@@ -23,7 +29,36 @@ const store = useTerminalStore(),
   route = useRoute(),
   router = useRouter()
 const consoleView = ref<InstanceType<typeof TerminalConsole>>()
+const workshop = useWorkshopStore()
+const allLabs = computed(() => [...terminalLabs, ...workshop.customLabs])
 const resetKey = ref(0)
+const search = ref('')
+const seed = ref(store.variantSeed)
+const visibleLabs = computed(() =>
+  allLabs.value.filter((l) =>
+    `${l.title} ${l.topic} ${l.brief}`.toLowerCase().includes(search.value.toLowerCase()),
+  ),
+)
+const commands = computed(() =>
+  store.environment.network
+    ? [...commandExamples, ...networkCommands]
+    : [...commandExamples, ['wait 120', 'Продвинуть время и уменьшить TTL']],
+)
+const mapState = computed(
+  () =>
+    store.environment.network ?? {
+      ...createNetwork({
+        ...extendedLabs[0]!,
+        id: store.lab.id,
+        title: store.lab.title,
+        fault: 'dns',
+        server: '192.0.2.20',
+      }),
+      dns: store.environment.dns,
+      clock: store.environment.clock ?? 0,
+      revision: store.environment.revision,
+    },
+)
 const selectedMode = ref<TerminalMode>(store.mode)
 const error = ref(''),
   notice = ref(''),
@@ -56,9 +91,9 @@ const differences = computed(() => {
 })
 import { analyzeOutput } from '../features/network-analysis/application/analyzeOutput'
 watch(
-  () => route.query.lab,
-  (id) => {
-    const lab = terminalLabs.find((l) => l.id === id)
+  () => [route.query.lab, workshop.customLabs] as const,
+  ([id]) => {
+    const lab = allLabs.value.find((l) => l.id === id)
     if (lab && lab.id !== store.lab.id) restart(lab.id)
   },
   { immediate: true },
@@ -70,7 +105,12 @@ watch(
   },
 )
 function restart(id = store.lab.id) {
-  store.start(id, selectedMode.value)
+  const definition =
+    workshop.customLabs.find((l) => l.id === id) ??
+    (id === store.lab.id && id.startsWith('USR-')
+      ? store.environment.network?.definition
+      : undefined)
+  store.start(id, selectedMode.value, definition, seed.value)
   resetKey.value++
   evidence.value = undefined
   beforeId.value = ''
@@ -117,9 +157,11 @@ async function local(action: 'save' | 'load' | 'delete') {
       await repository.deleteCheckpoint(id)
       notice.value = 'Контрольная точка этой лаборатории удалена.'
     }
-  } catch {
+  } catch (cause) {
     error.value =
-      'Хранилище недоступно. Можно скачать контрольную точку JSON и импортировать позже.'
+      cause instanceof Error && cause.message.startsWith('Лимит:')
+        ? cause.message
+        : 'Хранилище недоступно. Можно скачать контрольную точку JSON и импортировать позже.'
   } finally {
     busy.value = false
   }
@@ -135,7 +177,7 @@ async function read(event: Event) {
   pending.value = undefined
   error.value = ''
   try {
-    if (file.size > 8192) throw new Error('Файл превышает 8 KiB.')
+    if (file.size > 65536) throw new Error('Файл превышает 64 KiB.')
     const value = parseCheckpoint(await file.text())
     if (version === readVersion) pending.value = value
   } catch (cause) {
@@ -149,6 +191,7 @@ function restore() {
   if (!pending.value) return
   store.restore(pending.value)
   selectedMode.value = store.mode
+  seed.value = store.variantSeed
   resetKey.value++
   beforeId.value = ''
   afterId.value = ''
@@ -180,7 +223,16 @@ function exportResult() {
   )
 }
 onMounted(async () => {
-  await learning.initialize()
+  await Promise.all([learning.initialize(), workshop.initialize()])
+  if (typeof route.query.checkpoint === 'string' && route.query.checkpoint.length <= 80) {
+    try {
+      const repo = await import('../features/terminal/repository')
+      pending.value = await repo.loadCheckpoint(route.query.checkpoint)
+      if (!pending.value) error.value = 'Контрольная точка не найдена.'
+    } catch {
+      error.value = 'Не удалось прочитать выбранную контрольную точку.'
+    }
+  }
   await nextTick()
   if (store.records.length)
     consoleView.value?.output(
@@ -197,24 +249,44 @@ onMounted(async () => {
     </div>
     <span class="tag">{{ labIds.length }} ЛАБОРАТОРИИ</span>
   </div>
-  <nav class="learning-mode-nav" aria-label="Терминальные лаборатории">
-    <RouterLink
-      v-for="lab in terminalLabs"
-      :key="lab.id"
-      :to="{ path: '/terminal', query: { lab: lab.id } }"
-      :aria-current="store.lab.id === lab.id ? 'page' : undefined"
-      >{{ lab.title }}</RouterLink
-    >
-  </nav>
+  <label
+    >Найти лабораторию<input
+      v-model="search"
+      class="text-input"
+      placeholder="DNS, DHCP, TLS, VPN, права…"
+  /></label>
+  <details class="terminal-catalog">
+    <summary>Выбрать лабораторию ({{ allLabs.length }}) · {{ store.lab.title }}</summary>
+    <nav class="learning-mode-nav" aria-label="Терминальные лаборатории">
+      <RouterLink
+        v-for="lab in visibleLabs"
+        :key="lab.id"
+        :to="{ path: '/terminal', query: { lab: lab.id } }"
+        :aria-current="store.lab.id === lab.id ? 'page' : undefined"
+        >{{ lab.title }}</RouterLink
+      >
+    </nav>
+  </details>
   <section class="panel feature-section terminal-brief">
     <span class="eyebrow">УЧЕБНАЯ ЗАЯВКА</span>
     <h2>{{ store.lab.title }}</h2>
     <p>{{ store.lab.brief }}</p>
     <p>
-      ПК: TRAINING-PC · Ethernet, индекс 12 · рабочий DNS: 192.0.2.53 · портал: TCP 443.
+      ПК: TRAINING-PC · Ethernet, индекс 12 · рабочий DNS:
+      {{ store.environment.network?.definition.dns ?? '192.0.2.53' }} · портал: TCP 443.
       Используются только вымышленные узлы.
     </p>
     <div class="button-row">
+      <label
+        >Вариант задания<input
+          v-model.number="seed"
+          type="number"
+          min="0"
+          max="999999"
+          class="text-input"
+          :disabled="!store.environment.network || store.records.length > 0 || store.finished"
+          @change="restart()"
+      /></label>
       <label
         >Режим лаборатории<select
           v-model="selectedMode"
@@ -245,12 +317,18 @@ onMounted(async () => {
     <p v-if="learning.error" role="alert">{{ learning.error }}</p>
     <p v-if="learning.saving" role="status">Сохраняем учебный результат…</p>
   </section>
-  <TerminalConsole
-    ref="consoleView"
-    :reset-key="resetKey"
-    :disabled="store.finished"
-    @command="run"
-  />
+  <div class="terminal-workspace">
+    <NetworkMap :state="mapState" :exam="store.mode === 'exam'" />
+    <TerminalConsole
+      ref="consoleView"
+      :reset-key="resetKey"
+      :disabled="store.finished"
+      @command="run"
+    />
+  </div>
+  <RouterLink class="text-link" to="/learning?view=workshop"
+    >Карта навыков, новые курсы и редактор лабораторий</RouterLink
+  >
   <section v-if="store.mode !== 'exam'" class="panel feature-section">
     <h2>Команды и подсказки</h2>
     <p>
@@ -261,7 +339,7 @@ onMounted(async () => {
       <summary>Открыть поддерживаемые команды</summary>
       <div class="terminal-command-list">
         <button
-          v-for="[command, description] in commandExamples"
+          v-for="[command, description] in commands"
           :key="command"
           class="button secondary"
           :disabled="store.finished"
@@ -290,6 +368,7 @@ onMounted(async () => {
       >Изучить тему в справочнике</RouterLink
     >
   </section>
+  <InvestigationPanel />
   <section class="panel feature-section">
     <h2>Проверки этой лаборатории</h2>
     <p>
@@ -417,8 +496,9 @@ onMounted(async () => {
   <section class="panel feature-section">
     <h2>Контрольная точка учебной среды</h2>
     <p>
-      Можно сохранить состояние DNS, кэша, проверок и попытки. История введённых команд и вывод не
-      сохраняются. По одной точке для каждой из трёх лабораторий; автоматической записи нет.
+      Можно сохранить состояние сети, DNS, кэша, проверок и попытки. История введённых команд и
+      вывод не сохраняются. По одной точке на лабораторию, всего до 50 точек; автоматической записи
+      нет.
     </p>
     <label class="checkbox-label"
       ><input v-model="consent" type="checkbox" />Подтверждаю сохранение состояния учебной среды на
@@ -444,8 +524,14 @@ onMounted(async () => {
     /></label>
     <div v-if="pending" class="terminal-checkpoint-preview">
       <p>
-        Лаборатория: {{ terminalLabs.find((l) => l.id === pending!.environment.labId)?.title }} ·
-        DNS {{ pending.environment.dns }} · состояние {{ pending.environment.revision }} ·
+        Лаборатория:
+        {{
+          'network' in pending.environment
+            ? (pending.environment.network?.definition.title ??
+              terminalLabs.find((l) => l.id === pending!.environment.labId)?.title)
+            : terminalLabs.find((l) => l.id === pending!.environment.labId)?.title
+        }}
+        · DNS {{ pending.environment.dns }} · состояние {{ pending.environment.revision }} ·
         {{ pending.finished ? 'завершена' : 'в процессе' }} · режим
         {{
           { guided: 'обучение', practice: 'практика', exam: 'проверочная работа' }[pending.mode]

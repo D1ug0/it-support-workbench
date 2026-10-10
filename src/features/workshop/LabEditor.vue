@@ -1,0 +1,184 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { extendedLabs } from '../terminal/labDefinitions'
+import { topologySchema, parseLabPackage, type LabDefinition } from '../terminal/networkModel'
+import { useWorkshopStore } from './useWorkshopStore'
+import { useTerminalStore } from '../terminal/useTerminalStore'
+import { downloadText } from '../../infrastructure/export/exportReport'
+const store = useWorkshopStore(),
+  terminal = useTerminalStore(),
+  router = useRouter()
+const draft = ref<LabDefinition>({
+  ...globalThis.structuredClone(extendedLabs[0]!),
+  id: `USR-${globalThis.crypto.randomUUID()}`,
+})
+const consent = ref(false),
+  error = ref(''),
+  notice = ref(''),
+  busy = ref(false),
+  pending = ref<LabDefinition[]>()
+const template = ref(extendedLabs[0]!.id)
+const valid = computed(() => topologySchema.safeParse(draft.value))
+function reset() {
+  const source = extendedLabs.find((l) => l.id === template.value)!
+  draft.value = {
+    ...globalThis.structuredClone(source),
+    id: `USR-${globalThis.crypto.randomUUID()}`,
+  }
+  consent.value = false
+  error.value = ''
+}
+function play(lab: LabDefinition) {
+  terminal.start(lab.id, 'guided', topologySchema.parse(lab))
+  void router.push('/terminal')
+}
+function exportLab(lab = draft.value) {
+  downloadText(
+    JSON.stringify({ schemaVersion: 1, labs: [topologySchema.parse(lab)] }, null, 2),
+    'workbench-labs.json',
+    'application/json;charset=utf-8',
+  )
+}
+async function save(values: LabDefinition[]) {
+  if (!consent.value) {
+    error.value = 'Подтвердите, что пакет содержит только учебные данные.'
+    return
+  }
+  busy.value = true
+  try {
+    await store.saveLabs(values)
+    pending.value = undefined
+    notice.value = 'Лаборатории сохранены.'
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Ошибка сохранения.'
+  } finally {
+    busy.value = false
+  }
+}
+let version = 0
+onBeforeUnmount(() => version++)
+async function read(event: Event) {
+  const input = event.target as HTMLInputElement,
+    file = input.files?.[0]
+  if (!file) return
+  const read = ++version
+  try {
+    if (file.size > 262144) throw new Error('Лимит: 256 KiB.')
+    const values = parseLabPackage(await file.text())
+    if (read === version) pending.value = values
+  } catch (e) {
+    if (read === version) error.value = e instanceof Error ? e.message : 'Ошибка пакета.'
+  } finally {
+    input.value = ''
+  }
+}
+async function remove(id: string) {
+  try {
+    await store.removeLab(id)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Удаление не удалось.'
+  }
+}
+</script>
+<template>
+  <section class="panel feature-section">
+    <h2>Редактор терминальных лабораторий</h2>
+    <p>
+      Выберите проверенный шаблон неисправности и измените учебное условие. Цель — сбор evidence,
+      исправление состояния, проверка сервиса и объяснение. Программный код в пакетах не
+      выполняется.
+    </p>
+    <label
+      >Шаблон<select v-model="template" class="text-input" @change="reset">
+        <option v-for="lab in extendedLabs" :key="lab.id" :value="lab.id">{{ lab.title }}</option>
+      </select></label
+    >
+    <div class="form-grid">
+      <label
+        >Название лаборатории<input v-model="draft.title" class="text-input" maxlength="160"
+      /></label>
+      <label>Адрес клиента<input v-model="draft.client" class="text-input" /></label>
+      <label
+        >Префикс<input
+          v-model.number="draft.prefix"
+          class="text-input"
+          type="number"
+          min="8"
+          max="30"
+      /></label>
+      <label>Шлюз<input v-model="draft.gateway" class="text-input" /></label>
+      <label>DNS-сервер<input v-model="draft.dns" class="text-input" /></label>
+      <label>Адрес сервера<input v-model="draft.server" class="text-input" /></label>
+      <label>Имя портала<input v-model="draft.target" class="text-input" /></label>
+    </div>
+    <label
+      >Условие<textarea v-model="draft.brief" class="text-input" rows="3" maxlength="2000" />
+    </label>
+    <label
+      >Правильное объяснение<textarea
+        v-model="draft.explanation"
+        class="text-input"
+        rows="3"
+        maxlength="2000"
+      />
+    </label>
+    <label v-for="(_, i) in draft.hints" :key="i"
+      >Подсказка {{ i + 1 }}<input v-model="draft.hints[i]" class="text-input" maxlength="500"
+    /></label>
+    <fieldset>
+      <legend>Объяснения причины</legend>
+      <label v-for="(_, i) in draft.causes" :key="i"
+        >Вариант {{ i + 1
+        }}<input v-model="draft.causes[i]" class="text-input" maxlength="160" /></label
+      ><label
+        >Правильный вариант<select v-model.number="draft.correctCause" class="text-input">
+          <option v-for="(_, i) in draft.causes" :key="i" :value="i">{{ i + 1 }}</option>
+        </select></label
+      >
+    </fieldset>
+    <p>
+      После изменения адресов обновите команды в подсказках. Разрешены документационные IPv4-сети и
+      имена *.lab.example. Научную корректность авторского текста проверяет автор.
+    </p>
+    <p v-if="!valid.success" role="status">{{ valid.error.issues[0]?.message }}</p>
+    <label class="checkbox-label"
+      ><input v-model="consent" type="checkbox" />В пакете только вымышленные учебные данные;
+      сохранить явно</label
+    >
+    <div class="button-row">
+      <button class="button primary" :disabled="busy || !valid.success" @click="save([draft])">
+        Сохранить лабораторию</button
+      ><button class="button secondary" :disabled="!valid.success" @click="play(draft)">
+        Проверить черновик в терминале</button
+      ><button class="button ghost" :disabled="!valid.success" @click="exportLab()">
+        Экспорт лаборатории JSON
+      </button>
+    </div>
+    <label
+      >Импорт пакета лабораторий<input type="file" accept=".json,application/json" @change="read"
+    /></label>
+    <div v-if="pending" class="terminal-checkpoint-preview">
+      <p>
+        Пакет: {{ pending.length }} лабораторий. {{ pending.map((l) => l.title).join('; ') }}.
+        Совпадающие USR-ID будут обновлены.
+      </p>
+      <button class="button secondary" :disabled="busy" @click="save(pending)">
+        Подтвердить импорт лабораторий</button
+      ><button class="button ghost" @click="pending = undefined">Отменить импорт</button>
+    </div>
+    <p v-if="error" role="alert">{{ error }}</p>
+    <p v-if="notice" role="status">{{ notice }}</p>
+    <h3>Мои лаборатории ({{ store.customLabs.length }}/20)</h3>
+    <div v-for="lab in store.customLabs" :key="lab.id" class="workshop-item">
+      <strong>{{ lab.title }}</strong>
+      <div class="button-row">
+        <button class="button secondary" @click="play(lab)">Пройти</button
+        ><button class="button ghost" @click="draft = topologySchema.parse(lab)">
+          Редактировать</button
+        ><button class="button ghost" @click="exportLab(lab)">Экспорт</button
+        ><button class="button ghost" @click="remove(lab.id)">Удалить лабораторию</button>
+      </div>
+    </div>
+  </section>
+</template>

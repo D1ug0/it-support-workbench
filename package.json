@@ -1,6 +1,6 @@
 {
   "name": "it-support-workbench",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Local-first IT support workbench for Windows diagnostics, guided troubleshooting, network tools, and hands-on learning",
@@ -22,6 +22,8 @@
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:all": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
+    "companion": "node server/companion.mjs",
+    "test:companion": "node --test server/companion.test.mjs",
     "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {

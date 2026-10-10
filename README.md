@@ -4,13 +4,15 @@
 
 Vue 3 · TypeScript strict · Vite · Pinia · Tailwind CSS 4 · Vitest · Playwright · MIT
 
-**Учебный терминал:** три лаборатории DNS/кэша/ICMP-TCP, ввод команд через xterm.js, изменяемая виртуальная среда, разбор и сравнение проверок, журнал и явные контрольные точки. Откройте «Учебный терминал» в меню; начните с `help`. [Руководство и поддерживаемый синтаксис](docs/TRAINING_TERMINAL.md).
+**Учебный терминал:** 23 лаборатории, карта изменяемой виртуальной сети, DHCP/маршруты/DNS/TLS/службы и другие темы, ввод xterm.js или обычным полем, разбор и сравнение, портфолио и контрольные точки. Откройте «Учебный терминал» в меню; начните с `help`. [Руководство и поддерживаемый синтаксис](docs/TRAINING_TERMINAL.md).
+
+**Практикум развития:** пять траекторий, 14 навыков, 15 новых курсов, стартовая проверка, редакторы лабораторий/курсов/развилок, трассы, портфолио и повторение. Откройте **Учебный центр → Практикум развития**. [Руководство](docs/WORKSHOP_GUIDE.md), [будущий Windows/Linux-стенд](docs/REAL_LAB.md).
 
 ![Обзор рабочей среды](docs/screenshots/overview.png)
 
 ## Быстрый запуск
 
-Поддерживаемый Node 22 LTS: минимум 22.22.0; `.nvmrc` и CI используют major 22. Также совместим Node 24. Node нужен только для разработки и сборки.
+Поддерживаемый Node 22 LTS: минимум 22.22.0; `.nvmrc` и CI используют major 22. Также совместим Node 24. Для статического сайта Node нужен при разработке и сборке; опциональный companion запускается отдельно на Node.
 
 ```sh
 nvm use
@@ -25,7 +27,7 @@ npm run build
 npm run preview
 ```
 
-Production — статические файлы `dist/`. Сервер обработки данных, аккаунт, API-ключи, Docker и внешние AI API не нужны. Не открывайте `dist/index.html` напрямую через `file://`; используйте статический HTTP-сервер.
+Production основного приложения — статические файлы `dist/`. Основные функции работают без аккаунта, сервера обработки, API-ключей и Docker. Для явной синхронизации учебного прогресса и опционального AI есть отдельный `npm run companion`: [настройка и границы](docs/COMPANION.md). Не открывайте `dist/index.html` напрямую через `file://`; используйте статический HTTP-сервер.
 
 ## Что работает
 
@@ -136,7 +138,7 @@ Production — статические файлы `dist/`. Сервер обра�
 
 ## Приватность
 
-После загрузки приложения анализ выполняется на устройстве. Нет передачи введённого текста в API, аналитику, AI или телеметрию. Нет удалённых шрифтов и CDN.
+После загрузки приложения анализ выполняется на устройстве. Диагностический ввод не передаётся в API, аналитику, AI или телеметрию. Опциональный companion отправляет только выбранный учебный прогресс; внешний AI — только явно подтверждённый вопрос и открытые материалы курса. Нет удалённых шрифтов и CDN.
 
 По умолчанию ввод живёт только в памяти вкладки. «Очистить всё» отменяет worker, сбрасывает результаты и чтение файла. Обновление страницы не восстанавливает диагностику. Выбранные вручную локальные кейсы — отдельное opt-in хранилище и при очистке анализатора остаются.
 
@@ -155,6 +157,7 @@ npm run lint
 npm run typecheck
 npm run test:unit
 npm run test:coverage
+npm run test:companion
 npm run build
 npx playwright install chromium firefox webkit
 npm run test:e2e
@@ -220,10 +223,8 @@ Deploy разрешён только из `main`, проверяет успеш�
 
 ## Следующее развитие
 
-Обоснованные следующие шаги: дополнительные форматы DNS и Windows fixtures, редактор валидируемых учебных инцидентов, задачи на самостоятельный расчёт и структурированные обезличенные архивы сессий с миграциями. Подробный разбор устранённых недостатков и границ: [IMPROVEMENTS.md](docs/IMPROVEMENTS.md). AI, backend и remote agent для текущего продукта не требуются.
+Состояние расширения 0.4.0 и оставшиеся внешние проверки описаны в [WORKSHOP_GUIDE.md](docs/WORKSHOP_GUIDE.md) и [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md). Реальные Windows fixtures нужно получить на будущем стенде; текущие примеры синтетические. Подробный разбор устранённых недостатков и границ: [IMPROVEMENTS.md](docs/IMPROVEMENTS.md). Companion и AI опциональны; remote agent и выполнение системных команд не реализованы.
 
 ## English summary
 
-IT Support Workbench is a local-first Windows network analyzer and learning environment. Twelve sections include guided troubleshooting, evidence-based parsing, contextual sessions, semantic before/after comparison, redacted reports, CIDR and route tools, subnet exercises, sourced knowledge and a glossary, checklists, six incident scenarios, thirty quiz questions, learning recommendations, opt-in progress and case storage, and opt-in offline access. No backend, telemetry, automatic system commands, or external AI API.
-
-MIT License. Synthetic examples only; respect your organization's data policies.
+IT Support Workbench is a local-first IT support analyzer and learning environment. It includes evidence-based Windows parsing, diagnostic sessions, network tools, 23 simulated terminal labs, skill paths, advanced courses, branching incidents, authoring tools, trace exercises, opt-in progress, investigation portfolios, and offline access. An optional self-hosted companion supports explicit progress synchronization and educational explanations. System commands are never executed by the browser.

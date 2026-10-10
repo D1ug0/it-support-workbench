@@ -94,3 +94,93 @@
     height: 280px;
   }
 }
+
+.terminal-workspace {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(0, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+.terminal-workspace .terminal-console {
+  margin: 0;
+}
+.network-nodes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.network-node {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 8px;
+  padding: 14px;
+}
+.network-node code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.network-node[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+}
+.network-ok {
+  color: var(--text);
+}
+.network-fail {
+  font-weight: 700;
+}
+.terminal-catalog {
+  margin: 16px 0;
+}
+.terminal-catalog summary {
+  cursor: pointer;
+}
+@media (max-width: 1000px) {
+  .terminal-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.workshop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  gap: 16px;
+}
+.workshop-item {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.workshop-choices {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+.workshop-choices button {
+  text-align: left;
+  white-space: normal;
+}
+.workshop-json {
+  font-family: ui-monospace, monospace;
+}
+.workshop-report-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 400px;
+  overflow: auto;
+}
+.trace-timeline {
+  border-left: 2px solid var(--accent);
+  margin: 16px 0;
+  padding-left: 25px;
+}
+.trace-timeline li {
+  margin: 14px 0;
+}
+.workshop-root label {
+  display: block;
+  margin: 12px 0;
+}
+.workshop-root .text-input {
+  width: 100%;
+}
