@@ -1,6 +1,7 @@
+import { commandHelp } from './commandRegistry'
 import { isIPv4 } from '../../domain/network'
 import type { CommandKind } from '../../domain/types/diagnostic'
-import { commandExamples, terminalLabs, type LabId } from './catalog'
+import { terminalLabs, type LabId } from './catalog'
 import { definitionState, variant } from './labDefinitions'
 import { createNetwork, assessNetwork, type LabDefinition, type NetworkState } from './networkModel'
 import { executeNetwork } from './networkEngine'
@@ -179,7 +180,7 @@ export function executeCommand(original: LabState, command: string): CommandResu
   }
   if (cmd === 'help' && !args.length)
     return result(
-      `Учебная среда Windows: команды моделируются, ОС не запускается.\nЦель: ${HOST} (${PORTAL}), Ethernet / InterfaceIndex 12. Рабочий DNS: ${DNS}.\n\n${commandExamples.map(([c, d]) => `${c}\n  ${d}`).join('\n')}\n\nhelp · cls · история: ↑/↓ · дополнение: Tab · отмена ввода: Ctrl+C\nPowerShell здесь выдаёт выбранный JSON для анализатора. Полный язык и конвейеры не поддерживаются.`,
+      `Учебная среда Windows: команды моделируются, ОС не запускается.\nЦель: ${HOST} (${PORTAL}), Ethernet / InterfaceIndex 12. Рабочий DNS: ${DNS}.\n\n${commandHelp()}\n\nhelp · cls · история: ↑/↓ · дополнение: Tab · отмена ввода: Ctrl+C\nPowerShell здесь выдаёт выбранный JSON для анализатора. Полный язык и конвейеры не поддерживаются.`,
     )
   if (cmd === 'cls' && !args.length)
     return { ...result('Экран очищен. Состояние среды и проверки сохранены.'), clear: true }

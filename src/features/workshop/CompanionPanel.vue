@@ -258,7 +258,13 @@ async function explainExternal() {
     <section v-if="answer">
       <p>{{ answerOrigin }}</p>
       <pre class="workshop-report-preview" tabindex="0">{{ answer }}</pre>
-      <a :href="answerSource" target="_blank" rel="noopener noreferrer">Материал по теме</a>
+      <a :href="answerSource" target="_blank" rel="noopener noreferrer"
+        >Материал, переданный помощнику</a
+      >
+      <p>
+        Ссылка относится к материалу курса. Она не удостоверяет каждое утверждение ответа; измерения
+        модели и итоговая оценка вычисляются отдельно.
+      </p>
     </section>
   </section>
 </template>

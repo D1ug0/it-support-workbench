@@ -34,6 +34,7 @@ const currentProgressSchema = v2Shape.refine((v) =>
 )
 const journalEntry = z
   .object({
+    attemptId: z.uuid().optional(),
     taskId: z.string().min(1).max(80),
     kind: z.enum(['question', 'scenario', 'practice']),
     score: z.number().int().min(0).max(100),
@@ -82,6 +83,7 @@ export function recordAnswer(
   id: string,
   correct: boolean,
   now = Date.now(),
+  attemptId?: string,
 ): LearningProgress {
   const previous = state.answers[id]
   return {
@@ -89,6 +91,7 @@ export function recordAnswer(
     journal: [
       ...state.journal,
       {
+        ...(attemptId ? { attemptId } : {}),
         taskId: id,
         kind: 'question' as const,
         score: correct ? 100 : 0,
@@ -111,15 +114,18 @@ export function recordScenario(
   id: string,
   score: number,
   now = Date.now(),
+  attemptId?: string,
 ): LearningProgress {
   if (!Number.isInteger(score) || score < 0 || score > 100)
     throw new Error('Некорректная оценка сценария.')
+  if (attemptId && state.journal.some((e) => e.attemptId === attemptId)) return state
   const previous = state.scenarios[id]
   return {
     ...state,
     journal: [
       ...state.journal,
       {
+        ...(attemptId ? { attemptId } : {}),
         taskId: id,
         kind: id.startsWith('PRACTICE-') ? ('practice' as const) : ('scenario' as const),
         score,

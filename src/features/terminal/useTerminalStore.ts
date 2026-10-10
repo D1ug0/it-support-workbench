@@ -1,3 +1,4 @@
+import type { SaveResult } from '../../shared/persistence'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { analyzeOutput } from '../network-analysis/application/analyzeOutput'
@@ -21,6 +22,9 @@ export interface TerminalRecord {
 }
 export const useTerminalStore = defineStore('terminal-labs', () => {
   const environment = shallowRef(createEnvironment(labIds[0]))
+  const attemptId = ref<string>(globalThis.crypto.randomUUID())
+  const finishing = ref(false)
+  const saveResults = shallowRef<{ workshop?: SaveResult; learning?: SaveResult }>({})
   const variantSeed = ref(0)
   const rollbackStates = shallowRef<NetworkState[]>([])
   const mode = ref<TerminalMode>('guided')
@@ -42,6 +46,9 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
     definition?: LabDefinition,
     seed = 0,
   ) {
+    attemptId.value = globalThis.crypto.randomUUID()
+    finishing.value = false
+    saveResults.value = {}
     variantSeed.value = Number.isInteger(seed) ? Math.max(0, Math.min(999999, seed)) : 0
     environment.value = createEnvironment(id, definition, variantSeed.value)
     mode.value = nextMode
@@ -103,32 +110,75 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
     if (record?.kind) analyzed.value = { record, result: analyzeOutput(record.output, record.kind) }
   }
   async function finish() {
-    if (finished.value) return
-    feedback.value = assessLab(environment.value, diagnosis.value, hints.value)
-    if (feedback.value.complete || mode.value === 'exam') {
-      finished.value = true
-      await useWorkshopStore().record({
-        id: environment.value.labId,
-        skill:
-          environment.value.network?.definition.skill ??
-          (environment.value.labId === 'TERM-ICMP-TCP' ? 'transport' : 'dns'),
-        mode: mode.value,
-        score: feedback.value.score,
-        hints: hints.value,
-        complete: feedback.value.complete,
-        at: new Date().toISOString(),
-        seed: variantSeed.value,
-        variantKey: environment.value.network
-          ? `${environment.value.network.definition.client}/${environment.value.network.definition.prefix}:${environment.value.network.definition.server}:${environment.value.network.definition.target}:${environment.value.network.definition.fault}`
-          : 'base',
-      })
-      if (mode.value !== 'practice')
-        await useLearningStore().complete(environment.value.labId, feedback.value.score)
+    if (finished.value || finishing.value) return
+    const result = assessLab(environment.value, diagnosis.value, hints.value)
+    feedback.value = result
+    if (!result.complete && mode.value !== 'exam') return
+    const currentAttempt = attemptId.value,
+      definition = environment.value.network?.definition
+    const snapshot = {
+      attemptId: currentAttempt,
+      id: environment.value.labId,
+      skill:
+        definition?.skill ?? (environment.value.labId === 'TERM-ICMP-TCP' ? 'transport' : 'dns'),
+      mode: mode.value,
+      score: result.score,
+      hints: hints.value,
+      complete: result.complete,
+      at: new Date().toISOString(),
+      seed: variantSeed.value,
+      causeFamily: definition?.fault ?? environment.value.labId,
+      competencies: result.checks
+        .filter((c) => c.met)
+        .map((c) => c.label.slice(0, 80))
+        .slice(0, 10),
+      errors: result.checks
+        .filter((c) => !c.met)
+        .map((c) => c.label.slice(0, 180))
+        .slice(0, 10),
+      variantKey: definition
+        ? `${definition.client}/${definition.prefix}:${definition.server}:${definition.target}:${definition.fault}`
+        : 'base',
+    }
+    finished.value = true
+    finishing.value = true
+    try {
+      const results = await Promise.allSettled([
+        useWorkshopStore().record(snapshot),
+        snapshot.mode !== 'practice'
+          ? useLearningStore().complete(snapshot.id, snapshot.score, currentAttempt)
+          : Promise.resolve(undefined),
+      ])
+      const saved = (
+        result: PromiseSettledResult<SaveResult | undefined>,
+      ): SaveResult | undefined =>
+        result.status === 'fulfilled'
+          ? result.value
+          : {
+              status: 'failed',
+              error:
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : 'Результат остался в памяти; сохранение не удалось.',
+            }
+      if (attemptId.value === currentAttempt)
+        saveResults.value = { workshop: saved(results[0]!), learning: saved(results[1]!) }
+    } catch (cause) {
+      if (attemptId.value === currentAttempt)
+        saveResults.value = {
+          workshop: {
+            status: 'failed',
+            error: cause instanceof Error ? cause.message : 'Результат остался в памяти.',
+          },
+        }
+    } finally {
+      if (attemptId.value === currentAttempt) finishing.value = false
     }
   }
   function checkpoint(): Checkpoint {
     return checkpointSchema.parse({
       schemaVersion: 2,
+      attemptId: attemptId.value,
       variantSeed: variantSeed.value,
       environment: environment.value,
       mode: mode.value,
@@ -145,6 +195,7 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
       'network' in valid.environment ? valid.environment.network?.definition : undefined,
       'variantSeed' in valid ? (valid.variantSeed ?? 0) : 0,
     )
+    if ('attemptId' in valid && valid.attemptId) attemptId.value = valid.attemptId
     environment.value = valid.environment
     hints.value = valid.hints
     diagnosis.value = valid.diagnosis ?? undefined
@@ -152,6 +203,9 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
     if (valid.finished) feedback.value = assessLab(valid.environment, diagnosis.value, valid.hints)
   }
   return {
+    attemptId,
+    finishing,
+    saveResults,
     environment,
     variantSeed,
     rollbackStates,

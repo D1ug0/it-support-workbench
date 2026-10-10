@@ -4,6 +4,7 @@ import { useWorkshopStore } from './useWorkshopStore'
 import { useLearningStore } from '../learning/useLearningStore'
 import { backupLimit, backupSchema, parseBackup, type LearningBackup } from './backup'
 import {
+  recoverySnapshot,
   backupToken,
   readLearningBackup,
   restoreLearningBackup,
@@ -25,6 +26,17 @@ onBeforeUnmount(() => generation++)
 const contents = computed(() =>
   pending.value
     ? [
+        [
+          'Линейные авторские инциденты',
+          pending.value.scenarios?.length ?? 'не входят в v1',
+          'общая БД',
+        ],
+        [
+          'Профессиональные попытки',
+          pending.value.professionalAttempts?.length ?? 'не входят в v1',
+          'общая БД',
+        ],
+        ['Учебные черновики', pending.value.drafts?.length ?? 'не входят в v1', 'общая БД'],
         ['Авторские лаборатории', pending.value.labs.length, workshop.customLabs.length],
         ['Авторские курсы', pending.value.courses.length, workshop.customCourses.length],
         ['Развилки', pending.value.graphs.length, workshop.customGraphs.length],
@@ -63,13 +75,33 @@ async function exportBackup() {
       learning: learning.state,
       workshop: workshop.state,
     })
-    const text = JSON.stringify(value, null, 2)
+    const text = JSON.stringify(value)
     parseBackup(text)
+    try {
+      globalThis.localStorage.setItem('it-workbench-last-export', new Date().toISOString())
+    } catch {
+      /* optional metadata */
+    }
     downloadText(text, 'workbench-learning-backup.json', 'application/json;charset=utf-8')
     notice.value =
       'Общая учебная копия скачана. Включён текущий прогресс, даже если автозапись выключена.'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Экспорт недоступен.'
+  } finally {
+    busy.value = false
+  }
+}
+async function exportRecovery() {
+  if (!consent.value || busy.value) return
+  busy.value = true
+  try {
+    downloadText(
+      JSON.stringify(await recoverySnapshot(), null, 2),
+      'workbench-recovery-raw.json',
+      'application/json',
+    )
+  } catch {
+    error.value = 'Исходные записи недоступны. Они не изменены.'
   } finally {
     busy.value = false
   }
@@ -84,7 +116,7 @@ async function read(event: Event) {
   error.value = ''
   notice.value = ''
   try {
-    if (file.size > backupLimit) throw new Error('Лимит копии: 2 MiB.')
+    if (file.size > backupLimit) throw new Error('Лимит копии: 16 MiB.')
     const value = parseBackup(await file.text())
     await flush()
     standCount.value = await standAttempts.count()
@@ -127,13 +159,21 @@ async function restore() {
   <section class="panel feature-section">
     <h2>Общая резервная копия обучения</h2>
     <p>
-      Один JSON содержит оба учебных журнала, авторские лаборатории, курсы, развилки, портфолио и
-      отчёты стенда. Копия до 2 MiB; загружается и проверяется на этом устройстве.
+      Один JSON содержит оба учебных журнала, авторские лаборатории, курсы, развилки, портфолио,
+      линейные авторские инциденты, черновики и отчёты стенда. Копия до 16 MiB; загружается и
+      проверяется на этом устройстве.
     </p>
     <p>
       Рабочие кейсы, архивы диагностики, команды терминала, контрольные точки, ключи companion и
       офлайн-кэш управляются отдельно. Заметки автора переносятся как введены: проверьте их перед
       экспортом.
+    </p>
+    <button class="button ghost" :disabled="busy || !consent" @click="exportRecovery">
+      Скачать исходные записи для восстановления
+    </button>
+    <p>
+      Этот отдельный JSON сохраняет проблемные записи и старые коллекции без разбора. Проверьте его
+      перед передачей; он не импортируется как обычный backup.
     </p>
     <label class="checkbox-label"
       ><input v-model="consent" type="checkbox" :disabled="busy" />Проверил учебную копию: в
@@ -153,7 +193,9 @@ async function restore() {
       <h3>Предпросмотр восстановления</h3>
       <p>
         Дата копии: {{ pending.createdAt }}. Восстановление заменяет перечисленные учебные коллекции
-        целиком, включая удаление отсутствующих в копии записей.
+        целиком, включая удаление отсутствующих в копии записей. Копия v1 сохраняет текущие линейные
+        инциденты, черновики и профессиональные попытки. Исходные записи старых БД остаются отдельно
+        для восстановления.
       </p>
       <table>
         <caption>

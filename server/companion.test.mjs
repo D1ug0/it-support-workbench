@@ -26,7 +26,7 @@ async function withServer(fn, options = {}) {
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   try {
-    await fn(request)
+    await fn(request, app)
   } finally {
     app.close()
   }
@@ -205,5 +205,89 @@ test('provider network and malformed response failures remain controlled', async
       },
       { aiKey: 'test-secret', aiModel: 'test-model', fetcher },
     )
+  }
+})
+
+test('malformed request target returns a bounded 400 and companion stays available', () =>
+  withServer(async (request, app) => {
+    const { createConnection } = await import('node:net')
+    const response = await new Promise((resolve, reject) => {
+      const socket = createConnection({ host: '127.0.0.1', port: app.server.address().port })
+      let text = ''
+      socket.setTimeout(3000, () => socket.destroy(new Error('Test timeout')))
+      socket.on('error', reject)
+      socket.on('data', (chunk) => {
+        text += chunk.toString()
+      })
+      socket.on('end', () => resolve(text))
+      socket.on('connect', () =>
+        socket.write(
+          'GET http://[invalid HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n',
+        ),
+      )
+    })
+    assert.match(response, /400/)
+    assert.doesNotMatch(response, /Invalid URL|stack|companion\.mjs/)
+    assert.equal((await request('/api/health')).status, 200)
+    const token = await register(request)
+    assert.equal((await request('/api/progress', 'GET', undefined, token)).status, 200)
+  }))
+test('concurrent password derivation has a bounded capacity without blocking health', () =>
+  withServer(async (request) => {
+    const calls = Array.from({ length: 6 }, (_, i) =>
+      request('/api/accounts', 'POST', { ...user, name: `parallel_${i}` }),
+    )
+    assert.equal((await request('/api/health')).status, 200)
+    const statuses = (await Promise.all(calls)).map((r) => r.status)
+    assert.ok(statuses.includes(503))
+    assert.ok(statuses.includes(200))
+    assert.equal((await request('/api/health')).status, 200)
+  }))
+test('SQLite copies verify checksums, recover into a new path and expire old sessions', async () => {
+  const { mkdtemp, rm, writeFile } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { DatabaseSync } = await import('node:sqlite')
+  const { backupDatabase, restoreDatabase, verifyDatabase } = await import('./companion-backup.mjs')
+  const dir = await mkdtemp(join(tmpdir(), 'workbench-backup-test-'))
+  try {
+    const source = join(dir, 'source.sqlite'),
+      copy = join(dir, 'copy.sqlite'),
+      destination = join(dir, 'restored.sqlite')
+    const app = createCompanion({ database: source })
+    app.close()
+    const db = new DatabaseSync(source)
+    db.prepare('INSERT INTO users VALUES(?,?,?,?)').run(
+      'test-id',
+      'test-user',
+      'test-salt',
+      'test-password-hash',
+    )
+    db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(
+      'test-session',
+      'test-id',
+      Date.now() + 60000,
+    )
+    db.prepare('INSERT INTO progress VALUES(?,?,?)').run(
+      'test-id',
+      3,
+      JSON.stringify(emptyWorkshop()),
+    )
+    db.close()
+    await backupDatabase(source, copy)
+    await verifyDatabase(copy)
+    await restoreDatabase(copy, destination)
+    const restored = new DatabaseSync(destination)
+    assert.equal(restored.prepare('SELECT revision FROM progress').get().revision, 3)
+    assert.equal(restored.prepare('SELECT count(*) AS n FROM sessions').get().n, 0)
+    restored.close()
+    await assert.rejects(restoreDatabase(copy, source), /новый путь/)
+    await writeFile(
+      `${copy}.sha256.json`,
+      JSON.stringify({ format: 'workbench-sqlite-backup', schemaVersion: 1, sha256: 'wrong' }),
+    )
+    await assert.rejects(restoreDatabase(copy, join(dir, 'bad.sqlite')), /Контрольная сумма/)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
   }
 })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FormatSupport from '../features/workshop/FormatSupport.vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, ArrowUpRight, BookOpen, ChevronDown, Copy, Check } from '@lucide/vue'
@@ -52,6 +53,8 @@ async function copy(value: string) {
     </div>
     <span class="tag">{{ knowledgeEntries.length }} КАРТОЧЕК</span>
   </div>
+  <FormatSupport />
+
   <GlossaryPanel compact />
   <div class="knowledge-search">
     <Search :size="18" /><label class="sr-only" for="knowledge-query">Поиск по справочнику</label

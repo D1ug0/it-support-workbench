@@ -69,20 +69,4 @@ const legacyLabs = [
   },
 ] as const
 export const terminalLabs = [...legacyLabs, ...extendedLabs]
-export const commandExamples = [
-  ['ipconfig /all', 'Настройки виртуального адаптера'],
-  ['ipconfig /displaydns', 'Локальный DNS-кэш'],
-  ['ipconfig /flushdns', 'Очистить виртуальный DNS-кэш'],
-  ['nslookup portal.lab.example', 'Опросить настроенный DNS напрямую'],
-  ['nslookup portal.lab.example 192.0.2.53', 'Опросить выбранный DNS'],
-  ['ping portal.lab.example', 'Проверить ICMP Echo'],
-  ['tracert portal.lab.example', 'Посмотреть учебный маршрут'],
-  ['route print', 'Таблица маршрутов'],
-  ['Resolve-DnsName portal.lab.example', 'Клиентское разрешение имени; учебный JSON'],
-  ['Test-NetConnection portal.lab.example -Port 443', 'Проверить TCP; учебный JSON'],
-  ['Get-NetIPConfiguration', 'Параметры адаптера; учебный JSON'],
-  [
-    'Set-DnsClientServerAddress -InterfaceIndex 12 -ServerAddresses 192.0.2.53',
-    'Изменить DNS виртуального адаптера',
-  ],
-] as const
+export { legacyCommands as commandExamples } from './commandRegistry'

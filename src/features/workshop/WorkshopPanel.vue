@@ -1,6 +1,14 @@
 <script setup lang="ts">
+import { confirmDiscardForms } from '../../shared/unsavedChanges'
 import '../terminal/terminal.css'
+import linuxGuide from '../../../lab-environments/linux-http/README.md?raw'
+import composeTemplate from '../../../lab-environments/linux-http/compose.yaml?raw'
+import dockerTemplate from '../../../lab-environments/linux-http/Dockerfile?raw'
+import serverTemplate from '../../../lab-environments/linux-http/server.py?raw'
+import controlTemplate from '../../../lab-environments/linux-http/control.py?raw'
 import standGuide from '../../../docs/REAL_LAB.md?raw'
+import gitGuide from '../../../lab-environments/git-ci/README.md?raw'
+import gitTemplate from '../../../lab-environments/git-ci/create.mjs?raw'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWorkshopStore } from './useWorkshopStore'
@@ -14,6 +22,10 @@ import {
 } from './skills'
 import { workshopCourses, tracks } from './courses'
 import { extendedLabs } from '../terminal/labDefinitions'
+import MaterialCard from './MaterialCard.vue'
+import ContinueLearning from './ContinueLearning.vue'
+import PackagesPanel from './PackagesPanel.vue'
+import ProfessionalPanel from './ProfessionalPanel.vue'
 import CompanionPanel from './CompanionPanel.vue'
 import TeacherPanel from './TeacherPanel.vue'
 import LabEditor from './LabEditor.vue'
@@ -37,6 +49,8 @@ const tabs = [
   ['path', 'Карта навыков'],
   ['baseline', 'Стартовая проверка'],
   ['courses', 'Новые курсы'],
+  ['packages', 'Углублённые пакеты'],
+  ['professional', 'Профессиональные инциденты'],
   ['editor', 'Редактор лабораторий'],
   ['course-editor', 'Редактор курсов'],
   ['graphs', 'Инциденты с развилками'],
@@ -45,6 +59,9 @@ const tabs = [
   ['stand', 'Настоящий стенд'],
   ['exchange', 'Обмен и преподаватель'],
 ]
+function selectTab(id: string) {
+  if (confirmDiscardForms()) tab.value = id
+}
 function prerequisites(ids: readonly SkillId[]) {
   return ids.map((id) => skills.find((s) => s.id === id)?.title).join(', ')
 }
@@ -123,6 +140,23 @@ async function markRead() {
 async function answer(index: number) {
   choice.value = index
   if (authored.value) return
+  await store.recordTheory({
+    taskId: course.value.id,
+    skill: course.value.skill,
+    form: 'choice',
+    correct: index === course.value.correct,
+    at: new Date().toISOString(),
+  })
+  await store.addEvent({
+    attemptId: globalThis.crypto.randomUUID(),
+    module: 'course',
+    taskId: course.value.id,
+    skill: course.value.skill,
+    at: new Date().toISOString(),
+    score: index === course.value.correct ? 100 : 0,
+    outcome: index === course.value.correct ? 'completed' : 'failed',
+    errors: index === course.value.correct ? [] : [course.value.why.slice(0, 180)],
+  })
   await store.replace({
     ...store.state,
     assessment: { ...store.state.assessment, [course.value.skill]: index === course.value.correct },
@@ -139,7 +173,7 @@ function openCourse(id: string) {
 }
 function exportProgress() {
   downloadText(
-    JSON.stringify(store.state, null, 2),
+    JSON.stringify(store.state),
     'workbench-workshop-progress.json',
     'application/json;charset=utf-8',
   )
@@ -153,7 +187,7 @@ async function read(event: Event) {
   const ticket = ++version
   pending.value = undefined
   try {
-    if (file.size > 262144) throw new Error('Лимит 256 KiB.')
+    if (file.size > 12 * 1024 * 1024) throw new Error('Лимит 12 MiB.')
     const value = parseWorkshopProgress(await file.text())
     if (ticket === version) {
       pending.value = value
@@ -212,6 +246,7 @@ function exportTeacher() {
 </script>
 <template>
   <div class="workshop-root">
+    <ContinueLearning />
     <h2>Практикум развития</h2>
     <p>
       Пять учебных траекторий, самостоятельные лаборатории и понятная карта навыков. Выберите
@@ -223,7 +258,7 @@ function exportTeacher() {
         :key="id"
         :class="['button', tab === id ? 'primary' : 'secondary']"
         :aria-pressed="tab === id"
-        @click="tab = id!"
+        @click="selectTab(id!)"
       >
         {{ title }}
       </button>
@@ -241,6 +276,15 @@ function exportTeacher() {
       дата, знакомство с уроками и выбранный маршрут. Выключение останавливает запись; удаление —
       отдельное действие.
     </p>
+    <details v-if="store.problems.length">
+      <summary>Проблемные записи ({{ store.problems.length }})</summary>
+      <ul>
+        <li v-for="p in store.problems" :key="`${p.collection}:${p.id}`">
+          {{ p.collection }} / {{ p.id }}: {{ p.reason }}
+        </li>
+      </ul>
+      <RouterLink to="/settings">Экспорт исходных записей и восстановление</RouterLink>
+    </details>
     <p v-if="store.error || error" role="alert">{{ error || store.error }}</p>
     <button v-if="store.error" class="button secondary" @click="store.reloadSaved()">
       Перечитать сохранённый прогресс вместо текущего
@@ -307,9 +351,10 @@ function exportTeacher() {
           Перейти к рекомендованной теме
         </button>
         <p>
-          Самостоятельное владение отмечается после двух успешных вариантов без подсказок в практике
-          или проверочной работе. Это учебный показатель. Повторение предлагается после затруднения
-          или через неделю.
+          Самостоятельное владение требует разных семейств причин и компетенций. Косметические
+          варианты адресов этого не подтверждают. Нужны разные формы теории и через неделю новая
+          причина, ещё не решавшаяся ранее. Это учебный показатель. Повторение предлагается после
+          затруднения или через неделю.
         </p>
       </section>
       <div class="workshop-grid">
@@ -320,6 +365,15 @@ function exportTeacher() {
             Попыток: {{ skillStatus(store.state, skill.id).attempts }} · самостоятельно:
             {{ skillStatus(store.state, skill.id).independent }}
           </p>
+          <p>
+            {{ skillStatus(store.state, skill.id).theory }}. Семейств причин:
+            {{ skillStatus(store.state, skill.id).causeFamilies }}. Отложенная проверка:
+            {{ skillStatus(store.state, skill.id).retention ? 'подтверждена' : 'предстоит' }}.
+            Отчётов стенда (самостоятельно): {{ skillStatus(store.state, skill.id).standReports }}.
+          </p>
+          <ul>
+            <li v-for="c in skillStatus(store.state, skill.id).confirmed" :key="c">{{ c }}</li>
+          </ul>
           <p v-if="skill.requires.length">
             Основы:
             {{ prerequisites(skill.requires) }}
@@ -375,6 +429,12 @@ function exportTeacher() {
       </section>
       <article class="panel feature-section">
         <h3>{{ course.title }}</h3>
+        <MaterialCard
+          :id="course.id"
+          :source="course.source"
+          :authored="authored"
+          :prerequisites="prerequisites(skills.find((s) => s.id === course.skill)?.requires ?? [])"
+        />
         <p v-if="authored" class="tag">
           Авторский материал · самопроверка без изменения встроенной оценки навыка
         </p>
@@ -417,6 +477,7 @@ function exportTeacher() {
         </button>
       </article>
     </template>
+    <PackagesPanel v-if="tab === 'packages'" /><ProfessionalPanel v-if="tab === 'professional'" />
     <LabEditor v-if="tab === 'editor'" /><CourseEditor v-if="tab === 'course-editor'" /><GraphEditor
       v-if="tab === 'graphs'"
     /><TraceWorkshop v-if="tab === 'traces'" />
@@ -434,8 +495,15 @@ function exportTeacher() {
       >
         <h4>{{ report.title }}</h4>
         <p>
-          {{ new Date(report.at).toLocaleString('ru-RU') }} · {{ report.score ?? 'без оценки' }}
+          {{ report.status === 'completed' ? 'Законченный отчёт' : 'Черновик' }} · версия
+          {{ report.version }} · {{ new Date(report.at).toLocaleString('ru-RU') }} ·
+          {{ report.score ?? 'без оценки' }}
         </p>
+        <RouterLink
+          class="button secondary"
+          :to="`/terminal?lab=${report.labId}&report=${report.id}`"
+          >Редактировать отчёт</RouterLink
+        >
         <details>
           <summary>Показать сохранённые заметки</summary>
           <pre class="workshop-report-preview" tabindex="0">{{ reportMarkdown(report) }}</pre>
@@ -477,6 +545,41 @@ function exportTeacher() {
       <button class="button secondary" @click="downloadText(standGuide, 'workbench-real-lab.md')">
         Скачать инструкцию стенда
       </button>
+      <details>
+        <summary>Воспроизводимый Linux/HTTP-стенд в двух контейнерах</summary>
+        <pre class="workshop-report-preview" tabindex="0">{{ linuxGuide }}</pre>
+        <p>
+          Сохраните пять файлов в отдельную учебную папку; команды выполняются вручную вне браузера.
+        </p>
+        <div class="button-row">
+          <button
+            v-for="[name, text] in [
+              ['README.md', linuxGuide],
+              ['compose.yaml', composeTemplate],
+              ['Dockerfile', dockerTemplate],
+              ['server.py', serverTemplate],
+              ['control.py', controlTemplate],
+            ]"
+            :key="name"
+            class="button secondary"
+            @click="downloadText(text!, name!)"
+          >
+            Скачать {{ name }}
+          </button>
+        </div>
+      </details>
+      <details>
+        <summary>Воспроизводимый Git-стенд с конфликтом и проверками</summary>
+        <pre class="workshop-report-preview" tabindex="0">{{ gitGuide }}</pre>
+        <div class="button-row">
+          <button class="button secondary" @click="downloadText(gitGuide, 'README.md')">
+            Скачать инструкцию Git
+          </button>
+          <button class="button secondary" @click="downloadText(gitTemplate, 'create.mjs')">
+            Скачать подготовку Git-стенда
+          </button>
+        </div>
+      </details>
       <h4>Задания для стенда</h4>
       <StandPanel />
       <ul>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContinueLearning from '../features/workshop/ContinueLearning.vue'
 import {
   computed,
   onBeforeUnmount,
@@ -191,6 +192,8 @@ async function apply() {
       РЕШЕНИЙ</span
     >
   </div>
+  <ContinueLearning v-if="!workshop" />
+
   <section class="panel feature-section">
     <div class="learning-metrics">
       <div>

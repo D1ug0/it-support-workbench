@@ -6,11 +6,13 @@ function make(id: string, title: string, stages: Stage[]): IncidentGraph {
     id: `GRAPH-00000000-0000-4000-8000-${id.padStart(12, '0')}`,
     title,
     start: 'stage-0',
+    objectives: stages.map((_, i) => `goal-${i}`),
     nodes: stages.map(([prompt, action, wrong, explanation, correction], i) => {
       const useful = {
         label: action,
         to: i === stages.length - 1 ? 'END' : `stage-${i + 1}`,
         useful: true,
+        proves: [`goal-${i}`],
         explanation,
       }
       const other = { label: wrong, to: `stage-${i}`, useful: false, explanation: correction }

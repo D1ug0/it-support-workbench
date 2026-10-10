@@ -1,6 +1,6 @@
 import { prefixToMask, isIPv4, calculateSubnet } from '../../domain/network'
 import type { CommandKind } from '../../domain/types/diagnostic'
-import { networkCommands } from './commandRegistry'
+import { commandHelp, unsupportedCommand } from './commandRegistry'
 import { fleetProbe, fleetMatrix } from './fleet'
 import {
   evidence,
@@ -24,8 +24,7 @@ export function executeNetwork(
   const out = (output: string, kind?: CommandKind) => ({ state: s, output, kind, ok: true })
   const fail = () => ({
     state: original,
-    output:
-      'Эта команда или параметры не реализованы в учебной модели. Введите help. Изменений нет.',
+    output: unsupportedCommand(tokens, original) + '\nИзменений нет.',
     ok: false,
   })
   const json = (value: unknown, kind?: CommandKind) => out(JSON.stringify(value, null, 2), kind)
@@ -65,7 +64,7 @@ export function executeNetwork(
     return { state: original, output: 'Лимит изменений: перезапустите лабораторию.', ok: false }
   if (cmd === 'help' && !args.length)
     return out(
-      `Учебная модель: ${d.title}\nПлан: ${d.client}/${d.prefix}, шлюз ${d.gateway}, DNS ${d.dns}; ${d.target}: ${d.server}.\nСинтаксис ограничен реализованными формами; ОС не запускается.\n\nipconfig /all\nipconfig /displaydns\nipconfig /flushdns\nnslookup ${d.target} [${d.dns}]\nResolve-DnsName ${d.target} [-Type A|AAAA|CNAME|MX|TXT|SRV]\nTest-NetConnection ${d.target} -Port 443\nping ${d.target}\ntracert ${d.target}\nroute print\n${networkCommands.map(([c, t]) => `${c} — ${t}`).join('\n')}${s.hosts.length ? '\n\nДополнительные узлы (учебные операции):\nlab hosts\nlab inspect ID\nlab probe CLIENT SERVER\nlab repair ID dns|service|http|online\nlab verify-fleet — итоговая проверка всех пар после последнего изменения' : ''}`,
+      `Учебная модель: ${d.title}\nСинтаксис ограничен; ОС не запускается. Windows PowerShell, PowerShell 7 и Linux показаны раздельно. curl в Windows PowerShell может быть alias; здесь моделируется форма curl из PowerShell 7/Linux.\n\n${commandHelp(s)}`,
     )
   if (form === 'lab hosts' && s.hosts.length) {
     read('config', 'План дополнительных узлов')

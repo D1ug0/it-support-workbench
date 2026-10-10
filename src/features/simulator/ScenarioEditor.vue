@@ -8,7 +8,7 @@ import {
   parseScenarioBundle,
   scenarioBundle,
 } from './custom'
-import { listScenarios, saveScenarios, deleteScenario } from './customRepository'
+import { readScenarios, saveScenarios, deleteScenario } from './customRepository'
 import { scenarios } from './scenarios'
 import { downloadText } from '../../infrastructure/export/exportReport'
 const emit = defineEmits<{ updated: [values: Scenario[]] }>()
@@ -25,7 +25,10 @@ function message(cause: unknown) {
   return cause instanceof Error ? cause.message.slice(0, 1500) : 'Не удалось обработать сценарий.'
 }
 async function refresh() {
-  items.value = await listScenarios()
+  const loaded = await readScenarios()
+  items.value = loaded.valid
+  if (loaded.problems.length)
+    error.value = `Не прочитано записей: ${loaded.problems.length}. ${loaded.problems.map((p) => `${p.id}: ${p.reason}`).join('; ')}. Исходные записи можно экспортировать в настройках.`
   emit('updated', items.value)
 }
 onMounted(async () => {

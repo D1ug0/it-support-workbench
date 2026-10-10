@@ -297,7 +297,7 @@ test('companion UI requires consent and handles a stale remote revision without 
     .click()
   await expect(page.getByRole('alert')).toContainText('перечитайте ревизию')
   expect(writes).toHaveLength(1)
-  expect(JSON.parse(writes[0]!)).toEqual(state)
+  expect(JSON.parse(writes[0]!)).toEqual({ ...state, events: [], theoryChecks: [] })
   expect(writes[0]).not.toContain('password')
   await page.getByRole('button', { name: 'Выйти из companion', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Войти в companion', exact: true })).toBeVisible()

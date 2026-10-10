@@ -3,8 +3,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import { commandExamples } from './catalog'
-const props = defineProps<{ resetKey: number; disabled: boolean }>()
+const props = defineProps<{ commands?: string[]; resetKey: number; disabled: boolean }>()
 const emit = defineEmits<{ command: [value: string] }>()
 const container = ref<HTMLElement>()
 const simple = ref(false)
@@ -172,7 +171,7 @@ onMounted(() => {
         position = Math.min(history.length, Math.max(0, position + (data === '\x1b[A' ? -1 : 1)))
         replaceInput(history[position] ?? '')
       } else if (data === '\t') {
-        const matches = ['help', 'cls', ...commandExamples.map(([c]) => c)].filter((c) =>
+        const matches = (props.commands ?? ['help', 'cls']).filter((c) =>
           c.toLowerCase().startsWith(line.toLowerCase()),
         )
         if (matches.length === 1) replaceInput(matches[0]!)

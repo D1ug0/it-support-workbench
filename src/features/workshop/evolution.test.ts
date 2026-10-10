@@ -30,7 +30,7 @@ describe('complete learning backup boundaries', () => {
   it('round-trips both journals and rejects raw data, oversized input and incomplete packages', () => {
     expect(parseBackup(JSON.stringify(empty())).learning.schemaVersion).toBe(3)
     expect(() => parseBackup(JSON.stringify({ ...empty(), raw: 'PRIVATE' }))).toThrow()
-    expect(() => parseBackup(' '.repeat(2 * 1024 * 1024 + 1))).toThrow('2 MiB')
+    expect(() => parseBackup(' '.repeat(16 * 1024 * 1024 + 1))).toThrow('16 MiB')
     expect(backupSchema.safeParse({ ...empty(), portfolio: undefined }).success).toBe(false)
   })
   it('validates course references against labs in the same package and blocks duplicates', () => {

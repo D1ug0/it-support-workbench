@@ -15,7 +15,7 @@ import { workshopCourses } from './courses'
 import { extendedLabs } from '../terminal/labDefinitions'
 import { reportMarkdown, reportSchema } from './portfolio'
 describe('skills and learning fidelity', () => {
-  it('separates guided completion from two independent variants', () => {
+  it('does not promote guided or cosmetic independent variants to mastery', () => {
     const p = emptyWorkshop()
     const base = {
       id: 'TERM-DHCP',
@@ -32,7 +32,7 @@ describe('skills and learning fidelity', () => {
     p.attempts.push({ ...base, mode: 'practice' })
     expect(skillStatus(p, 'addressing').mastered).toBe(false)
     p.attempts.push({ ...base, mode: 'exam', seed: 1 })
-    expect(skillStatus(p, 'addressing').mastered).toBe(true)
+    expect(skillStatus(p, 'addressing').mastered).toBe(false)
   })
   it('does not count repeated identical variants and recommends delayed review', () => {
     const p = emptyWorkshop(),
@@ -58,7 +58,7 @@ describe('skills and learning fidelity', () => {
     expect(
       workshopProgressSchema.safeParse({ ...emptyWorkshop(), commandHistory: ['PRIVATE'] }).success,
     ).toBe(false)
-    expect(() => parseWorkshopProgress(' '.repeat(262145))).toThrow()
+    expect(() => parseWorkshopProgress(' '.repeat(12 * 1024 * 1024 + 1))).toThrow()
   })
   it('all courses have valid answer choices and working laboratory links', () => {
     for (const course of workshopCourses) {
@@ -212,9 +212,10 @@ describe('complete learning paths', () => {
           })
     }
     expect(skillStatus(p, 'services')).toMatchObject({ readyForStand: true, mastered: false })
-    expect(recommendSkill(p).stand).toBe(true)
+    expect(recommendSkill(p).stand).not.toBe(true)
+    expect(skillStatus(p, 'addressing').mastered).toBe(false)
     p.read = p.read.filter((id) => id !== 'LESSON-RECOVERY')
-    expect(recommendSkill(p).skill.id).toBe('recovery')
+    expect(recommendSkill(p).skill.id).toBe('addressing')
     expect(recommendSkill(p).stand).not.toBe(true)
   })
 })

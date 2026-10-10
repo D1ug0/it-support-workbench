@@ -1,3 +1,4 @@
+import { confirmDiscardForms } from '../shared/unsavedChanges'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 export const router = createRouter({
@@ -68,6 +69,7 @@ export const router = createRouter({
   ],
   scrollBehavior: () => ({ top: 0 }),
 })
+router.beforeEach(() => confirmDiscardForms())
 router.afterEach((to) => {
   document.title = `${String(to.meta.title)} · IT Support Workbench`
 })

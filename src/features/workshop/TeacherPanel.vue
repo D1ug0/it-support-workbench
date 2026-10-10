@@ -17,9 +17,12 @@ async function read(event: Event) {
     if (!files.length) return
     if (files.length + learners.value.length > 20)
       throw new Error('Лимит: 20 учеников в текущем сравнении.')
+    const used = new globalThis.TextEncoder().encode(JSON.stringify(learners.value)).length
+    if (used + files.reduce((total, file) => total + file.size, 0) > 16 * 1024 * 1024)
+      throw new Error('Общий предел сравнения: 16 MiB. Уберите часть учеников.')
     const values: WorkshopProgress[] = []
     for (const file of files) {
-      if (file.size > 262144) throw new Error('Каждый файл: до 256 KiB.')
+      if (file.size > 12 * 1024 * 1024) throw new Error('Каждый файл: до 12 MiB.')
       values.push(parseWorkshopProgress(await file.text()))
     }
     if (ticket === generation)
@@ -54,8 +57,8 @@ function exportOverview() {
     <p>
       Откройте экспорт прогресса практикума нескольких учеников. Сравнение остаётся в памяти до
       ухода из раздела, не заменяет ваши результаты и не отправляется в companion. Имена файлов не
-      показываются; псевдонимы можно изменить. До 20 файлов, каждый до 256 KiB. Оценки редактируемы
-      авторами: проверяйте отчёты и самостоятельный вариант.
+      показываются; псевдонимы можно изменить. До 20 файлов, каждый до 12 MiB, вместе до 16 MiB.
+      Оценки редактируемы авторами: проверяйте отчёты и самостоятельный вариант.
     </p>
     <label
       >Открыть прогресс учеников<input

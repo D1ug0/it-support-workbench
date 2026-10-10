@@ -2,11 +2,13 @@ import Dexie from 'dexie'
 import type { Table } from 'dexie'
 import { progressSchema } from './progress'
 import type { LearningProgress } from './progress'
-import { workshopDb } from '../workshop/storage'
+import { assertStorageBudget, learningTables, workshopDb } from '../workshop/storage'
 const db = new Dexie('it-support-workbench-learning')
 db.version(1).stores({ progress: 'id' })
-const table: Table<{ id: string; enabled: boolean; state: LearningProgress }, string> =
-  db.table('progress')
+export const legacyProgress: Table<
+  { id: string; enabled: boolean; state: LearningProgress },
+  string
+> = db.table('progress')
 export interface StoredLearning {
   id: string
   enabled: boolean
@@ -17,7 +19,7 @@ export const baseProgress: Table<StoredLearning, string> = workshopDb.table('bas
 export async function readProgress() {
   let record = await baseProgress.get('progress')
   if (!record) {
-    const previous = await table.get('progress')
+    const previous = await legacyProgress.get('progress')
     if (previous) {
       const migrated = {
         id: 'progress',
@@ -25,8 +27,9 @@ export async function readProgress() {
         state: progressSchema.parse(previous.state),
         revision: 1,
       }
-      await workshopDb.transaction('rw', baseProgress, async () => {
+      await workshopDb.transaction('rw', learningTables(), async () => {
         if (!(await baseProgress.get('progress'))) await baseProgress.put(migrated)
+        await assertStorageBudget()
       })
       record = await baseProgress.get('progress')
     }
@@ -39,11 +42,17 @@ export async function readProgress() {
         revision: record.revision,
       }
     : undefined
-  if (record) await table.delete('progress')
+  if (valid) {
+    const previous = await legacyProgress.get('progress')
+    const parsed = previous ? progressSchema.safeParse(previous.state) : undefined
+    // A damaged or conflicting legacy copy remains available for explicit recovery export.
+    if (parsed?.success && JSON.stringify(parsed.data) === JSON.stringify(valid.state))
+      await legacyProgress.delete('progress')
+  }
   return valid
 }
 export async function writeProgress(enabled: boolean, state: LearningProgress, expected?: number) {
-  return workshopDb.transaction('rw', baseProgress, async () => {
+  return workshopDb.transaction('rw', learningTables(), async () => {
     const current = await baseProgress.get('progress')
     if (expected !== undefined && (current?.revision ?? 0) !== expected)
       throw new Error('Учебный прогресс изменён в другой вкладке. Перечитайте сохранённую версию.')
@@ -54,10 +63,11 @@ export async function writeProgress(enabled: boolean, state: LearningProgress, e
       state: progressSchema.parse(state),
       revision,
     })
+    await assertStorageBudget()
     return revision
   })
 }
 export async function deleteProgress() {
   await baseProgress.delete('progress')
-  await table.clear()
+  await legacyProgress.clear()
 }

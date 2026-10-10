@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import { confirmDiscardForms } from '../shared/unsavedChanges'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import '../features/terminal/terminal.css'
 import { useRoute, useRouter } from 'vue-router'
-import { terminalLabs, labIds, commandExamples } from '../features/terminal/catalog'
+import { terminalLabs, labIds } from '../features/terminal/catalog'
 import { useTerminalStore } from '../features/terminal/useTerminalStore'
 import TerminalConsole from '../features/terminal/TerminalConsole.vue'
 import InvestigationPanel from '../features/workshop/InvestigationPanel.vue'
 import NetworkMap from '../features/terminal/NetworkMap.vue'
-import { networkCommands } from '../features/terminal/commandRegistry'
+import { supportedCommands } from '../features/terminal/commandRegistry'
 import { extendedLabs } from '../features/terminal/labDefinitions'
 import { useWorkshopStore } from '../features/workshop/useWorkshopStore'
 import { createNetwork } from '../features/terminal/networkModel'
@@ -40,20 +41,13 @@ const visibleLabs = computed(() =>
   ),
 )
 const commands = computed(() =>
-  store.environment.network
-    ? [
-        ...commandExamples,
-        ...networkCommands,
-        ...(store.environment.network.hosts.length
-          ? [
-              ['lab hosts', 'План всех узлов'],
-              ['lab inspect pc-2', 'Состояние второго клиента'],
-              ['lab probe client web-2', 'Проверка конкретной пары'],
-              ['lab verify-fleet', 'Все пары клиентов и серверов'],
-            ]
-          : []),
-      ]
-    : [...commandExamples, ['wait 120', 'Продвинуть время и уменьшить TTL']],
+  supportedCommands(store.environment.network).map(
+    (c) =>
+      [
+        c.example,
+        `${c.description} · ${c.platform} · ${c.effect === 'change' ? 'изменение' : 'чтение'}`,
+      ] as const,
+  ),
 )
 const mapState = computed(
   () =>
@@ -116,6 +110,7 @@ watch(
   },
 )
 function restart(id = store.lab.id) {
+  if (!confirmDiscardForms()) return
   const definition =
     workshop.customLabs.find((l) => l.id === id) ??
     (id === store.lab.id && id.startsWith('USR-')
@@ -136,6 +131,13 @@ function run(command: string) {
 }
 function showHint() {
   if (store.hints < store.lab.hints.length) store.hints++
+}
+async function reloadJournals() {
+  try {
+    await Promise.all([learning.reloadSaved(), workshop.reloadSaved()])
+  } catch {
+    error.value = 'Перечитывание не удалось; текущая попытка доступна для экспорта.'
+  }
 }
 async function finish() {
   await store.finish()
@@ -199,6 +201,7 @@ async function read(event: Event) {
   }
 }
 function restore() {
+  if (!confirmDiscardForms()) return
   if (!pending.value) return
   store.restore(pending.value)
   selectedMode.value = store.mode
@@ -309,13 +312,14 @@ onMounted(async () => {
           <option value="practice">Самостоятельная практика</option>
           <option value="exam">Проверочная работа</option>
         </select></label
-      ><button class="button secondary" :disabled="busy" @click="restart()">Начать заново</button
+      ><button class="button secondary" :disabled="busy || store.finishing" @click="restart()">
+        Начать заново</button
       ><RouterLink class="button ghost" to="/learning?view=journal">Журнал обучения</RouterLink>
     </div>
     <p>
       В обучении проверку можно повторять; подсказка уменьшает оценку на 5. В самостоятельной
-      практике результат не записывается в журнал. В проверочной работе одна итоговая проверка, без
-      подсказок.
+      практике результат добавляется только в практикум; базовый журнал пропускается. В проверочной
+      работе одна итоговая проверка, без подсказок.
     </p>
     <label class="checkbox-label"
       ><input
@@ -325,6 +329,52 @@ onMounted(async () => {
         @change="learning.setEnabled(($event.target as HTMLInputElement).checked)"
       />Сохранять учебный прогресс на этом устройстве</label
     >
+    <section class="panel feature-section">
+      <h2>Хранение результата</h2>
+      <label class="checkbox-label"
+        ><input
+          type="checkbox"
+          :checked="workshop.enabled"
+          :disabled="!workshop.ready || store.finishing"
+          @change="workshop.toggle(($event.target as HTMLInputElement).checked)"
+        />Сохранять журнал практикума</label
+      >
+      <label class="checkbox-label"
+        ><input
+          type="checkbox"
+          :checked="learning.enabled"
+          :disabled="!learning.ready || store.finishing"
+          @change="learning.setEnabled(($event.target as HTMLInputElement).checked)"
+        />Сохранять базовый учебный журнал</label
+      >
+      <p>
+        Согласия независимы. Команды и диагностический вывод остаются в памяти. Решение выполнено и
+        сохранение результата — отдельные состояния.
+      </p>
+      <p v-if="store.finishing" role="status">Завершаем попытку и записываем результат…</p>
+      <p
+        v-for="(result, journal) in store.saveResults"
+        :key="journal"
+        :role="result?.status === 'failed' ? 'alert' : 'status'"
+      >
+        {{ journal === 'workshop' ? 'Практикум' : 'Базовый журнал' }}:
+        {{
+          result?.status === 'saved'
+            ? 'результат сохранён'
+            : result?.status === 'failed'
+              ? `сохранение не удалось: ${result.error}`
+              : 'результат в памяти вкладки'
+        }}
+      </p>
+      <p v-if="workshop.error" role="alert">{{ workshop.error }}</p>
+      <div v-if="workshop.error || learning.error" class="button-row">
+        <button class="button secondary" @click="exportResult">Экспорт текущей попытки</button
+        ><button class="button secondary" @click="reloadJournals">Перечитать оба журнала</button
+        ><RouterLink class="button ghost" to="/settings"
+          >Экспорт и выборочная очистка данных</RouterLink
+        >
+      </div>
+    </section>
     <p v-if="learning.error" role="alert">{{ learning.error }}</p>
     <p v-if="learning.saving" role="status">Сохраняем учебный результат…</p>
   </section>
@@ -334,6 +384,7 @@ onMounted(async () => {
       ref="consoleView"
       :reset-key="resetKey"
       :disabled="store.finished"
+      :commands="commands.map((c) => c[0])"
       @command="run"
     />
   </div>
@@ -487,7 +538,7 @@ onMounted(async () => {
     </fieldset>
     <button
       class="button primary"
-      :disabled="store.finished || store.diagnosis === undefined || learning.saving"
+      :disabled="store.finished || store.diagnosis === undefined || store.finishing"
       @click="finish"
     >
       {{ store.mode === 'exam' ? 'Завершить проверочную работу' : 'Проверить решение' }}
@@ -507,8 +558,8 @@ onMounted(async () => {
       <p v-if="store.finished">
         {{
           store.mode === 'practice'
-            ? 'Результат самостоятельной практики не записывался в журнал.'
-            : 'Результат добавлен в журнал. Постоянное хранение зависит от переключателя учебного прогресса.'
+            ? 'Результат самостоятельной практики добавлен в практикум.'
+            : 'Результат добавлен в оба журнала. Состояние сохранения показано выше.'
         }}
       </p>
       <button v-if="store.finished" class="button secondary" @click="exportResult">

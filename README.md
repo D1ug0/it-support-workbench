@@ -8,7 +8,7 @@ Vue 3 · TypeScript strict · Vite · Pinia · Tailwind CSS 4 · Vitest · Playw
 
 **Практикум развития:** пять траекторий, 14 навыков, 15 новых курсов, стартовая проверка, редакторы лабораторий/курсов/развилок, трассы, портфолио и повторение. Откройте **Учебный центр → Практикум развития**. [Руководство](docs/WORKSHOP_GUIDE.md), [будущий Windows/Linux-стенд](docs/REAL_LAB.md).
 
-**Расширение 0.5.0:** визуальные конструкторы курсов и развилок, общая учебная копия в настройках и шесть пошаговых заданий для своего настоящего стенда. [Что изменилось](CHANGELOG.md). Для обычной разработки достаточно `npm run check:quick` и `npm run check:feature -- workshop`; браузерная проверка выбранной функции включается через `--browser`. [Выбор проверок](docs/TESTING.md).
+**Рабочая версия 0.6.0:** продолжение обучения, четыре сквозных инцидента, шесть углублённых пакетов, устойчивые попытки/черновики и backup v2. [Сводка реализации аудита](docs/AUDIT_IMPLEMENTATION.md). Ранее добавлены визуальные конструкторы курсов и развилок, общая учебная копия в настройках и шесть пошаговых заданий для своего настоящего стенда. [Что изменилось](CHANGELOG.md). Для обычной разработки достаточно `npm run check:quick` и `npm run check:feature -- workshop`; браузерная проверка выбранной функции включается через `--browser`. [Выбор проверок](docs/TESTING.md).
 
 ![Обзор рабочей среды](docs/screenshots/overview.png)
 
@@ -219,14 +219,14 @@ docs                           архитектура, безопасность,
 3. Дождитесь успешного workflow **CI** для последнего коммита в `main`.
 4. Запустите workflow **Deploy GitHub Pages** вручную, выбрав `main`.
 
-Deploy разрешён только из `main`, проверяет успешный CI для того же коммита и повторяет проверки перед загрузкой `dist/`. Используется относительный `base: './'` и hash routes, поэтому имя репозитория не нужно зашивать в код. Права записи `pages`/`id-token` выдаются только deploy-job. На управляемом хостинге добавьте HTTP security headers; meta CSP — частичная защита для Pages.
+Deploy разрешён только из `main`, проверяет успешный CI для того же коммита и пересобирает этот коммит из lockfile перед загрузкой `dist/`, без повторного запуска тестов. Используется относительный `base: './'` и hash routes, поэтому имя репозитория не нужно зашивать в код. Права записи `pages`/`id-token` выдаются только deploy-job. На управляемом хостинге добавьте HTTP security headers; meta CSP — частичная защита для Pages.
 
 Подготовка проекта не выполняет commit/push или развёртывание автоматически. Появление веток Dependabot и их удаление после слияния описаны в [GITHUB_PREPARATION.md](docs/GITHUB_PREPARATION.md).
 
 ## Следующее развитие
 
-Состояние расширения 0.4.0 и оставшиеся внешние проверки описаны в [WORKSHOP_GUIDE.md](docs/WORKSHOP_GUIDE.md) и [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md). Реальные Windows fixtures нужно получить на будущем стенде; текущие примеры синтетические. Подробный разбор устранённых недостатков и границ: [IMPROVEMENTS.md](docs/IMPROVEMENTS.md). Companion и AI опциональны; remote agent и выполнение системных команд не реализованы.
+Состояние рабочей версии 0.6.0 и оставшиеся внешние проверки описаны в [WORKSHOP_GUIDE.md](docs/WORKSHOP_GUIDE.md) и [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md). Реальные Windows fixtures нужно получить на будущем стенде; текущие примеры синтетические. Подробный разбор устранённых недостатков и границ: [IMPROVEMENTS.md](docs/IMPROVEMENTS.md). Companion и AI опциональны; remote agent и выполнение системных команд не реализованы.
 
 ## English summary
 
-IT Support Workbench is a local-first IT support analyzer and learning environment. It includes evidence-based Windows parsing, diagnostic sessions, network tools, 23 simulated terminal labs, skill paths, advanced courses, branching incidents, authoring tools, trace exercises, opt-in progress, investigation portfolios, and offline access. An optional self-hosted companion supports explicit progress synchronization and educational explanations. System commands are never executed by the browser.
+IT Support Workbench is a local-first IT support analyzer and learning environment. It includes evidence-based Windows parsing, diagnostic sessions, network tools, 24 simulated terminal labs, skill paths, advanced courses, branching incidents, authoring tools, trace exercises, opt-in progress, investigation portfolios, and offline access. An optional self-hosted companion supports explicit progress synchronization and educational explanations. System commands are never executed by the browser.

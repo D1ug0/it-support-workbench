@@ -111,6 +111,10 @@ function removeNode() {
           maxlength="1200"
         />
       </label>
+      <p v-if="draft.objectives">
+        Учебные цели: {{ draft.objectives.join(', ') }}. Связи proves для расширенного графа
+        редактируются в JSON.
+      </p>
       <fieldset v-for="(c, i) in node.choices" :key="i">
         <legend>Действие {{ i + 1 }}</legend>
         <label

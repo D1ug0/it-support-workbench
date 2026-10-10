@@ -1,3 +1,5 @@
+import { taskSkill } from '../workshop/competencies'
+import type { SaveResult } from '../../shared/persistence'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { emptyProgress, progressSchema, recordAnswer, recordScenario } from './progress'
@@ -29,35 +31,85 @@ export const useLearningStore = defineStore('learning', () => {
       }
     })())
   }
-  function persist() {
-    const snapshot = structuredClone(state.value)
-    const saveEnabled = enabled.value
+  function persist(): Promise<SaveResult> {
+    const snapshot = structuredClone(state.value),
+      saveEnabled = enabled.value
     pendingWrites.value++
-    queue = queue
-      .then(async () => {
+    const operation = queue.then(async (): Promise<SaveResult> => {
+      try {
         const { writeProgress } = await import('./repository')
         revision = await writeProgress(saveEnabled, snapshot, revision)
-      })
-      .catch((cause: unknown) => {
+        error.value = ''
+        return { status: 'saved' }
+      } catch (cause) {
         error.value =
           cause instanceof Error
             ? cause.message
-            : 'Не удалось сохранить прогресс. Экспортируйте его; проверьте разрешения браузера.'
-      })
-      .finally(() => {
+            : 'Не удалось сохранить базовый журнал. Экспортируйте попытку; при нехватке места удалите выбранные данные в настройках.'
+        return { status: 'failed', error: error.value }
+      } finally {
         pendingWrites.value--
-      })
-    return queue
+      }
+    })
+    queue = operation.then(() => {})
+    return operation
   }
   async function answer(id: string, correct: boolean) {
     await initialize()
-    state.value = recordAnswer(state.value, id, correct)
+    const attemptId = globalThis.crypto.randomUUID()
+    state.value = recordAnswer(state.value, id, correct, Date.now(), attemptId)
+    const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
+    const skill = taskSkill(id)
+    if (skill)
+      await useWorkshopStore().recordTheory({
+        taskId: id,
+        skill,
+        form: 'choice',
+        correct,
+        at: new Date().toISOString(),
+      })
+    await useWorkshopStore().addEvent({
+      attemptId,
+      module: id.startsWith('ADV-') ? 'academy' : 'question',
+      skill: taskSkill(id),
+      taskId: id,
+      at: new Date().toISOString(),
+      score: correct ? 100 : 0,
+      outcome: correct ? 'completed' : 'failed',
+      errors: correct ? [] : ['Повторите объяснение вопроса и вернитесь к проверке.'],
+    })
     if (enabled.value) await persist()
   }
-  async function complete(id: string, score: number) {
+  async function complete(id: string, score: number, terminalAttempt?: string) {
     await initialize()
-    state.value = recordScenario(state.value, id, score)
-    if (enabled.value) await persist()
+    const attemptId = terminalAttempt ?? globalThis.crypto.randomUUID()
+    state.value = recordScenario(state.value, id, score, Date.now(), attemptId)
+    if (!terminalAttempt) {
+      const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
+      const skill = taskSkill(id)
+      if (skill && id.startsWith('PRACTICE-subnet-'))
+        await useWorkshopStore().recordTheory({
+          taskId: id,
+          skill,
+          form: 'calculation',
+          correct: score >= 85,
+          at: new Date().toISOString(),
+        })
+      await useWorkshopStore().addEvent({
+        attemptId,
+        module: id.startsWith('PRACTICE-')
+          ? 'practice'
+          : id.startsWith('LAB-')
+            ? 'academy'
+            : 'simulator',
+        skill: taskSkill(id),
+        taskId: id,
+        at: new Date().toISOString(),
+        score,
+        outcome: score >= 85 ? 'completed' : 'failed',
+      })
+    }
+    return enabled.value ? persist() : ({ status: 'memory' } as SaveResult)
   }
   async function setEnabled(value: boolean) {
     await initialize()

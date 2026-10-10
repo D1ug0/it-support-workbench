@@ -74,3 +74,46 @@ it('bounds transcript records and keeps only an explicitly selected analysis', (
   store.start(labIds[1])
   expect(store.analyzed).toBeUndefined()
 })
+
+it('keeps a delayed finish attached to its original attempt across a restart and records it once', async () => {
+  const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
+  const workshop = useWorkshopStore(),
+    store = useTerminalStore()
+  let release!: () => void
+  const saved = new Promise<{ status: 'saved' }>((resolve) => {
+    release = () => resolve({ status: 'saved' })
+  })
+  const record = vi.spyOn(workshop, 'record').mockReturnValue(saved)
+  store.start(labIds[2])
+  solve()
+  const oldAttempt = store.attemptId,
+    finishing = store.finish()
+  expect(store.finishing).toBe(true)
+  await store.finish()
+  expect(record).toHaveBeenCalledTimes(1)
+  store.start(labIds[0], 'practice')
+  release()
+  await finishing
+  expect(store.lab.id).toBe(labIds[0])
+  expect(store.feedback).toBeUndefined()
+  expect(store.saveResults).toEqual({})
+  expect(store.finishing).toBe(false)
+  expect(record).toHaveBeenCalledWith(
+    expect.objectContaining({ id: labIds[2], attemptId: oldAttempt, score: expect.any(Number) }),
+  )
+  expect(useLearningStore().state.journal.at(-1)?.taskId).toBe(labIds[2])
+})
+it('shows failed persistence separately from a solved lab', async () => {
+  const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
+  vi.spyOn(useWorkshopStore(), 'record').mockResolvedValue({
+    status: 'failed',
+    error: 'QuotaExceededError',
+  })
+  const store = useTerminalStore()
+  store.start(labIds[2], 'practice')
+  solve()
+  await store.finish()
+  expect(store.feedback?.complete).toBe(true)
+  expect(store.saveResults.workshop).toEqual({ status: 'failed', error: 'QuotaExceededError' })
+  expect(store.finished).toBe(true)
+})

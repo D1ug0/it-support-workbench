@@ -5,6 +5,7 @@ import {
   parseGraph,
   startGraph,
   chooseGraph,
+  abandonGraph,
   type IncidentGraph,
   type GraphAttempt,
 } from './graph'
@@ -15,6 +16,7 @@ import { downloadText } from '../../infrastructure/export/exportReport'
 import GraphForm from './GraphForm.vue'
 const store = useWorkshopStore(),
   route = useRoute()
+const attemptId = ref<string>(globalThis.crypto.randomUUID())
 const preset = ref(incidentPresets.find((p) => p.id === route.query.preset)?.id ?? 'WEB')
 function loadPreset() {
   const source = incidentPresets.find((p) => p.id === preset.value)!.graph
@@ -24,7 +26,8 @@ function loadPreset() {
 function exportAttempt() {
   if (graph.value && attempt.value)
     downloadText(
-      graphDebrief(graph.value, attempt.value.steps, attempt.value.score),
+      `Попытка ${attemptId.value}; статус ${attempt.value.status}; цели подтверждены: ${attempt.value.goalsMet ? 'да' : 'нет'}. Доказательства: ${attempt.value.proofs.join(', ') || 'нет'}.\n\n` +
+        graphDebrief(graph.value, attempt.value.steps, attempt.value.score),
       'workbench-incident-debrief.md',
     )
 }
@@ -42,6 +45,7 @@ const node = computed(() => graph.value?.nodes.find((n) => n.id === attempt.valu
 function preview() {
   try {
     graph.value = parseGraph(text.value)
+    attemptId.value = globalThis.crypto.randomUUID()
     attempt.value = startGraph(graph.value)
     error.value = ''
     feedback.value = ''
@@ -53,6 +57,7 @@ function preview() {
   }
 }
 function restartAttempt() {
+  attemptId.value = globalThis.crypto.randomUUID()
   if (graph.value) attempt.value = startGraph(graph.value)
   feedback.value = ''
 }
@@ -64,6 +69,29 @@ function choose(index: number) {
   if (!graph.value || !attempt.value) return
   feedback.value = node.value!.choices[index]!.explanation
   attempt.value = chooseGraph(graph.value, attempt.value, index)
+  if (attempt.value.finished) void recordOutcome()
+}
+async function recordOutcome() {
+  if (!graph.value || !attempt.value) return
+  await store.addEvent({
+    attemptId: attemptId.value,
+    module: 'graph',
+    taskId: graph.value.id,
+    at: new Date().toISOString(),
+    score: attempt.value.score,
+    outcome:
+      attempt.value.status === 'completed' && !attempt.value.goalsMet
+        ? 'failed'
+        : attempt.value.status === 'active'
+          ? 'abandoned'
+          : attempt.value.status,
+  })
+}
+function abandon() {
+  if (attempt.value) {
+    attempt.value = abandonGraph(attempt.value)
+    void recordOutcome()
+  }
 }
 async function save() {
   if (!consent.value) {
@@ -176,12 +204,28 @@ async function remove(id: string) {
         </div></template
       >
       <p v-else>
-        Сценарий завершён · {{ attempt.score }}/100 · {{ attempt.steps.length }} действий.
+        {{
+          attempt.status === 'completed'
+            ? attempt.goalsMet
+              ? 'Сценарий завершён; цели подтверждены'
+              : 'END достигнут; учебные цели не подтверждены'
+            : attempt.status === 'limit-reached'
+              ? 'Лимит переходов: задача не решена'
+              : 'Попытка прервана'
+        }}
+        · {{ attempt.score }}/100 · {{ attempt.steps.length }} действий.
         {{ attempt.steps.length >= 40 ? 'Достигнут лимит переходов.' : '' }}
+      </p>
+      <p v-if="graph.objectives">
+        Цели: {{ graph.objectives.join(', ') }}. Подтверждено:
+        {{ attempt.proofs.join(', ') || 'пока нет' }}.
       </p>
       <p role="status">{{ feedback }}</p>
       <button v-if="attempt.finished" class="button secondary" @click="exportAttempt">
         Экспорт разбора попытки
+      </button>
+      <button v-if="!attempt.finished" class="button ghost" @click="abandon">
+        Прервать попытку
       </button>
       <button class="button ghost" @click="restartAttempt">Начать сценарий заново</button>
     </section>

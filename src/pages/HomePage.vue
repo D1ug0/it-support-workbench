@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContinueLearning from '../features/workshop/ContinueLearning.vue'
 import {
   ArrowRight,
   ArrowUpRight,
@@ -90,6 +91,7 @@ function demo(id = 'normal') {
         </div>
       </div>
     </section>
+    <ContinueLearning />
     <section class="section-block start-here" aria-labelledby="start-here-title">
       <div class="section-heading">
         <div>

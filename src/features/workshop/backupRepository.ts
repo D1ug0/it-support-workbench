@@ -1,13 +1,13 @@
-import { workshopDb as db } from './storage'
+import { workshopDb as db, learningTables, assertStorageBudget } from './storage'
 import { backupSchema, type LearningBackup } from './backup'
-import { baseProgress, readProgress } from '../learning/repository'
+import { baseProgress, readProgress, legacyProgress } from '../learning/repository'
+import { legacyScenarios, migrateScenarios } from '../simulator/customRepository'
 import { emptyProgress } from '../learning/progress'
 import { emptyWorkshop } from './skills'
 import { standAttemptSchema, type StandAttempt } from './stand'
 import type { Table } from 'dexie'
 export const standAttempts: Table<StandAttempt, string> = db.table('standAttempts')
-const names = ['settings', 'labs', 'courses', 'graphs', 'reports', 'baseProgress', 'standAttempts']
-const tables = names.map((n) => db.table(n))
+const tables = learningTables()
 async function storedSnapshot() {
   const rows = await Promise.all(tables.map((t) => t.toArray()))
   // Stable token also covers unseen corrupt records and revisions, not only the visible UI.
@@ -16,18 +16,24 @@ async function storedSnapshot() {
   )
 }
 export async function backupToken() {
-  await readProgress()
-  return db.transaction('r', tables, storedSnapshot)
+  // Recovery must work even when current or legacy progress cannot be parsed.
+  await migrateScenarios().catch(() => {})
+  const legacy = [await legacyProgress.toArray(), await legacyScenarios.toArray()]
+  return JSON.stringify([await db.transaction('r', tables, storedSnapshot), legacy])
 }
 export async function readLearningBackup(): Promise<LearningBackup> {
   await readProgress()
+  await migrateScenarios()
   return db.transaction('r', tables, async () => {
     const learning = await baseProgress.get('progress'),
       workshop = await db.table('settings').get('progress')
     return backupSchema.parse({
       format: 'it-workbench-learning-backup',
-      schemaVersion: 1,
+      schemaVersion: 2,
       createdAt: new Date().toISOString(),
+      professionalAttempts: await db.table('professionalAttempts').toArray(),
+      scenarios: await db.table('scenarios').toArray(),
+      drafts: await db.table('drafts').toArray(),
       learning: learning?.state ?? emptyProgress(),
       workshop: workshop?.value ?? emptyWorkshop(),
       labs: (await db.table('labs').toArray()).map((r) => r.value),
@@ -40,20 +46,34 @@ export async function readLearningBackup(): Promise<LearningBackup> {
 }
 export async function restoreLearningBackup(value: LearningBackup, token: string) {
   const valid = backupSchema.parse(value)
+  const legacy = [await legacyProgress.toArray(), await legacyScenarios.toArray()]
   await db.transaction('rw', tables, async () => {
-    if ((await storedSnapshot()) !== token)
+    if (JSON.stringify([await storedSnapshot(), legacy]) !== token)
       throw new Error(
         'Данные изменились после предпросмотра. Заново откройте копию и проверьте замену.',
       )
     const previous = await db.table('settings').get('progress'),
       base = await baseProgress.get('progress')
-    for (const name of ['labs', 'courses', 'graphs', 'reports', 'standAttempts'])
+    for (const name of [
+      'labs',
+      'courses',
+      'graphs',
+      'reports',
+      'standAttempts',
+      ...(valid.schemaVersion === 2 ? ['scenarios', 'drafts', 'professionalAttempts'] : []),
+    ])
       await db.table(name).clear()
     await db.table('labs').bulkPut(valid.labs.map((value) => ({ id: value.id, value })))
     await db.table('courses').bulkPut(valid.courses.map((value) => ({ id: value.id, value })))
     await db.table('graphs').bulkPut(valid.graphs.map((value) => ({ id: value.id, value })))
     await db.table('reports').bulkPut(valid.portfolio)
     await standAttempts.bulkPut(valid.standAttempts)
+    if (valid.schemaVersion === 2) {
+      await db.table('professionalAttempts').bulkPut(valid.professionalAttempts ?? [])
+      await db.table('scenarios').bulkPut(valid.scenarios ?? [])
+      await db.table('drafts').bulkPut(valid.drafts ?? [])
+      await db.table('metadata').put({ id: 'scenario-migration', complete: true })
+    }
     await baseProgress.put({
       id: 'progress',
       state: valid.learning,
@@ -66,6 +86,7 @@ export async function restoreLearningBackup(value: LearningBackup, token: string
       enabled: false,
       revision: (previous?.revision ?? 0) + 1,
     })
+    await assertStorageBudget()
   })
   try {
     localStorage.setItem('it-workbench-workshop-save', 'false')
@@ -75,9 +96,22 @@ export async function restoreLearningBackup(value: LearningBackup, token: string
 }
 export async function saveStandAttempt(value: StandAttempt) {
   const valid = standAttemptSchema.parse(value)
-  await db.transaction('rw', standAttempts, async () => {
+  await db.transaction('rw', tables, async () => {
     if ((await standAttempts.count()) >= 50 && !(await standAttempts.get(valid.id)))
       throw new Error('Лимит: 50 отчётов стенда. Экспортируйте и удалите ненужные.')
     await standAttempts.put(valid)
+    await assertStorageBudget()
   })
+}
+
+export async function recoverySnapshot() {
+  return {
+    format: 'it-workbench-recovery-raw',
+    at: new Date().toISOString(),
+    records: await db.transaction('r', tables, async () =>
+      Object.fromEntries(await Promise.all(tables.map(async (t) => [t.name, await t.toArray()]))),
+    ),
+    legacyProgress: await legacyProgress.toArray(),
+    legacyScenarios: await legacyScenarios.toArray(),
+  }
 }

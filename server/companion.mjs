@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { DatabaseSync } from 'node:sqlite'
-import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto'
 import { mkdirSync, chmodSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL, URL } from 'node:url'
@@ -43,6 +43,44 @@ export function createCompanion({
     CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires INTEGER NOT NULL) STRICT;
     CREATE TABLE IF NOT EXISTS progress(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,revision INTEGER NOT NULL,payload TEXT NOT NULL) STRICT;
     PRAGMA user_version=1;`)
+  if (
+    !Array.isArray(origins) ||
+    origins.length === 0 ||
+    origins.some((origin) => {
+      try {
+        const u = new URL(origin)
+        return (
+          !['http:', 'https:'].includes(u.protocol) ||
+          u.origin !== origin ||
+          u.username ||
+          u.password
+        )
+      } catch {
+        return true
+      }
+    })
+  ) {
+    db.close()
+    throw new Error(
+      'WORKBENCH_ALLOWED_ORIGINS должен содержать полные HTTP(S) origin без пути и credentials.',
+    )
+  }
+  if (!!aiKey !== !!aiModel) {
+    db.close()
+    throw new Error('Для AI нужны одновременно OPENAI_API_KEY и WORKBENCH_AI_MODEL.')
+  }
+  let hashing = 0
+  async function derive(password, salt) {
+    if (hashing >= 2) throw new Error('Hash capacity')
+    hashing++
+    try {
+      return await new Promise((resolve, reject) =>
+        scrypt(password, salt, 64, (error, key) => (error ? reject(error) : resolve(key))),
+      )
+    } finally {
+      hashing--
+    }
+  }
   const rates = new Map(),
     aiRates = new Map()
   const server = createServer(async (req, res) => {
@@ -92,8 +130,15 @@ export function createCompanion({
       }
       return JSON.parse(Buffer.concat(chunks).toString('utf8'))
     }
-    const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname
     try {
+      let path
+      try {
+        path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname
+      } catch {
+        req.resume()
+        send(400, { error: 'Недопустимый адрес запроса.' })
+        return
+      }
       if (path === '/api/health' && req.method === 'GET') {
         send(200, { schemaVersion: 1, aiConfigured: !!(aiKey && aiModel) })
         return
@@ -111,12 +156,20 @@ export function createCompanion({
             return
           }
           const salt = randomBytes(16).toString('hex'),
-            password = scryptSync(value.password, salt, 64).toString('hex'),
+            password = (await derive(value.password, salt)).toString('hex'),
             id = randomUUID()
+          if (db.prepare('SELECT id FROM users WHERE name=?').get(value.name)) {
+            send(409, { error: 'Это имя уже занято.' })
+            return
+          }
+          if (db.prepare('SELECT count(*) AS count FROM users').get().count >= 100) {
+            send(409, { error: 'Лимит: 100 учебных учётных записей.' })
+            return
+          }
           db.prepare('INSERT INTO users VALUES(?,?,?,?)').run(id, value.name, salt, password)
           user = { id, name: value.name, salt, password }
         } else {
-          const candidate = scryptSync(value.password, user?.salt ?? 'invalid-user', 64)
+          const candidate = await derive(value.password, user?.salt ?? 'invalid-user')
           if (!user || !timingSafeEqual(candidate, Buffer.from(user.password, 'hex'))) {
             send(401, { error: 'Неверное имя или пароль.' })
             return
@@ -308,8 +361,19 @@ export function createCompanion({
         return
       }
       send(404, { error: 'Маршрут не найден.' })
-    } catch {
-      if (!res.headersSent) send(400, { error: 'Недопустимый запрос или формат данных.' })
+    } catch (error) {
+      req.resume()
+      if (
+        !res.headersSent &&
+        !res.destroyed &&
+        error instanceof Error &&
+        error.message === 'Hash capacity'
+      ) {
+        send(503, { error: 'Вход временно занят. Повторите позже.' })
+        return
+      }
+      if (!res.headersSent && !res.destroyed)
+        send(400, { error: 'Недопустимый запрос или формат данных.' })
     }
   })
   server.requestTimeout = 15000

@@ -69,6 +69,10 @@ export class CompanionClient {
   }
   private async request(path: string, method = 'GET', body?: unknown, revision?: number) {
     this.controller.signal.throwIfAborted()
+    if (body !== undefined && new TextEncoder().encode(JSON.stringify(body)).length > 262144)
+      throw new Error(
+        'Companion принимает до 256 KiB. Этот прогресс можно перенести через общую учебную копию JSON.',
+      )
     const response = await this.fetcher(`${this.base}${path}`, {
       method,
       signal: AbortSignal.any([this.controller.signal, AbortSignal.timeout(50000)]),

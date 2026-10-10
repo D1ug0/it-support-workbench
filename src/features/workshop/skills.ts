@@ -41,13 +41,51 @@ export const attemptSchema = z
     hints: z.number().int().min(0).max(3),
     complete: z.boolean(),
     at: z.iso.datetime(),
+    attemptId: z.uuid().optional(),
+    causeFamily: z.string().max(80).optional(),
+    competencies: z.array(z.string().max(80)).max(10).optional(),
+    errors: z.array(z.string().max(180)).max(10).optional(),
     variantKey: z.string().max(200).optional(),
     seed: z.number().int().min(0).max(999999),
+  })
+  .strict()
+export const learningEventSchema = z
+  .object({
+    attemptId: z.uuid(),
+    module: z.enum([
+      'question',
+      'academy',
+      'practice',
+      'simulator',
+      'graph',
+      'terminal',
+      'stand',
+      'professional',
+      'course',
+    ]),
+    taskId: z.string().min(1).max(80),
+    skill: z.enum(skillIds).optional(),
+    at: z.iso.datetime(),
+    score: z.number().int().min(0).max(100).nullable(),
+    outcome: z.enum(['completed', 'failed', 'self-reported', 'limit-reached', 'abandoned']),
+    errors: z.array(z.string().max(180)).max(10).default([]),
+  })
+  .strict()
+export type LearningEvent = z.infer<typeof learningEventSchema>
+export const theoryCheckSchema = z
+  .object({
+    taskId: z.string().max(80),
+    skill: z.enum(skillIds),
+    form: z.enum(['choice', 'calculation', 'contradiction']),
+    correct: z.boolean(),
+    at: z.iso.datetime(),
   })
   .strict()
 export const workshopProgressSchema = z
   .object({
     schemaVersion: z.literal(1),
+    events: z.array(learningEventSchema).max(500).default([]),
+    theoryChecks: z.array(theoryCheckSchema).max(300).default([]),
     attempts: z.array(attemptSchema).max(500),
     read: z.array(z.string().regex(/^LESSON-[A-Z0-9-]+$/)).max(100),
     assessment: z.partialRecord(z.enum(skillIds), z.boolean()),
@@ -63,6 +101,8 @@ export type WorkshopProgress = z.infer<typeof workshopProgressSchema>
 export const emptyWorkshop = (): WorkshopProgress => ({
   schemaVersion: 1,
   attempts: [],
+  events: [],
+  theoryChecks: [],
   read: [],
   assessment: {},
   track: 'L1',
@@ -99,10 +139,27 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
   const independent = attempts.filter(
     (a) => a.complete && a.score >= 85 && a.hints === 0 && a.mode !== 'guided',
   )
-  const variations = new Set(independent.map((a) => `${a.id}:${a.variantKey ?? a.seed}`))
+  const variations = new Set(independent.flatMap((a) => (a.causeFamily ? [a.causeFamily] : [])))
+  const confirmed = [...new Set(independent.flatMap((a) => a.competencies ?? []))]
   const last = attempts.at(-1)
   const successful = independent.at(-1)
-  const mastered = variations.size >= 2
+  const theoryForms = new Set(
+    progress.theoryChecks.filter((c) => c.skill === id && c.correct).map((c) => c.form),
+  ).size
+  const retention = independent.some(
+    (a, index) =>
+      a.causeFamily &&
+      independent
+        .slice(0, index)
+        .some(
+          (before) =>
+            before.causeFamily &&
+            before.causeFamily !== a.causeFamily &&
+            Date.parse(a.at) - Date.parse(before.at) >= 7 * 86400000,
+        ) &&
+      !independent.slice(0, index).some((before) => before.causeFamily === a.causeFamily),
+  )
+  const mastered = variations.size >= 2 && confirmed.length >= 2 && theoryForms >= 2 && retention
   const readyForStand =
     !!standLessonIds[id] &&
     progress.assessment[id] === true &&
@@ -111,7 +168,7 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
     (!!successful && now - Date.parse(successful.at) >= 7 * 86400000) ||
     (!!last && (!last.complete || last.score < 85))
   const level = mastered
-    ? 'Самостоятельное владение'
+    ? 'Самостоятельные решения с отложенной проверкой'
     : independent.length
       ? 'Самостоятельная попытка'
       : attempts.some((a) => a.complete)
@@ -123,6 +180,19 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
             : 'Начать изучение'
   return {
     level,
+    causeFamilies: variations.size,
+    retention,
+    theoryForms,
+    confirmed,
+    theory:
+      new Set(progress.theoryChecks.filter((c) => c.skill === id && c.correct).map((c) => c.form))
+        .size >= 2
+        ? 'Проверены разные формы теории'
+        : progress.assessment[id] === true
+          ? 'Один вопрос основ; требуется расширенная проверка'
+          : 'Ещё не проверена',
+    standReports: progress.events.filter((e) => e.skill === id && e.module === 'stand').length,
+    reviewErrors: last?.errors ?? [],
     mastered,
     readyForStand,
     needsReview,
@@ -165,6 +235,7 @@ export function recommendSkill(progress: WorkshopProgress, now = Date.now()) {
   }
 }
 export function parseWorkshopProgress(text: string) {
-  if (new TextEncoder().encode(text).length > 262144) throw new Error('Прогресс превышает 256 KiB.')
+  if (new TextEncoder().encode(text).length > 12 * 1024 * 1024)
+    throw new Error('Прогресс превышает 12 MiB.')
   return workshopProgressSchema.parse(JSON.parse(text))
 }

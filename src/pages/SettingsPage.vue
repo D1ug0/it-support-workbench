@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StorageStatus from '../features/workshop/StorageStatus.vue'
 import { onMounted, ref } from 'vue'
 import OfflineControls from '../features/offline/OfflineControls.vue'
 import BackupPanel from '../features/workshop/BackupPanel.vue'
@@ -88,6 +89,7 @@ function clearMemory() {
   </div>
   <OfflineControls />
   <BackupPanel />
+  <StorageStatus />
   <section class="panel feature-section">
     <h2>Что хранится на этом устройстве</h2>
     <div class="history-row">

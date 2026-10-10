@@ -89,3 +89,9 @@ Resolve-DnsName <имя-учебного-сервиса> | Select-Object Name, T
 На настоящем устройстве отдельно пройдите простой ввод с клавиатуры и экранным диктором: название поля, ввод, выполнение, сообщение об окончании, вывод, переключение темы, импорт и отказ импорта. Проверьте мобильную клавиатуру, увеличение масштаба и восстановление сохранений. Автоматическая Axe-проверка дополняет эти действия.
 
 Первичные материалы: [ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig), [gpresult](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/gpresult), [Kerberos](https://www.rfc-editor.org/info/rfc4120/), [Docker volumes](https://docs.docker.com/engine/storage/volumes/), [Git merge](https://git-scm.com/docs/git-merge). Синтаксис экспорта также описан в [PARSERS.md](PARSERS.md).
+
+## Готовое собственное Linux/HTTP-окружение — 0.6.0
+
+[Два изолированных контейнера](../lab-environments/linux-http/README.md) предоставляют настоящее HTTP-приложение и зависимость, подготовленные отказы прав/готовности, исходное состояние, сброс и ручной перенос отчёта в тот же маршрут навыка. Шаблоны доступны в разделе настоящего стенда. Контейнеры не используют host mounts, root или Docker socket и слушают опубликованный порт только на loopback. Приложение не запускает их автоматически. Для systemd, Windows/AD и TLS используйте соответствующую отдельную VM; контейнерный HTTP-стенд этих функций не заявляет.
+
+[Git-стенд с конфликтом и проверками](../lab-environments/git-ci/README.md) создаётся только в новом каталоге вне существующих репозиториев. Две ветки, исходный тег, проверки содержимого, отмена merge, сравнение с rebase и локальный откат дают воспроизводимый процесс без remote. Шаблон и инструкция также скачиваются в Workbench.

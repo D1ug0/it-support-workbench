@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChanges'
+import { drafts, draftSchema, saveDraft } from './drafts'
+import { loadCollection } from './collectionLoader'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { standTasks, standAttemptSchema, standMarkdown, type StandAttempt } from './stand'
+import { useWorkshopStore } from './useWorkshopStore'
 import { workshopCourses } from './courses'
 import { saveStandAttempt, standAttempts } from './backupRepository'
 import { downloadText } from '../../infrastructure/export/exportReport'
@@ -26,6 +30,11 @@ const notes = ref({
   answer: '',
   completedSteps: [] as number[],
 })
+const draftId = ref<string>(globalThis.crypto.randomUUID()),
+  attemptId = ref<string>(globalThis.crypto.randomUUID()),
+  previousTask = ref(taskId.value)
+const { markSaved } = useUnsavedChanges(() => JSON.stringify(notes.value))
+const savedDrafts = ref<import('./drafts').LearningDraft[]>([])
 const saved = ref<StandAttempt[]>([]),
   revealed = ref(false)
 const captures = ref<{ before?: ParsedOutput; after?: ParsedOutput }>({}),
@@ -39,12 +48,29 @@ let generation = 0
 onBeforeUnmount(() => generation++)
 onMounted(async () => {
   try {
-    saved.value = (await standAttempts.toArray()).map((v) => standAttemptSchema.parse(v))
+    const loaded = loadCollection(
+      'standAttempts',
+      await standAttempts.toArray(),
+      standAttemptSchema,
+    )
+    saved.value = loaded.valid
+    if (loaded.problems.length)
+      error.value = `Проблемные отчёты: ${loaded.problems.length}; исходные записи доступны в настройках.`
+    savedDrafts.value = loadCollection('drafts', await drafts.toArray(), draftSchema).valid.filter(
+      (d) => d.kind === 'stand',
+    )
   } catch {
     error.value = 'Отчёты стенда недоступны; можно экспортировать черновик.'
   }
 })
 function changeTask() {
+  if (busy.value || !confirmDiscardForms()) {
+    taskId.value = previousTask.value
+    return
+  }
+  previousTask.value = taskId.value
+  draftId.value = globalThis.crypto.randomUUID()
+  attemptId.value = globalThis.crypto.randomUUID()
   generation++
   notes.value = {
     platform: '',
@@ -59,6 +85,7 @@ function changeTask() {
   captureNotice.value = ''
   notice.value = ''
   consent.value = false
+  markSaved()
 }
 function clearCaptures() {
   generation++
@@ -69,7 +96,7 @@ function draft(): StandAttempt {
   return standAttemptSchema.parse({
     ...notes.value,
     taskId: task.value.id,
-    id: globalThis.crypto.randomUUID(),
+    id: draftId.value,
     at: new Date().toISOString(),
   })
 }
@@ -77,10 +104,22 @@ async function save() {
   if (busy.value || !own.value || !isolated.value || !snapshot.value || !consent.value) return
   busy.value = true
   error.value = ''
+  const before = JSON.stringify(notes.value),
+    id = attemptId.value
   try {
     const value = draft()
     await saveStandAttempt(value)
-    saved.value = [...saved.value, value]
+    await useWorkshopStore().addEvent({
+      attemptId: id,
+      module: 'stand',
+      taskId: value.taskId,
+      skill: standTasks.find((t) => t.id === value.taskId)!.skill,
+      at: value.at,
+      score: null,
+      outcome: 'self-reported',
+    })
+    saved.value = [...saved.value.filter((a) => a.id !== value.id), value]
+    markSaved(before)
     notice.value =
       'Отчёт стенда сохранён. Это ваша запись о практике, без автоматической аттестации навыка.'
   } catch (e) {
@@ -143,6 +182,58 @@ async function remove(id: string) {
     error.value = 'Удаление не удалось.'
   }
 }
+async function saveNotes() {
+  if (!consent.value || busy.value) return
+  busy.value = true
+  const before = JSON.stringify(notes.value)
+  try {
+    const value = draftSchema.parse({
+      id: draftId.value,
+      attemptId: attemptId.value,
+      kind: 'stand',
+      taskId: taskId.value,
+      at: new Date().toISOString(),
+      notes: { ...notes.value, completedSteps: JSON.stringify(notes.value.completedSteps) },
+    })
+    await saveDraft(value)
+    savedDrafts.value = [...savedDrafts.value.filter((d) => d.id !== value.id), value]
+    markSaved(before)
+    notice.value = 'Учебный черновик стенда сохранён без исходных файлов.'
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Черновик не сохранён.'
+  } finally {
+    busy.value = false
+  }
+}
+function resumeDraft(id: string) {
+  if (busy.value || !confirmDiscardForms()) return
+  const d = savedDrafts.value.find((d) => d.id === id)
+  if (!d) return
+  draftId.value = d.id
+  attemptId.value = d.attemptId
+  taskId.value = d.taskId
+  previousTask.value = d.taskId
+  notes.value = {
+    platform: d.notes.platform ?? '',
+    symptom: d.notes.symptom ?? '',
+    hypothesis: d.notes.hypothesis ?? '',
+    change: d.notes.change ?? '',
+    verification: d.notes.verification ?? '',
+    answer: d.notes.answer ?? '',
+    completedSteps: [],
+  }
+  // Notes are untrusted imports; malformed step JSON cannot block restoring the text.
+  try {
+    const steps = JSON.parse(d.notes.completedSteps ?? '[]')
+    if (Array.isArray(steps) && steps.every((i) => Number.isInteger(i) && i >= 0 && i < 4))
+      notes.value.completedSteps = [...new Set(steps)]
+  } catch {
+    /* continue with text */
+  }
+  consent.value = false
+  captures.value = {}
+  markSaved()
+}
 </script>
 <template>
   <section class="workshop-item">
@@ -154,6 +245,17 @@ async function remove(id: string) {
     <label
       >Задание настоящего стенда<select v-model="taskId" class="text-input" @change="changeTask">
         <option v-for="t in standTasks" :key="t.id" :value="t.id">{{ t.title }}</option>
+      </select></label
+    >
+    <label
+      >Продолжить черновик стенда<select
+        class="text-input"
+        @change="resumeDraft(($event.target as HTMLSelectElement).value)"
+      >
+        <option value="">Выберите черновик</option>
+        <option v-for="d in savedDrafts" :key="d.id" :value="d.id">
+          {{ d.taskId }} · {{ d.at }}
+        </option>
       </select></label
     >
     <p>{{ task.objective }} · {{ task.platform }}</p>
@@ -253,6 +355,9 @@ async function remove(id: string) {
       заметки</label
     >
     <div class="button-row">
+      <button class="button secondary" :disabled="!consent || busy" @click="saveNotes">
+        Сохранить черновик стенда
+      </button>
       <button
         class="button primary"
         :disabled="busy || !own || !isolated || !snapshot || !consent"

@@ -1,3 +1,6 @@
+import { customScenarioSchema } from '../simulator/custom'
+import { professionalAttemptSchema } from './professional'
+import { draftSchema } from './drafts'
 import { z } from 'zod'
 import { topologySchema } from '../terminal/networkModel'
 import { graphSchema } from './graph'
@@ -10,8 +13,11 @@ import { labIds } from '../terminal/catalog'
 export const backupSchema = z
   .object({
     format: z.literal('it-workbench-learning-backup'),
-    schemaVersion: z.literal(1),
+    schemaVersion: z.union([z.literal(1), z.literal(2)]),
     createdAt: z.iso.datetime(),
+    professionalAttempts: z.array(professionalAttemptSchema).max(50).optional(),
+    scenarios: z.array(customScenarioSchema).max(20).optional(),
+    drafts: z.array(draftSchema).max(50).optional(),
     learning: progressSchema,
     workshop: workshopProgressSchema,
     labs: z.array(topologySchema).max(20),
@@ -22,11 +28,22 @@ export const backupSchema = z
   })
   .strict()
   .superRefine((b, ctx) => {
-    for (const key of ['labs', 'courses', 'graphs', 'portfolio', 'standAttempts'] as const)
-      if (new Set(b[key].map((v) => v.id)).size !== b[key].length)
+    for (const key of [
+      'labs',
+      'courses',
+      'graphs',
+      'portfolio',
+      'standAttempts',
+      'scenarios',
+      'drafts',
+      'professionalAttempts',
+    ] as const)
+      if (new Set((b[key] ?? []).map((v) => v.id)).size !== (b[key] ?? []).length)
         ctx.addIssue({ code: 'custom', message: `Повторяющиеся ID: ${key}.` })
     if (b.labs.some((l) => !l.id.startsWith('USR-')))
       ctx.addIssue({ code: 'custom', message: 'Встроенные лаборатории не перезаписываются.' })
+    if (b.schemaVersion === 2 && (!b.scenarios || !b.drafts || !b.professionalAttempts))
+      ctx.addIssue({ code: 'custom', message: 'Копия v2 должна включать сценарии и черновики.' })
     try {
       validateCourseLinks(b.courses, [...labIds, ...b.labs.map((l) => l.id)])
     } catch (e) {
@@ -37,9 +54,9 @@ export const backupSchema = z
     }
   })
 export type LearningBackup = z.infer<typeof backupSchema>
-export const backupLimit = 2 * 1024 * 1024
+export const backupLimit = 16 * 1024 * 1024
 export function parseBackup(text: string): LearningBackup {
   if (new TextEncoder().encode(text).length > backupLimit)
-    throw new Error('Резервная копия превышает 2 MiB.')
+    throw new Error('Резервная копия превышает 16 MiB.')
   return backupSchema.parse(JSON.parse(text))
 }

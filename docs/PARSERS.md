@@ -14,7 +14,7 @@ IPv4-маска относится к предшествующему адрес�
 
 `ping` читает цель, sent/received/lost, RTT, отдельные Echo Reply, timeout и Destination unreachable. `time<1ms` сохраняется. Received из Windows не подменяет число Echo Reply: unreachable может учитываться как полученный ответ. PING-001…003 описывают потери, успешные ответы и сообщения недоступности. Успешный ICMP не доказывает исправность приложения/TCP.
 
-`nslookup` отделяет выбранный DNS-сервер от адресов ответа, читает продолжения и ошибки timeout/NXDOMAIN/SERVFAIL на RU/EN. Успешный ответ после начального тайм-аута сохраняется: ошибка обратного разрешения имени сервера не должна скрыть успешное разрешение запроса. DNS-001 описывает результат запроса; произвольные MX/TXT и интерактивный режим пока не поддерживаются.
+`nslookup` отделяет выбранный DNS-сервер от адресов ответа, читает продолжения и ошибки timeout/NXDOMAIN/SERVFAIL на RU/EN. Успешный ответ после начального тайм-аута сохраняется: ошибка обратного разрешения имени сервера не должна скрыть успешное разрешение запроса. DNS-001 описывает результат запроса; подготовленные MX/TXT/SRV разбираются отдельным dns-records, интерактивный режим и произвольные debug dumps не поддерживаются.
 
 `tracert` читает цель, номер хопа, три RTT/`*`, адрес/hostname и завершение. `<1 ms` сохраняется в модели, UI и отчёте. TRACE-001…003 различают отсутствующие ответы, наблюдаемое достижение известного адреса цели и недостаток подтверждения. Маркер завершения без совпадения адреса не доказывает достижение цели; молчащий промежуточный хоп не доказывает разрыв маршрута.
 
@@ -48,3 +48,7 @@ NET-001 APIPA + DHCP; NET-002 отключение; NET-003 отсутствую
 Новые fixtures строго синтетические: четыре текстовых DNS-вывода и три JSON-вывода. Реальный экспорт из разных Windows/PowerShell ещё требует отдельной проверки.
 
 Первичные описания: [nslookup](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/nslookup), [типы DNS](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/nslookup-set-type), [Resolve-DnsName](https://learn.microsoft.com/en-us/powershell/module/dnsclient/resolve-dnsname?view=windowsserver2025-ps), [Test-NetConnection](https://learn.microsoft.com/powershell/module/nettcpip/test-netconnection).
+
+## Актуальная сводка поддержки
+
+[FORMAT_SUPPORT.md](FORMAT_SUPPORT.md) объединяет текст CMD, DNS и выбранный PowerShell JSON с критериями partial parse. В приложении та же граница показана в справочнике. Все текущие fixtures синтетические; настоящая матрица Windows/PowerShell по версиям и локалям пока не подтверждена. Это ограничение не снимается успешными unit-тестами.

@@ -67,7 +67,9 @@ export function newScenario(): Scenario {
   }
 }
 export function mergeScenarios(current: Scenario[], incoming: Scenario[]) {
-  const valid = scenarioBundleSchema.parse({ schemaVersion: 1, scenarios: incoming }).scenarios
+  const valid = incoming.length
+    ? scenarioBundleSchema.parse({ schemaVersion: 1, scenarios: incoming }).scenarios
+    : []
   const merged = new Map(current.map((s) => [s.id, customScenarioSchema.parse(s)]))
   valid.forEach((s) => merged.set(s.id, s))
   const values = [...merged.values()]
