@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { workshopDb, learningTables, assertStorageBudget } from './storage'
+import { putVersioned } from './versionedRecord'
 export const professionalCases = [
   {
     id: 'portal',
@@ -78,9 +79,17 @@ const actionIds = [
 export const professionalAttemptSchema = z
   .object({
     id: z.uuid(),
+    storageToken: z.uuid().nullable().default(null),
+    gradingVersion: z.union([z.literal(0), z.literal(2)]).default(0),
+    elapsedMinutes: z.number().int().min(0).max(600).default(0),
+    selectedSnapshot: z.enum(['09:30', '10:02']).nullable().default(null),
+    restoredSnapshot: z.enum(['09:30', '10:02']).nullable().default(null),
+    hypothesisFaults: z.array(z.enum(faultIds)).max(7).default([]),
+    evidenceRefs: z.array(z.number().int().min(1).max(60)).max(60).default([]),
     caseId: z.enum(['portal', 'api', 'smb', 'recovery']),
     variant: z.number().int().min(0).max(2),
     at: z.iso.datetime(),
+    updatedAt: z.iso.datetime().optional(),
     status: z.enum(['active', 'completed', 'abandoned']),
     revision: z.number().int().min(0).max(100),
     verifiedRevision: z.number().int().min(0).max(100).nullable(),
@@ -95,6 +104,7 @@ export const professionalAttemptSchema = z
             reason: z.string().max(600),
             result: z.string().max(600),
             revision: z.number().int().min(0).max(100),
+            evidenceRefs: z.array(z.number().int().min(1).max(60)).max(10).default([]),
           })
           .strict(),
       )
@@ -121,7 +131,8 @@ export const professionalAttemptSchema = z
       a.remaining.some((f) => a.repaired.includes(f))
     )
       ctx.addIssue({ code: 'custom', message: 'Несогласованное состояние причин.' })
-    if (a.status === 'completed' && !canCompleteProfessional(a))
+    // Version 0 completed reports remain historical evidence under their original rubric.
+    if (a.status === 'completed' && a.gradingVersion === 2 && !canCompleteProfessional(a))
       ctx.addIssue({
         code: 'custom',
         message: 'Завершение требует доказательств, отчёта и проверки пользовательского сценария.',
@@ -135,6 +146,13 @@ export function startProfessional(
   const c = professionalCases.find((c) => c.id === caseId)!
   return {
     id: globalThis.crypto.randomUUID(),
+    storageToken: null,
+    gradingVersion: 2,
+    elapsedMinutes: 0,
+    selectedSnapshot: null,
+    restoredSnapshot: null,
+    hypothesisFaults: [],
+    evidenceRefs: [],
     caseId,
     variant,
     at: new Date().toISOString(),
@@ -162,50 +180,124 @@ const evidenceFor: Record<(typeof faultIds)[number], string[]> = {
   backup: ['backup', 'content'],
 }
 export function canCompleteProfessional(a: ProfessionalAttempt): boolean {
+  const expectedFaults = professionalCases.find((c) => c.id === a.caseId)!.faults[a.variant]!
+  const recordedFaults = [...a.remaining, ...a.repaired]
+  if (
+    recordedFaults.length !== expectedFaults.length ||
+    recordedFaults.some((f) => !(expectedFaults as readonly string[]).includes(f))
+  )
+    return false
   const remaining = a.remaining.filter((f) => !(f === 'permissions' && a.escalated))
   const recovery =
     a.caseId !== 'recovery' ||
     (a.recoveryMinutes !== null &&
       a.recoveryMinutes <= 20 &&
       a.lossMinutes !== null &&
+      a.lossMinutes ===
+        (a.restoredSnapshot === '10:02' ? 3 : a.restoredSnapshot === '09:30' ? 35 : null) &&
       a.lossMinutes <= 5 &&
-      a.observations.includes('content'))
+      a.recoveryMinutes === a.elapsedMinutes &&
+      a.elapsedMinutes === a.steps.reduce((time, s) => time + actionMinutes(s.action), 0) &&
+      a.steps.some(
+        (s, i) =>
+          s.action === 'content' && s.revision === a.revision && a.evidenceRefs.includes(i + 1),
+      ))
+  const cited = a.evidenceRefs.map((id) => a.steps[id - 1]).filter((s) => !!s)
+  const diagnosed = [...a.repaired, ...remaining, ...(a.escalated ? ['permissions'] : [])]
+  const structure =
+    new Set(a.evidenceRefs).size === a.evidenceRefs.length &&
+    a.evidenceRefs.every((id) => !!a.steps[id - 1]) &&
+    ['clarify', 'scope', 'verify'].every((action) =>
+      cited.some((s) => s.action === action && (action !== 'verify' || s.revision === a.revision)),
+    ) &&
+    a.repaired.every((f) =>
+      cited.some(
+        (s) =>
+          s.action === `repair:${f}` &&
+          s.result.startsWith('Минимальное учебное изменение выполнено'),
+      ),
+    ) &&
+    (!a.escalated ||
+      cited.some((s) => s.action === 'escalate' && s.result.startsWith('Пакет эскалации:'))) &&
+    cited.some(
+      (s) =>
+        s.action === 'verify' &&
+        s.revision === a.revision &&
+        (s.result.startsWith('Учебный пользовательский запрос успешен') ||
+          (a.escalated && s.result.startsWith('Эскалация обоснована'))),
+    ) &&
+    diagnosed.every((f) => a.hypothesisFaults.includes(f as (typeof faultIds)[number])) &&
+    a.hypothesisFaults.every((f) => diagnosed.includes(f))
   return (
     remaining.length === 0 &&
     a.verifiedRevision === a.revision &&
     ['clarify', 'scope'].every((o) => a.observations.includes(o)) &&
-    Object.values(a.report).every((v) => v.trim().length >= 10) &&
+    Object.values(a.report).every(hasExplanation) &&
+    new Set(Object.values(a.report).map((s) => s.trim().toLowerCase())).size >= 4 &&
+    structure &&
     recovery
+  )
+}
+// A small anti-placeholder check, not a semantic/text quality assessment.
+function actionMinutes(action: string) {
+  return action === 'repair:backup'
+    ? 4
+    : action.startsWith('repair:') || action === 'rollback'
+      ? 2
+      : 1
+}
+function hasExplanation(value: string) {
+  const words = value.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+  return (
+    value.trim().length >= 20 && new Set(words).size >= 3 && new Set(value.toLowerCase()).size >= 8
   )
 }
 export function actProfessional(
   original: ProfessionalAttempt,
   action: string,
   reason: string,
+  evidenceRefs: number[] = [],
 ): ProfessionalAttempt {
   if (original.status !== 'active' || original.steps.length >= 60)
     throw new Error(
       'Попытка закрыта или достигнут лимит 60 действий. Сохраните разбор и начните новый вариант.',
     )
-  if (!actionIds.includes(action) || reason.trim().length < 10 || reason.length > 600)
+  if (!actionIds.includes(action) || !hasExplanation(reason) || reason.length > 600)
     throw new Error(
-      'Выберите действие и объясните, какую гипотезу оно проверяет (10–600 символов).',
+      'Выберите действие и сформулируйте гипотезу: минимум 20 символов и три разных слова, максимум 600 символов. Повтор одного символа не считается объяснением.',
     )
   const a = professionalAttemptSchema.parse(original)
+  if (
+    evidenceRefs.length > 10 ||
+    new Set(evidenceRefs).size !== evidenceRefs.length ||
+    evidenceRefs.some((id) => !Number.isInteger(id) || !a.steps[id - 1])
+  )
+    throw new Error('Выберите до десяти существующих проверок для обоснования изменения.')
+  a.gradingVersion = 2
+  a.elapsedMinutes =
+    a.steps.reduce((time, s) => time + actionMinutes(s.action), 0) + actionMinutes(action)
   let result: string
   if (action.startsWith('repair:')) {
     const fault = action.slice(7) as (typeof faultIds)[number]
     const justified =
-      evidenceFor[fault].every((o) => a.observations.includes(o)) && a.remaining.includes(fault)
+      evidenceFor[fault].every((o) => evidenceRefs.some((id) => a.steps[id - 1]?.action === o)) &&
+      a.remaining.includes(fault)
     if (fault === 'permissions')
       result = 'Нет прав изменять каталог. Подготовьте эскалацию владельцу доступа.'
     else if (!justified)
       result = 'Изменение не обосновано собранными данными; состояние не изменено.'
+    else if (fault === 'backup' && !a.selectedSnapshot)
+      result =
+        'Выберите проверенную копию по времени и допустимой потере данных; состояние не изменено.'
     else {
       a.remaining = a.remaining.filter((f) => f !== fault)
       a.repaired.push(fault)
       a.revision++
       a.verifiedRevision = null
+      if (fault === 'backup') {
+        a.restoredSnapshot = a.selectedSnapshot
+        a.lossMinutes = a.restoredSnapshot === '10:02' ? 3 : 35
+      }
       result = `Минимальное учебное изменение выполнено. Ревизия ${a.revision}; требуется новая проверка.`
     }
   } else if (action === 'rollback') {
@@ -214,6 +306,10 @@ export function actProfessional(
       a.remaining.push(fault)
       a.revision++
       a.verifiedRevision = null
+      if (fault === 'backup') {
+        a.restoredSnapshot = null
+        a.lossMinutes = null
+      }
     }
     result = fault
       ? 'Предыдущее изменение отменено; проверьте пользовательский запрос повторно.'
@@ -221,7 +317,9 @@ export function actProfessional(
   } else if (action === 'escalate') {
     a.escalated =
       a.remaining.includes('permissions') &&
-      ['permissions', 'scope', 'tcp'].every((o) => a.observations.includes(o))
+      ['permissions', 'scope', 'tcp'].every((o) =>
+        evidenceRefs.some((id) => a.steps[id - 1]?.action === o),
+      )
     result = a.escalated
       ? 'Пакет эскалации: затронутые группы, успешный TCP, отказ доступа. Владелец доступа должен подтвердить восстановление; приложение этого не удостоверяет.'
       : 'Не хватает данных о масштабе, TCP и правах.'
@@ -274,42 +372,51 @@ export function actProfessional(
         : 'Выбрана пригодная копия, исходные данные сохранены.',
       content: has('backup')
         ? 'Предпросмотр 10:02: 12 учебных заявок, схема v1; старый пакет 09:30 нарушает RPO. Восстановление пока не выполнено.'
-        : 'В новом окружении 12 заявок, контрольная сумма совпала. Нужно проверить пользовательскую операцию и длительность.',
+        : `В новом окружении 12 заявок, схема v1, контрольная сумма копии ${a.restoredSnapshot ?? 'не выбрана'} совпала. Проверка содержимого: ревизия ${a.revision}. Нужна отдельная пользовательская операция.`,
     }
     result = outputs[action] ?? 'Наблюдение записано.'
   }
-  a.steps.push({ action, reason: reason.trim(), result, revision: a.revision })
+  a.steps.push({ action, reason: reason.trim(), result, revision: a.revision, evidenceRefs })
+  if (a.caseId === 'recovery') a.recoveryMinutes = a.elapsedMinutes
   return a
 }
 export function finishProfessional(a: ProfessionalAttempt): ProfessionalAttempt {
   if (!canCompleteProfessional(a))
     throw new Error(
-      'Не выполнены цели: уточнение, масштаб, подтверждённое изменение/эскалация, свежая проверка и пять полей отчёта. Для восстановления также нужны RTO/RPO.',
+      'Не выполнены цели: укажите подтверждённые причины и ссылки на уточнение, масштаб, изменение/эскалацию и свежую пользовательскую проверку. Заполните пять разных пояснений. После восстановления нужна свежая проверка содержимого; учебный RTO ≤ 20 мин и RPO ≤ 5 мин вычисляются по действиям и выбранной копии.',
     )
   const penalties = a.steps.filter((s) => s.result.includes('не обосновано')).length * 10
-  return { ...a, status: 'completed', score: Math.max(0, 100 - Math.min(50, penalties)) }
+  return {
+    ...a,
+    gradingVersion: 2,
+    status: 'completed',
+    score: Math.max(0, 100 - Math.min(50, penalties)),
+  }
 }
 export const professionalAttempts = workshopDb.table<ProfessionalAttempt, string>(
   'professionalAttempts',
 )
 export async function saveProfessional(value: ProfessionalAttempt) {
   const valid = professionalAttemptSchema.parse(value)
-  await workshopDb.transaction('rw', learningTables(), async () => {
+  valid.updatedAt = new Date().toISOString()
+  return workshopDb.transaction('rw', learningTables(), async () => {
     if ((await professionalAttempts.count()) >= 50 && !(await professionalAttempts.get(valid.id)))
       throw new Error('Лимит: 50 профессиональных попыток.')
-    await professionalAttempts.put(valid)
+    const saved = await putVersioned(professionalAttempts, valid)
     await assertStorageBudget()
+    return saved
   })
 }
 export function professionalMarkdown(a: ProfessionalAttempt) {
   return [
     `# ${professionalCases.find((c) => c.id === a.caseId)!.title}`,
-    `Синтетический учебный инцидент; вариант ${a.variant + 1}. Попытка ${a.id}. Статус ${a.status}, результат ${a.score ?? 'в процессе'}. Оценка проверяет структуру процесса, содержание обоснований проверяет человек.`,
+    `Синтетический учебный инцидент; вариант ${a.variant + 1}. Попытка ${a.id}. Статус ${a.status}, оценка процесса ${a.score ?? 'в процессе'}. Рубрика ${a.gradingVersion || 'legacy'}. Содержание обоснований ожидает разбора человеком. ${a.escalated ? 'Восстановление доступа ожидает владельца.' : ''}`,
     ...a.steps.map(
       (s, i) =>
         `${i + 1}. ${s.action} · ревизия ${s.revision}\nГипотеза: ${s.reason}\nНаблюдение: ${s.result}`,
     ),
     ...Object.entries(a.report).map(([k, v]) => `## ${k}\n${v}`),
-    `Восстановление: ${a.recoveryMinutes ?? 'не указано'} мин; потеря ${a.lossMinutes ?? 'не указано'} мин.`,
+    `Ссылки на действия: ${a.evidenceRefs.map((id) => '#' + id).join(', ')}; гипотезы: ${a.hypothesisFaults.join(', ')}.`,
+    `Учебное время (не замер реального стенда): ${a.recoveryMinutes ?? 'не указано'} мин; потеря ${a.lossMinutes ?? 'не указано'} мин; восстановленная копия ${a.restoredSnapshot ?? 'не выбрана'}.`,
   ].join('\n\n')
 }

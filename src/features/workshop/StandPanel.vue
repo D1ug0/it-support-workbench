@@ -2,7 +2,7 @@
 import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChanges'
 import { drafts, draftSchema, saveDraft } from './drafts'
 import { loadCollection } from './collectionLoader'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { standTasks, standAttemptSchema, standMarkdown, type StandAttempt } from './stand'
 import { useWorkshopStore } from './useWorkshopStore'
 import { workshopCourses } from './courses'
@@ -12,7 +12,9 @@ import { analyzeOutput } from '../network-analysis/application/analyzeOutput'
 import { detectCommand } from '../../infrastructure/parser/detectCommand'
 import { compareOutputs, formatDifference } from '../sessions/session'
 import type { ParsedOutput } from '../../domain/types/outputs'
-const taskId = ref(standTasks[0]!.id),
+import { useRoute } from 'vue-router'
+const route = useRoute()
+const taskId = ref(standTasks.find((t) => t.id === route.query.task)?.id ?? standTasks[0]!.id),
   task = computed(() => standTasks.find((t) => t.id === taskId.value)!)
 const own = ref(false),
   isolated = ref(false),
@@ -31,6 +33,8 @@ const notes = ref({
   completedSteps: [] as number[],
 })
 const draftId = ref<string>(globalThis.crypto.randomUUID()),
+  draftToken = ref<string | null>(null),
+  reportToken = ref<string | null>(null),
   attemptId = ref<string>(globalThis.crypto.randomUUID()),
   previousTask = ref(taskId.value)
 const { markSaved } = useUnsavedChanges(() => JSON.stringify(notes.value))
@@ -63,13 +67,24 @@ onMounted(async () => {
     error.value = 'Отчёты стенда недоступны; можно экспортировать черновик.'
   }
 })
-function changeTask() {
-  if (busy.value || !confirmDiscardForms()) {
+watch(
+  () => route.query.task,
+  (id) => {
+    if (standTasks.some((t) => t.id === id) && id !== taskId.value) {
+      taskId.value = String(id)
+      changeTask(true)
+    }
+  },
+)
+function changeTask(navigationConfirmed = false) {
+  if (busy.value || (!navigationConfirmed && !confirmDiscardForms())) {
     taskId.value = previousTask.value
     return
   }
   previousTask.value = taskId.value
   draftId.value = globalThis.crypto.randomUUID()
+  draftToken.value = null
+  reportToken.value = null
   attemptId.value = globalThis.crypto.randomUUID()
   generation++
   notes.value = {
@@ -97,6 +112,8 @@ function draft(): StandAttempt {
     ...notes.value,
     taskId: task.value.id,
     id: draftId.value,
+    attemptId: attemptId.value,
+    storageToken: reportToken.value,
     at: new Date().toISOString(),
   })
 }
@@ -108,7 +125,8 @@ async function save() {
     id = attemptId.value
   try {
     const value = draft()
-    await saveStandAttempt(value)
+    const stored = await saveStandAttempt(value)
+    reportToken.value = stored.storageToken
     await useWorkshopStore().addEvent({
       attemptId: id,
       module: 'stand',
@@ -118,7 +136,7 @@ async function save() {
       score: null,
       outcome: 'self-reported',
     })
-    saved.value = [...saved.value.filter((a) => a.id !== value.id), value]
+    saved.value = [...saved.value.filter((a) => a.id !== stored.id), stored]
     markSaved(before)
     notice.value =
       'Отчёт стенда сохранён. Это ваша запись о практике, без автоматической аттестации навыка.'
@@ -134,6 +152,26 @@ function exportDraft() {
   } catch {
     error.value = 'Заполните ОС, четыре поля разбора и самостоятельное объяснение.'
   }
+}
+function exportNotes() {
+  const value = draftSchema.parse({
+    id: draftId.value,
+    storageToken: draftToken.value,
+    attemptId: attemptId.value,
+    kind: 'stand',
+    taskId: taskId.value,
+    at: new Date().toISOString(),
+    notes: {
+      ...notes.value,
+      completedSteps: JSON.stringify(notes.value.completedSteps),
+      reportStorageToken: reportToken.value ?? '',
+    },
+  })
+  downloadText(
+    JSON.stringify(value, null, 2),
+    'workbench-stand-notes.json',
+    'application/json;charset=utf-8',
+  )
 }
 async function read(event: Event, side: 'before' | 'after') {
   const input = event.target as HTMLInputElement,
@@ -185,18 +223,25 @@ async function remove(id: string) {
 async function saveNotes() {
   if (!consent.value || busy.value) return
   busy.value = true
+  error.value = ''
   const before = JSON.stringify(notes.value)
   try {
     const value = draftSchema.parse({
       id: draftId.value,
+      storageToken: draftToken.value,
       attemptId: attemptId.value,
       kind: 'stand',
       taskId: taskId.value,
       at: new Date().toISOString(),
-      notes: { ...notes.value, completedSteps: JSON.stringify(notes.value.completedSteps) },
+      notes: {
+        ...notes.value,
+        completedSteps: JSON.stringify(notes.value.completedSteps),
+        reportStorageToken: reportToken.value ?? '',
+      },
     })
-    await saveDraft(value)
-    savedDrafts.value = [...savedDrafts.value.filter((d) => d.id !== value.id), value]
+    const stored = await saveDraft(value)
+    draftToken.value = stored.storageToken
+    savedDrafts.value = [...savedDrafts.value.filter((d) => d.id !== stored.id), stored]
     markSaved(before)
     notice.value = 'Учебный черновик стенда сохранён без исходных файлов.'
   } catch (e) {
@@ -205,11 +250,18 @@ async function saveNotes() {
     busy.value = false
   }
 }
-function resumeDraft(id: string) {
+async function resumeDraft(id: string) {
   if (busy.value || !confirmDiscardForms()) return
-  const d = savedDrafts.value.find((d) => d.id === id)
-  if (!d) return
+  const parsed = draftSchema.safeParse(await drafts.get(id).catch(() => undefined))
+  const d = parsed.success ? parsed.data : undefined
+  if (!d) {
+    error.value = 'Черновик удалён или недоступен; текущие заметки можно экспортировать.'
+    return
+  }
+  error.value = ''
   draftId.value = d.id
+  draftToken.value = d.storageToken
+  reportToken.value = d.notes.reportStorageToken || null
   attemptId.value = d.attemptId
   taskId.value = d.taskId
   previousTask.value = d.taskId
@@ -234,6 +286,34 @@ function resumeDraft(id: string) {
   captures.value = {}
   markSaved()
 }
+async function resumeReport(id: string) {
+  if (busy.value || !confirmDiscardForms()) return
+  const parsed = standAttemptSchema.safeParse(await standAttempts.get(id).catch(() => undefined))
+  if (!parsed.success) {
+    error.value = 'Сохранённый отчёт стенда недоступен.'
+    return
+  }
+  const a = parsed.data
+  draftId.value = a.id
+  attemptId.value = a.attemptId ?? a.id
+  reportToken.value = a.storageToken
+  draftToken.value = null
+  taskId.value = a.taskId
+  previousTask.value = a.taskId
+  notes.value = {
+    platform: a.platform,
+    symptom: a.symptom,
+    hypothesis: a.hypothesis,
+    change: a.change,
+    verification: a.verification,
+    answer: a.answer,
+    completedSteps: [...a.completedSteps],
+  }
+  captures.value = {}
+  consent.value = false
+  error.value = ''
+  markSaved()
+}
 </script>
 <template>
   <section class="workshop-item">
@@ -243,7 +323,7 @@ function resumeDraft(id: string) {
       результат не повышает оценку самостоятельного владения в симуляторе.
     </p>
     <label
-      >Задание настоящего стенда<select v-model="taskId" class="text-input" @change="changeTask">
+      >Задание настоящего стенда<select v-model="taskId" class="text-input" @change="changeTask()">
         <option v-for="t in standTasks" :key="t.id" :value="t.id">{{ t.title }}</option>
       </select></label
     >
@@ -358,6 +438,9 @@ function resumeDraft(id: string) {
       <button class="button secondary" :disabled="!consent || busy" @click="saveNotes">
         Сохранить черновик стенда
       </button>
+      <button class="button secondary" :disabled="!consent" @click="exportNotes">
+        Экспорт учебных заметок JSON
+      </button>
       <button
         class="button primary"
         :disabled="busy || !own || !isolated || !snapshot || !consent"
@@ -369,6 +452,12 @@ function resumeDraft(id: string) {
       </button>
     </div>
     <p v-if="error" role="alert">{{ error }}</p>
+    <button v-if="error" class="button secondary" @click="resumeDraft(draftId)">
+      Перечитать сохранённый черновик стенда
+    </button>
+    <button v-if="error" class="button secondary" @click="resumeReport(draftId)">
+      Перечитать сохранённый отчёт стенда
+    </button>
     <p v-if="notice" role="status">{{ notice }}</p>
     <details>
       <summary @click="revealed = true">Отчёты стенда ({{ saved.length }}/50)</summary>
@@ -376,6 +465,9 @@ function resumeDraft(id: string) {
         ><article v-for="a in saved" :key="a.id" class="workshop-item">
           <h5>{{ standTasks.find((t) => t.id === a.taskId)?.title }} · {{ a.at }}</h5>
           <pre class="workshop-report-preview" tabindex="0">{{ standMarkdown(a) }}</pre>
+          <button class="button secondary" @click="resumeReport(a.id)">
+            Продолжить отчёт стенда
+          </button>
           <button
             class="button secondary"
             @click="downloadText(standMarkdown(a), 'workbench-stand-report.md')"

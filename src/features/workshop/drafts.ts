@@ -1,8 +1,10 @@
 import { z } from 'zod'
 import { workshopDb, learningTables, assertStorageBudget } from './storage'
+import { putVersioned } from './versionedRecord'
 export const draftSchema = z
   .object({
     id: z.uuid(),
+    storageToken: z.uuid().nullable().default(null),
     kind: z.enum(['investigation', 'stand']),
     attemptId: z.uuid(),
     taskId: z.string().max(80),
@@ -16,10 +18,11 @@ export type LearningDraft = z.infer<typeof draftSchema>
 export const drafts = workshopDb.table<LearningDraft, string>('drafts')
 export async function saveDraft(value: LearningDraft) {
   const valid = draftSchema.parse(value)
-  await workshopDb.transaction('rw', learningTables(), async () => {
+  return workshopDb.transaction('rw', learningTables(), async () => {
     if ((await drafts.count()) >= 50 && !(await drafts.get(valid.id)))
       throw new Error('Лимит: 50 учебных черновиков.')
-    await drafts.put(valid)
+    const saved = await putVersioned(drafts, valid)
     await assertStorageBudget()
+    return saved
   })
 }

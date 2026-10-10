@@ -21,6 +21,7 @@ const symptom = ref(''),
   busy = ref(false)
 const reportId = ref<string>(globalThis.crypto.randomUUID()),
   reportVersion = ref(1),
+  draftToken = ref<string | null>(null),
   reportAttemptId = ref(terminal.attemptId),
   status = ref<'draft' | 'completed'>('draft'),
   selected = ref<number[]>([])
@@ -52,6 +53,7 @@ watch(
     reportId.value = globalThis.crypto.randomUUID()
     reportAttemptId.value = terminal.attemptId
     reportVersion.value = 1
+    draftToken.value = null
     status.value = 'draft'
     selected.value = []
     inheritedRefs.value = []
@@ -127,11 +129,13 @@ async function save() {
 async function saveNotes() {
   if (!consent.value || busy.value) return
   busy.value = true
+  error.value = ''
   const before = noteSnapshot(),
     id = reportId.value
   try {
     const value = draftSchema.parse({
       id: reportId.value,
+      storageToken: draftToken.value,
       kind: 'investigation',
       attemptId: reportAttemptId.value,
       taskId: terminal.lab.id,
@@ -144,8 +148,9 @@ async function saveNotes() {
         verification: verification.value,
       },
     })
-    await saveDraft(value)
-    savedDrafts.value = [...savedDrafts.value.filter((d) => d.id !== value.id), value]
+    const stored = await saveDraft(value)
+    if (id === reportId.value) draftToken.value = stored.storageToken
+    savedDrafts.value = [...savedDrafts.value.filter((d) => d.id !== stored.id), stored]
     if (id === reportId.value && !selected.value.length && status.value === 'draft')
       markSaved(before)
     notice.value = 'Черновик сохранён вручную; доступен после перезагрузки.'
@@ -155,15 +160,21 @@ async function saveNotes() {
     busy.value = false
   }
 }
-function resumeDraft(id: string) {
+async function resumeDraft(id: string) {
   if (busy.value || !confirmDiscardForms()) return
-  const d = savedDrafts.value.find((d) => d.id === id)
-  if (!d) return
+  const parsed = draftSchema.safeParse(await drafts.get(id).catch(() => undefined))
+  const d = parsed.success ? parsed.data : undefined
+  if (!d) {
+    error.value = 'Черновик удалён или недоступен; текущие заметки можно экспортировать.'
+    return
+  }
+  error.value = ''
   selected.value = []
   inheritedRefs.value = []
   inheritedScore.value = null
   reportVersion.value = (workshop.portfolio.find((r) => r.id === d.id)?.version ?? 0) + 1
   reportId.value = d.id
+  draftToken.value = d.storageToken
   reportAttemptId.value = d.attemptId
   for (const [key, target] of Object.entries({
     symptom,
@@ -185,6 +196,7 @@ function editReport(id: string) {
   inheritedScore.value = r.score
   reportAttemptId.value = r.attemptId ?? terminal.attemptId
   reportId.value = r.id
+  draftToken.value = savedDrafts.value.find((d) => d.id === id)?.storageToken ?? null
   reportVersion.value = r.version + 1
   status.value = r.status
   for (const [key, target] of Object.entries({
@@ -291,6 +303,9 @@ function editReport(id: string) {
       </button>
     </div>
     <p v-if="error" role="alert">{{ error }}</p>
+    <button v-if="error" class="button secondary" @click="resumeDraft(reportId)">
+      Перечитать сохранённый черновик
+    </button>
     <p v-if="notice" role="status">{{ notice }}</p>
     <details v-if="terminal.environment.network">
       <summary>Временная линия лаборатории</summary>

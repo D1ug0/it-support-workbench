@@ -135,7 +135,9 @@ export const standLessonIds: Partial<Record<SkillId, string>> = {
   security: 'SECURITY',
 }
 export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.now()) {
-  const attempts = progress.attempts.filter((a) => a.skill === id)
+  const attempts = progress.attempts
+    .filter((a) => a.skill === id && Date.parse(a.at) <= now)
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   const independent = attempts.filter(
     (a) => a.complete && a.score >= 85 && a.hints === 0 && a.mode !== 'guided',
   )
@@ -144,9 +146,11 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
   const last = attempts.at(-1)
   const successful = independent.at(-1)
   const theoryForms = new Set(
-    progress.theoryChecks.filter((c) => c.skill === id && c.correct).map((c) => c.form),
+    progress.theoryChecks
+      .filter((c) => c.skill === id && c.correct && Date.parse(c.at) <= now)
+      .map((c) => c.form),
   ).size
-  const retention = independent.some(
+  const newCauseRetention = independent.some(
     (a, index) =>
       a.causeFamily &&
       independent
@@ -159,6 +163,27 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
         ) &&
       !independent.slice(0, index).some((before) => before.causeFamily === a.causeFamily),
   )
+  // Once all causes have been seen, a delayed session on two distinct causes remains possible.
+  // Changing only the seed/address never supplies a second cause.
+  const foundation = independent.find(
+    (_a, i) =>
+      new Set(independent.slice(0, i + 1).flatMap((b) => (b.causeFamily ? [b.causeFamily] : [])))
+        .size >= 2,
+  )
+  const delayed = foundation
+    ? independent.filter((a) => Date.parse(a.at) - Date.parse(foundation.at) >= 7 * 86400000)
+    : []
+  const retention =
+    newCauseRetention ||
+    delayed.some(
+      (a) =>
+        new Set(
+          delayed
+            .filter((b) => Math.abs(Date.parse(b.at) - Date.parse(a.at)) <= 86400000)
+            .flatMap((b) => (b.causeFamily ? [b.causeFamily] : [])),
+        ).size >= 2,
+    )
+  const readyToAdvance = variations.size >= 2 && confirmed.length >= 2 && theoryForms >= 2
   const mastered = variations.size >= 2 && confirmed.length >= 2 && theoryForms >= 2 && retention
   const readyForStand =
     !!standLessonIds[id] &&
@@ -166,18 +191,24 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
     progress.read.includes(`LESSON-${standLessonIds[id]}`)
   const needsReview =
     (!!successful && now - Date.parse(successful.at) >= 7 * 86400000) ||
+    (readyToAdvance &&
+      !retention &&
+      !!foundation &&
+      now - Date.parse(foundation.at) >= 7 * 86400000) ||
     (!!last && (!last.complete || last.score < 85))
   const level = mastered
     ? 'Самостоятельные решения с отложенной проверкой'
-    : independent.length
-      ? 'Самостоятельная попытка'
-      : attempts.some((a) => a.complete)
-        ? 'Пройдено с помощью'
-        : readyForStand
-          ? 'Основы проверены; практика на стенде'
-          : progress.assessment[id]
-            ? 'Базовые знания'
-            : 'Начать изучение'
+    : readyToAdvance
+      ? 'Основа подтверждена; можно изучать следующую тему'
+      : independent.length
+        ? 'Самостоятельная попытка'
+        : attempts.some((a) => a.complete)
+          ? 'Пройдено с помощью'
+          : readyForStand
+            ? 'Основы проверены; практика на стенде'
+            : progress.assessment[id]
+              ? 'Базовые знания'
+              : 'Начать изучение'
   return {
     level,
     causeFamilies: variations.size,
@@ -185,8 +216,7 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
     theoryForms,
     confirmed,
     theory:
-      new Set(progress.theoryChecks.filter((c) => c.skill === id && c.correct).map((c) => c.form))
-        .size >= 2
+      theoryForms >= 2
         ? 'Проверены разные формы теории'
         : progress.assessment[id] === true
           ? 'Один вопрос основ; требуется расширенная проверка'
@@ -194,6 +224,8 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
     standReports: progress.events.filter((e) => e.skill === id && e.module === 'stand').length,
     reviewErrors: last?.errors ?? [],
     mastered,
+    readyToAdvance,
+    reviewedCauses: delayed.flatMap((a) => (a.causeFamily ? [a.causeFamily] : [])),
     readyForStand,
     needsReview,
     attempts: attempts.length,
@@ -211,13 +243,13 @@ export function recommendSkill(progress: WorkshopProgress, now = Date.now()) {
     }
   const remaining = selected.filter((s) => {
     const status = skillStatus(progress, s.id, now)
-    return !status.mastered && !status.readyForStand
+    return !status.readyToAdvance && !status.readyForStand
   })
   if (!remaining.length)
     return {
       skill: selected[0]!,
       reason:
-        'Доступный маршрут освоен в модели; следующий этап — проверить знания на собственном стенде.',
+        'Основы выбранного маршрута пройдены; продолжайте практику и проверки на собственном стенде.',
       stand: true,
     }
   const next =

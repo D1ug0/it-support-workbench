@@ -7,6 +7,8 @@ import dockerTemplate from '../../../lab-environments/linux-http/Dockerfile?raw'
 import serverTemplate from '../../../lab-environments/linux-http/server.py?raw'
 import controlTemplate from '../../../lab-environments/linux-http/control.py?raw'
 import standGuide from '../../../docs/REAL_LAB.md?raw'
+import fixtureGuide from '../../../docs/REAL_FIXTURES.md?raw'
+import fixtureCollector from '../../../scripts/collect-windows-fixtures.ps1?raw'
 import gitGuide from '../../../lab-environments/git-ci/README.md?raw'
 import gitTemplate from '../../../lab-environments/git-ci/create.mjs?raw'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -60,7 +62,7 @@ const tabs = [
   ['exchange', 'Обмен и преподаватель'],
 ]
 function selectTab(id: string) {
-  if (confirmDiscardForms()) tab.value = id
+  if (confirmDiscardForms(route)) tab.value = id
 }
 function prerequisites(ids: readonly SkillId[]) {
   return ids.map((id) => skills.find((s) => s.id === id)?.title).join(', ')
@@ -352,9 +354,10 @@ function exportTeacher() {
         </button>
         <p>
           Самостоятельное владение требует разных семейств причин и компетенций. Косметические
-          варианты адресов этого не подтверждают. Нужны разные формы теории и через неделю новая
-          причина, ещё не решавшаяся ранее. Это учебный показатель. Повторение предлагается после
-          затруднения или через неделю.
+          варианты адресов этого не подтверждают. Для перехода дальше нужны две разные причины,
+          компетенции и формы теории. Отложенная проверка через неделю подтверждается новой причиной
+          или двумя разными причинами в течение суток; она не задерживает изучение следующей темы.
+          Это учебный показатель. Повторение предлагается после затруднения или через неделю.
         </p>
       </section>
       <div class="workshop-grid">
@@ -370,6 +373,9 @@ function exportTeacher() {
             {{ skillStatus(store.state, skill.id).causeFamilies }}. Отложенная проверка:
             {{ skillStatus(store.state, skill.id).retention ? 'подтверждена' : 'предстоит' }}.
             Отчётов стенда (самостоятельно): {{ skillStatus(store.state, skill.id).standReports }}.
+          </p>
+          <p v-if="skillStatus(store.state, skill.id).readyToAdvance">
+            Основа для следующей темы подтверждена.
           </p>
           <ul>
             <li v-for="c in skillStatus(store.state, skill.id).confirmed" :key="c">{{ c }}</li>
@@ -429,6 +435,12 @@ function exportTeacher() {
       </section>
       <article class="panel feature-section">
         <h3>{{ course.title }}</h3>
+        <RouterLink
+          v-if="typeof route.query.returnAttempt === 'string'"
+          class="button secondary"
+          :to="`/learning?view=workshop&workshop=professional&attempt=${encodeURIComponent(route.query.returnAttempt)}`"
+          >Вернуться к инциденту {{ route.query.returnAttempt }}</RouterLink
+        >
         <MaterialCard
           :id="course.id"
           :source="course.source"
@@ -477,7 +489,9 @@ function exportTeacher() {
         </button>
       </article>
     </template>
-    <PackagesPanel v-if="tab === 'packages'" /><ProfessionalPanel v-if="tab === 'professional'" />
+    <PackagesPanel v-if="tab === 'packages'" /><KeepAlive
+      ><ProfessionalPanel v-if="tab === 'professional'"
+    /></KeepAlive>
     <LabEditor v-if="tab === 'editor'" /><CourseEditor v-if="tab === 'course-editor'" /><GraphEditor
       v-if="tab === 'graphs'"
     /><TraceWorkshop v-if="tab === 'traces'" />
@@ -581,6 +595,23 @@ function exportTeacher() {
         </div>
       </details>
       <h4>Задания для стенда</h4>
+      <details>
+        <summary>Сбор и приём настоящих Windows fixtures</summary>
+        <p>
+          Windows captures пока отсутствуют. Скрипт запускается вручную на своём стенде и сохраняет
+          raw локально для вашего просмотра; автоматической отправки нет.
+        </p>
+        <pre class="workshop-report-preview" tabindex="0">{{ fixtureGuide }}</pre>
+        <button class="button secondary" @click="downloadText(fixtureGuide, 'REAL_FIXTURES.md')">
+          Скачать процесс приёма fixtures
+        </button>
+        <button
+          class="button secondary"
+          @click="downloadText(fixtureCollector, 'collect-windows-fixtures.ps1')"
+        >
+          Скачать сборщик Windows
+        </button>
+      </details>
       <StandPanel />
       <ul>
         <li>Windows: настройки адаптеров, DNS-кэш, служба, журналы, результирующая политика.</li>

@@ -125,6 +125,8 @@ export const standTasks = [
 export const standAttemptSchema = z
   .object({
     id: z.uuid(),
+    attemptId: z.uuid().optional(),
+    storageToken: z.uuid().nullable().default(null),
     taskId: z.enum(['dns', 'routes', 'linux', 'https', 'git', 'recovery']),
     at: z.iso.datetime(),
     platform: z.string().trim().min(1).max(160),

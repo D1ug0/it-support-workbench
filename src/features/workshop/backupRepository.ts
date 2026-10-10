@@ -6,6 +6,7 @@ import { emptyProgress } from '../learning/progress'
 import { emptyWorkshop } from './skills'
 import { standAttemptSchema, type StandAttempt } from './stand'
 import type { Table } from 'dexie'
+import { putVersioned } from './versionedRecord'
 export const standAttempts: Table<StandAttempt, string> = db.table('standAttempts')
 const tables = learningTables()
 async function storedSnapshot() {
@@ -67,11 +68,20 @@ export async function restoreLearningBackup(value: LearningBackup, token: string
     await db.table('courses').bulkPut(valid.courses.map((value) => ({ id: value.id, value })))
     await db.table('graphs').bulkPut(valid.graphs.map((value) => ({ id: value.id, value })))
     await db.table('reports').bulkPut(valid.portfolio)
-    await standAttempts.bulkPut(valid.standAttempts)
+    await standAttempts.bulkPut(
+      valid.standAttempts.map((a) => ({ ...a, storageToken: crypto.randomUUID() })),
+    )
     if (valid.schemaVersion === 2) {
-      await db.table('professionalAttempts').bulkPut(valid.professionalAttempts ?? [])
+      await db.table('professionalAttempts').bulkPut(
+        (valid.professionalAttempts ?? []).map((a) => ({
+          ...a,
+          storageToken: crypto.randomUUID(),
+        })),
+      )
       await db.table('scenarios').bulkPut(valid.scenarios ?? [])
-      await db.table('drafts').bulkPut(valid.drafts ?? [])
+      await db
+        .table('drafts')
+        .bulkPut((valid.drafts ?? []).map((a) => ({ ...a, storageToken: crypto.randomUUID() })))
       await db.table('metadata').put({ id: 'scenario-migration', complete: true })
     }
     await baseProgress.put({
@@ -96,11 +106,12 @@ export async function restoreLearningBackup(value: LearningBackup, token: string
 }
 export async function saveStandAttempt(value: StandAttempt) {
   const valid = standAttemptSchema.parse(value)
-  await db.transaction('rw', tables, async () => {
+  return db.transaction('rw', tables, async () => {
     if ((await standAttempts.count()) >= 50 && !(await standAttempts.get(valid.id)))
       throw new Error('Лимит: 50 отчётов стенда. Экспортируйте и удалите ненужные.')
-    await standAttempts.put(valid)
+    const saved = await putVersioned(standAttempts, valid)
     await assertStorageBudget()
+    return saved
   })
 }
 

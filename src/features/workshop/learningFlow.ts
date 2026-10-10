@@ -1,6 +1,8 @@
 import { workshopCourses } from './courses'
-import { recommendSkill, skillStatus, type WorkshopProgress } from './skills'
+import { recommendSkill, skillStatus, skills, type WorkshopProgress } from './skills'
 import { extendedLabs } from '../terminal/labDefinitions'
+import { packageForSkill, packageFinals } from './packages'
+import { standTasks } from './stand'
 export function todayTask(progress: WorkshopProgress) {
   const recommendation = recommendSkill(progress),
     skill = recommendation.skill
@@ -8,30 +10,59 @@ export function todayTask(progress: WorkshopProgress) {
   const status = skillStatus(progress, skill.id)
   const failed = [...progress.events]
     .reverse()
-    .find((e) => e.skill === skill.id && e.outcome === 'failed')
+    .find(
+      (e) =>
+        e.skill === skill.id &&
+        e.outcome === 'failed' &&
+        (!status.last || Date.parse(e.at) >= Date.parse(status.last.at)),
+    )
   const read = progress.read.includes(`LESSON-${course.id}`)
   const lab =
+    (status.needsReview && status.readyToAdvance
+      ? extendedLabs.find((l) => l.skill === skill.id && !status.reviewedCauses.includes(l.fault))
+      : undefined) ??
     extendedLabs.find(
-      (l) => l.skill === skill.id && !progress.attempts.some((a) => a.id === l.id && a.complete),
-    ) ?? extendedLabs.find((l) => l.skill === skill.id)
-  const theory = !progress.theoryChecks.some((c) => c.skill === skill.id && c.correct)
+      (l) =>
+        l.skill === skill.id &&
+        !progress.attempts.some(
+          (a) =>
+            a.id === l.id && a.complete && a.score >= 85 && a.hints === 0 && a.mode !== 'guided',
+        ),
+    ) ??
+    extendedLabs.find((l) => l.skill === skill.id)
+  const theory = status.theoryForms < 2
+  const packet = packageForSkill(skill.id)
+  const stand = standTasks.find((t) => t.skill === skill.id)
+  const standUrl = `/learning?view=workshop&workshop=stand&task=${stand?.id ?? (progress.track === 'linux' || progress.track === 'L2' ? 'linux' : 'routes')}`
   return {
     title: recommendation.skill.title,
     reason: failed?.errors.join('; ') || recommendation.reason,
-    prerequisite: skill.requires.length ? skill.requires.join(', ') : 'Не требуется',
+    prerequisite: skill.requires.length
+      ? skill.requires.map((id) => skills.find((s) => s.id === id)!.title).join(', ')
+      : 'Не требуется',
     minutes: !read || theory ? '10–15' : '20–40',
-    outcome: !read
-      ? 'Объяснить основные проверки и границы модели'
-      : theory
-        ? 'Проверить теорию разными формами'
-        : 'Подтвердить исправление свежими доказательствами и оформить отчёт',
-    url: !read
-      ? `/learning?view=workshop&lesson=${course.id}`
-      : theory
-        ? '/learning?view=workshop&workshop=packages'
-        : lab
-          ? `/terminal?lab=${lab.id}`
-          : '/learning?view=workshop&workshop=stand',
+    outcome: recommendation.stand
+      ? 'Проверить знания в собственном окружении и оформить самостоятельный отчёт'
+      : !read
+        ? 'Объяснить основные проверки и границы модели'
+        : theory
+          ? 'Проверить теорию разными формами'
+          : status.needsReview && !status.retention && status.readyToAdvance
+            ? 'После перерыва решить две разные причины в течение суток; варианты только с другими адресами не засчитываются'
+            : 'Подтвердить исправление свежими доказательствами и оформить отчёт',
+    url: recommendation.stand
+      ? standUrl
+      : !read
+        ? `/learning?view=workshop&lesson=${course.id}`
+        : theory
+          ? `/learning?view=workshop&workshop=packages&package=${packet.id}&skill=${skill.id}`
+          : lab
+            ? `/terminal?lab=${lab.id}`
+            : stand
+              ? standUrl
+              : skill.id === 'services'
+                ? '/learning?view=workshop&workshop=professional&incident=api&variant=2&new=1'
+                : packageFinals[packet.id]!.url,
     repeat: status.needsReview,
     resume: progress.currentLesson
       ? `/learning?view=workshop&lesson=${progress.currentLesson}`

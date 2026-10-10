@@ -99,7 +99,8 @@ watch(
   () => [route.query.lab, workshop.customLabs] as const,
   ([id]) => {
     const lab = allLabs.value.find((l) => l.id === id)
-    if (lab && lab.id !== store.lab.id) restart(lab.id)
+    // Router has already confirmed this navigation. A second prompt would desynchronise the URL.
+    if (lab && lab.id !== store.lab.id) restart(lab.id, true)
   },
   { immediate: true },
 )
@@ -109,8 +110,8 @@ watch(
     evidence.value = undefined
   },
 )
-function restart(id = store.lab.id) {
-  if (!confirmDiscardForms()) return
+function restart(id = store.lab.id, navigationConfirmed = false) {
+  if (!navigationConfirmed && !confirmDiscardForms()) return
   const definition =
     workshop.customLabs.find((l) => l.id === id) ??
     (id === store.lab.id && id.startsWith('USR-')

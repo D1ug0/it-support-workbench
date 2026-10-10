@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import manifest from '../../fixtures/real/manifest.json'
+const realCount = manifest.captures.length
 const formats = [
   [
     'ipconfig /all',
@@ -41,9 +43,15 @@ const formats = [
   <section class="panel feature-section">
     <h2>Поддерживаемые форматы и происхождение</h2>
     <p>
-      Все текущие fixtures синтетические. Подтверждённой матрицы версий настоящей Windows/PowerShell
-      пока нет. Текст CMD — RU/EN; JSON — только выбранные поля. Общий вход анализатора ограничен 2
-      MiB и 50 000 строками.
+      Примеры анализатора синтетические. Настоящих обезличенных captures в отдельном manifest:
+      {{ realCount }}.
+      {{
+        realCount
+          ? 'Подтверждённые версии и локали ограничены записями manifest и их регрессиями.'
+          : 'Подтверждённой матрицы версий Windows/PowerShell пока нет.'
+      }}
+      Текст CMD — RU/EN; JSON — только выбранные поля. Общий вход анализатора ограничен 2 MiB и 50
+      000 строками.
     </p>
     <div
       class="route-table-scroll"

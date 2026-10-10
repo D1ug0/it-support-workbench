@@ -153,20 +153,36 @@ describe('audit consequences', () => {
 })
 describe('professional incident goals', () => {
   const reason = 'Проверяю гипотезу по подготовленным данным.'
+  const act = (a: ReturnType<typeof startProfessional>, action: string) =>
+    actProfessional(
+      a,
+      action,
+      reason,
+      a.steps.slice(0, 10).map((_, i) => i + 1),
+    )
+  const report = (a: ReturnType<typeof startProfessional>) => {
+    a.report = {
+      symptom: 'Пользователи учебных сегментов не могли выполнить операцию приложения.',
+      hypothesis: 'Сопоставлены независимые причины клиента и зависимостей сервера.',
+      evidence: 'Выбраны проверки масштаба, изменения и последующей операции пользователя.',
+      change: 'Применены минимальные исправления по подтверждённым проверкам; возможен rollback.',
+      verification: 'Повторная операция после последней ревизии подтверждает результат модели.',
+    }
+    a.hypothesisFaults = [...a.repaired, ...(a.escalated ? ['permissions' as const] : [])]
+    a.evidenceRefs = a.steps.map((_, i) => i + 1)
+  }
   it('a single repair cannot finish a multiple-cause incident; verification is invalidated by rollback', () => {
     let a = startProfessional('portal')
-    for (const command of ['clarify', 'scope', 'dns', 'repair:cache', 'verify'])
-      a = actProfessional(a, command, reason)
+    for (const command of ['clarify', 'scope', 'dns', 'repair:cache', 'verify']) a = act(a, command)
     expect(a.remaining).toContain('service')
     expect(canCompleteProfessional(a)).toBe(false)
     expect(() => finishProfessional(a)).toThrow()
-    a = actProfessional(a, 'journal', reason)
-    a = actProfessional(a, 'repair:service', reason)
-    a = actProfessional(a, 'verify', reason)
-    for (const key of Object.keys(a.report) as Array<keyof typeof a.report>)
-      a.report[key] = 'Содержательное учебное объяснение.'
+    a = act(a, 'journal')
+    a = act(a, 'repair:service')
+    a = act(a, 'verify')
+    report(a)
     expect(finishProfessional(a).status).toBe('completed')
-    a = actProfessional(a, 'rollback', reason)
+    a = act(a, 'rollback')
     expect(a.verifiedRevision).toBeNull()
   })
   it('all variants have complete evidence-based paths; recovery needs RTO/RPO and SMB explicit escalation', () => {
@@ -185,16 +201,13 @@ describe('professional incident goals', () => {
           'backup',
           'content',
         ])
-          a = actProfessional(a, action, reason)
+          a = act(a, action)
+        a.selectedSnapshot = '10:02'
         for (const fault of [...a.remaining])
-          a = actProfessional(a, fault === 'permissions' ? 'escalate' : `repair:${fault}`, reason)
-        a = actProfessional(a, 'verify', reason)
-        for (const key of Object.keys(a.report) as Array<keyof typeof a.report>)
-          a.report[key] = 'Подтверждённое учебное объяснение.'
-        if (c.id === 'recovery') {
-          a.recoveryMinutes = 12
-          a.lossMinutes = 3
-        }
+          a = act(a, fault === 'permissions' ? 'escalate' : `repair:${fault}`)
+        if (c.id === 'recovery') a = act(a, 'content')
+        a = act(a, 'verify')
+        report(a)
         expect(professionalAttemptSchema.safeParse(finishProfessional(a)).success).toBe(true)
         if (c.id === 'recovery') {
           a.lossMinutes = 6

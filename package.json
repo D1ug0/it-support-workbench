@@ -1,6 +1,6 @@
 {
   "name": "it-support-workbench",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "type": "module",
   "description": "Local-first IT support workbench for Windows diagnostics, guided troubleshooting, network tools, and hands-on learning",
@@ -29,7 +29,9 @@
     "check:full": "npm run format:check && npm run lint && npm run test:coverage && npm run test:companion && npm run build && npm run test:e2e:all",
     "companion": "node server/companion.mjs",
     "test:companion": "node --test server/companion.test.mjs",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "test:lab:linux": "node scripts/check-linux-lab.mjs",
+    "test:fixtures:real": "node scripts/check-real-fixtures.mjs"
   },
   "dependencies": {
     "@lucide/vue": "1.54.0",

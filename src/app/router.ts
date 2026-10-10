@@ -69,7 +69,7 @@ export const router = createRouter({
   ],
   scrollBehavior: () => ({ top: 0 }),
 })
-router.beforeEach(() => confirmDiscardForms())
+router.beforeEach((to) => confirmDiscardForms(to))
 router.afterEach((to) => {
   document.title = `${String(to.meta.title)} · IT Support Workbench`
 })
