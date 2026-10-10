@@ -1,0 +1,22 @@
+[
+  {
+    "Name": "lab.example",
+    "Type": 15,
+    "TTL": 300,
+    "Section": 1,
+    "NameExchange": "mail.lab.example",
+    "Preference": 10
+  },
+  {
+    "Name": "_ldap._tcp.lab.example",
+    "Type": 33,
+    "TTL": 300,
+    "Section": 1,
+    "NameTarget": "dc-a.lab.example",
+    "Priority": 0,
+    "Weight": 100,
+    "Port": 389
+  },
+  { "Name": "lab.example", "Type": 16, "TTL": 300, "Section": 1, "Strings": ["v=spf1 ", "-all"] },
+  { "Name": "dc-a.lab.example", "Type": 1, "TTL": 300, "Section": 3, "IPAddress": "192.0.2.20" }
+]

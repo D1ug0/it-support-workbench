@@ -22,6 +22,14 @@ describe('local file decoding', () => {
     expect(() => decodeText(new Uint8Array(MAX_INPUT_BYTES + 1), 'utf-8')).toThrow('2 MiB')
     expect(() => decodeText(new Uint8Array(), 'utf-8')).toThrow()
   })
+  it('reads UTF-8 PowerShell JSON as data without evaluating its contents', async () => {
+    const text = JSON.stringify({
+      RemotePort: 443,
+      TcpTestSucceeded: true,
+      ComputerName: '<script>alert(1)</script>',
+    })
+    expect(await readTextFile(new File([text], 'result.json'))).toBe(text)
+  })
   it('checks extension and size before reading', async () => {
     await expect(readTextFile(new File(['hello'], 'data.html'))).rejects.toThrow('.txt')
     await expect(

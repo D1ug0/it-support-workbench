@@ -118,12 +118,12 @@ async function copyCommand() {
       class="file-panel"
     >
       <FileUp :size="28" /><strong>Откройте текстовый файл</strong>
-      <p>.txt или .log · до 2 MiB<br />Файл читается только в этом браузере.</p>
+      <p>.txt, .log или .json · до 2 MiB<br />Файл читается только в этом браузере.</p>
       <label class="button secondary file-label"
         >Выбрать файл<input
           ref="fileInput"
           type="file"
-          accept=".txt,.log"
+          accept=".txt,.log,.json"
           aria-label="Выбрать локальный файл"
           @change="selectFile" /></label
       ><label class="encoding-label"
@@ -174,6 +174,8 @@ async function copyCommand() {
           <option value="nslookup">nslookup</option>
           <option value="tracert">tracert</option>
           <option value="route">route print</option>
+          <option value="dns-records">DNS MX/TXT/SRV · Resolve-DnsName JSON</option>
+          <option value="powershell">PowerShell JSON · TCP / IP-конфигурация</option>
         </select></label
       ><label
         ><span><FlaskConical :size="13" /> Демопример</span

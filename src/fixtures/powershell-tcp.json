@@ -1,0 +1,8 @@
+{
+  "ComputerName": "portal.lab.example",
+  "RemoteAddress": "192.0.2.20",
+  "RemotePort": 443,
+  "SourceAddress": "192.0.2.10",
+  "InterfaceAlias": "Ethernet",
+  "TcpTestSucceeded": true
+}

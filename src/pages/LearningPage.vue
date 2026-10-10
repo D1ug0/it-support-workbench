@@ -13,6 +13,9 @@ import AcademyPanel from '../features/academy/AcademyPanel.vue'
 import { academyCourses, academyQuestions } from '../features/academy/catalog'
 import { allLearningQuestions } from '../features/learning/catalog'
 import { buildReviewQueue } from '../features/learning/review'
+import PracticePanel from '../features/practice/PracticePanel.vue'
+import { practiceTasks } from '../features/practice/catalog'
+import LearningJournal from '../features/learning/LearningJournal.vue'
 const store = useLearningStore()
 onMounted(() => void store.initialize())
 const category = ref('Все')
@@ -61,6 +64,9 @@ const router = useRouter()
 const advanced = computed(
   () => route.query.view === 'advanced' || academyCourses.some((c) => c.id === route.query.course),
 )
+const practice = computed(() => !advanced.value && route.query.view === 'practice')
+const journal = computed(() => !advanced.value && route.query.view === 'journal')
+const basic = computed(() => !advanced.value && !practice.value && !journal.value)
 watch(advanced, () => finish())
 watch(
   () => route.query.topic,
@@ -136,7 +142,11 @@ async function read(event: Event) {
     const value = parseProgress(
       await file.text(),
       allLearningQuestions.map((q) => q.id),
-      [...scenarios.map((s) => s.id), ...academyCourses.map((c) => `LAB-${c.id}`)],
+      [
+        ...scenarios.map((s) => s.id),
+        ...academyCourses.map((c) => `LAB-${c.id}`),
+        ...practiceTasks.map((t) => `PRACTICE-${t.id}`),
+      ],
     )
     if (version === readVersion) imported.value = value
   } catch (cause) {
@@ -190,8 +200,9 @@ async function apply() {
     >
     <p>
       По умолчанию прогресс остаётся в памяти. При включении сохраняются только ID заданий, счётчики
-      и оценки, даты повторений; диагностические логи сюда не попадают. Отключение останавливает
-      запись, прежний прогресс удаляется отдельной кнопкой.
+      и оценки, даты повторений, последние 500 учебных событий и цель недели; диагностические логи
+      сюда не попадают. Отключение останавливает запись, прежний прогресс удаляется отдельной
+      кнопкой.
     </p>
     <p v-if="store.error" role="alert" class="form-error">{{ store.error }}</p>
     <p
@@ -208,8 +219,8 @@ async function apply() {
   </section>
   <nav class="learning-view-nav button-row" aria-label="Учебные направления">
     <RouterLink
-      :class="['button', advanced ? 'secondary' : 'primary']"
-      :aria-current="!advanced ? 'page' : undefined"
+      :class="['button', basic ? 'primary' : 'secondary']"
+      :aria-current="basic ? 'page' : undefined"
       to="/learning"
       >Базовый маршрут</RouterLink
     >
@@ -218,6 +229,18 @@ async function apply() {
       :aria-current="advanced ? 'page' : undefined"
       to="/learning?view=advanced"
       >Продвинутый курс</RouterLink
+    >
+    <RouterLink
+      :class="['button', practice ? 'primary' : 'secondary']"
+      :aria-current="practice ? 'page' : undefined"
+      to="/learning?view=practice"
+      >Самостоятельная практика</RouterLink
+    >
+    <RouterLink
+      :class="['button', journal ? 'primary' : 'secondary']"
+      :aria-current="journal ? 'page' : undefined"
+      to="/learning?view=journal"
+      >Журнал обучения</RouterLink
     >
   </nav>
   <section class="panel feature-section review-section" aria-labelledby="review-title">
@@ -250,8 +273,10 @@ async function apply() {
     <button class="button ghost small" @click="now = Date.now()">Обновить расписание</button>
   </section>
   <AcademyPanel v-if="advanced" />
+  <PracticePanel v-if="practice" />
+  <LearningJournal v-if="journal" />
   <section
-    v-if="!advanced"
+    v-if="basic"
     class="panel feature-section learning-recommendation"
     aria-labelledby="recommendation-title"
   >
@@ -275,11 +300,11 @@ async function apply() {
       >
     </div>
   </section>
-  <p v-if="!advanced" class="path-explanation">
+  <p v-if="basic" class="path-explanation">
     Проходите темы по порядку: прочитать → проверить понимание → применить на практике. Доступны все
     темы; верный последний ответ отмечает повторение, а не сертификат компетентности.
   </p>
-  <div v-if="!advanced" class="learning-path">
+  <div v-if="basic" class="learning-path">
     <article
       v-for="item in path.modules"
       :key="item.topic"
@@ -308,7 +333,7 @@ async function apply() {
     </article>
   </div>
   <section
-    v-if="!advanced"
+    v-if="basic"
     id="quiz-section"
     class="panel feature-section quiz-section"
     tabindex="-1"

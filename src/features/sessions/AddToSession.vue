@@ -33,6 +33,10 @@ function add() {
       </p>
       <RouterLink class="button secondary small" to="/sessions">Создать рабочую сессию</RouterLink>
     </div>
+    <p v-else-if="session.restored">
+      Открыт обезличенный архив. Для новых измерений очистите его и создайте новую рабочую сессию в
+      разделе «Рабочие сессии».
+    </p>
     <div v-else>
       <p>{{ session.title }} · {{ session.context }}</p>
       <div class="form-grid">

@@ -67,6 +67,11 @@ export const useLearningStore = defineStore('learning', () => {
     state.value = progressSchema.parse(value)
     if (enabled.value) await persist()
   }
+  async function setGoal(value: number) {
+    await initialize()
+    state.value = progressSchema.parse({ ...state.value, weeklyGoal: value })
+    if (enabled.value) await persist()
+  }
   async function clear() {
     await initialize()
     await queue
@@ -91,6 +96,7 @@ export const useLearningStore = defineStore('learning', () => {
     complete,
     setEnabled,
     replace,
+    setGoal,
     clear,
   }
 })

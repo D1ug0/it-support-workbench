@@ -5,6 +5,7 @@ import type { ParsedOutput } from '../../../domain/types/outputs'
 import type { EvidenceRange } from '../../../domain/types/diagnostic'
 import { createAddressRedactor } from '../../../infrastructure/export/redact'
 import ResultPagination from '../../../shared/components/ResultPagination.vue'
+import ExtendedOutput from './ExtendedOutput.vue'
 
 const props = defineProps<{
   output: Exclude<ParsedOutput, { kind: 'ipconfig' }>
@@ -25,6 +26,9 @@ const total = computed(() => {
   if (output.kind === 'ping') return output.replies.length
   if (output.kind === 'nslookup') return output.addresses.length
   if (output.kind === 'tracert') return output.hops.length
+  if (output.kind === 'dns-records') return output.records.length
+  if (output.kind === 'powershell')
+    return output.cmdlet === 'Test-NetConnection' ? 1 : output.interfaces.length
   return output.ipv4Routes.length
 })
 function visible<T>(items: T[], currentPage = page.value): T[] {
@@ -38,6 +42,8 @@ const labels = {
   nslookup: 'Ответ DNS',
   tracert: 'Переходы маршрута',
   route: 'Таблица маршрутов',
+  'dns-records': 'Записи DNS',
+  powershell: 'Результат PowerShell',
 }
 const loss = computed(() =>
   props.output.kind === 'ping' && props.output.sent !== undefined
@@ -58,6 +64,13 @@ const loss = computed(() =>
       </div>
       <span class="tag">{{ output.kind.toUpperCase() }}</span>
     </div>
+    <ExtendedOutput
+      v-if="output.kind === 'dns-records' || output.kind === 'powershell'"
+      :output="output"
+      :revealed="revealed"
+      :page="page"
+      @evidence="$emit('evidence', $event)"
+    />
     <template v-if="output.kind === 'ping'"
       ><div class="output-metrics">
         <div>

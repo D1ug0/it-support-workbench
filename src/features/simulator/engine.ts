@@ -1,39 +1,45 @@
 import { z } from 'zod'
 
-const choiceSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().min(1),
-  result: z.string().min(1),
-  explanation: z.string().min(1),
-  safe: z.boolean(),
-})
+const choiceSchema = z
+  .object({
+    id: z.string().regex(/^[a-z\d-]{1,80}$/i),
+    label: z.string().trim().min(1).max(2000),
+    result: z.string().trim().min(1).max(2000),
+    explanation: z.string().trim().min(1).max(2000),
+    safe: z.boolean(),
+  })
+  .strict()
 const stepSchema = z
   .object({
-    id: z.string().min(1),
-    question: z.string().min(1),
+    id: z.string().regex(/^[a-z\d-]{1,80}$/i),
+    question: z.string().trim().min(1).max(2000),
     recommendedId: z.string(),
     choices: z.array(choiceSchema).min(2).max(5),
   })
+  .strict()
   .refine(
     (step) =>
-      step.choices.some((c) => c.id === step.recommendedId) &&
+      step.choices.some((c) => c.id === step.recommendedId && c.safe) &&
       new Set(step.choices.map((c) => c.id)).size === step.choices.length,
-    { message: 'Invalid recommended or duplicate action' },
+    {
+      message: 'Выберите безопасное рекомендуемое действие; ID вариантов должны быть уникальными.',
+    },
   )
 export const scenarioSchema = z
   .object({
     schemaVersion: z.literal(1),
-    id: z.string(),
-    title: z.string(),
-    category: z.string(),
+    id: z.string().regex(/^[a-z\d-]{1,80}$/i),
+    title: z.string().trim().min(1).max(120),
+    category: z.string().trim().min(1).max(60),
     difficulty: z.enum(['Начальный', 'Средний']),
-    brief: z.string(),
-    context: z.string(),
-    resolution: z.string(),
+    brief: z.string().trim().min(1).max(2000),
+    context: z.string().trim().min(1).max(8000),
+    resolution: z.string().trim().min(1).max(2000),
     steps: z.array(stepSchema).min(1).max(10),
   })
+  .strict()
   .refine((scenario) => new Set(scenario.steps.map((s) => s.id)).size === scenario.steps.length, {
-    message: 'Duplicate step IDs',
+    message: 'ID этапов должны быть уникальными.',
   })
 export type Scenario = z.infer<typeof scenarioSchema>
 export interface SimulationState {

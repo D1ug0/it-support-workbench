@@ -14,7 +14,7 @@ export function analyzeOutput(
   if (error)
     return {
       schemaVersion: 1,
-      parserVersion: '1.1.0',
+      parserVersion: '1.2.0',
       createdAt,
       parse: {
         status: 'invalid',
@@ -27,7 +27,7 @@ export function analyzeOutput(
   if (kind === 'unknown')
     return {
       schemaVersion: 1,
-      parserVersion: '1.1.0',
+      parserVersion: '1.2.0',
       createdAt,
       parse: {
         status: 'unsupported',
@@ -36,7 +36,7 @@ export function analyzeOutput(
           {
             code: 'UNSUPPORTED',
             message:
-              'Формат не распознан или содержит несколько команд. Добавьте один вывод ipconfig, ping, nslookup, tracert или route print (RU/EN), либо выберите формат вручную.',
+              'Формат не распознан или содержит несколько команд. Поддерживаются стандартные Windows CMD, DNS MX/TXT/SRV и выбранный JSON PowerShell. Выберите формат вручную или используйте пример экспорта.',
           },
         ],
       },
@@ -46,7 +46,7 @@ export function analyzeOutput(
   const parse: ParseResult<ParsedOutput> = parser.parse(normalized)
   return {
     schemaVersion: 1,
-    parserVersion: '1.1.0',
+    parserVersion: '1.2.0',
     createdAt,
     parse,
     findings: parser.analyze(parse),

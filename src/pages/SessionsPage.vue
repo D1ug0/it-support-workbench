@@ -6,6 +6,7 @@ import { createAddressRedactor } from '../infrastructure/export/redact'
 import { downloadText } from '../infrastructure/export/exportReport'
 import EvidenceViewer from '../features/network-analysis/components/EvidenceViewer.vue'
 import type { EvidenceRange } from '../domain/types/diagnostic'
+import SessionArchivePanel from '../features/sessions/SessionArchivePanel.vue'
 const session = useSessionStore()
 const name = ref('')
 const device = ref('')
@@ -25,7 +26,10 @@ const comparable = computed(() =>
     before.value &&
     after.value &&
     beforeId.value !== afterId.value &&
-    before.value.analysis.parse.kind === after.value.analysis.parse.kind,
+    before.value.analysis.parse.kind === after.value.analysis.parse.kind &&
+    (before.value.analysis.parse.value?.kind !== 'powershell' ||
+      after.value.analysis.parse.value?.kind !== 'powershell' ||
+      before.value.analysis.parse.value.cmdlet === after.value.analysis.parse.value.cmdlet),
   ),
 )
 const differences = computed(() =>
@@ -73,7 +77,7 @@ function prepareReport() {
       <h1>Одна задача. Полная картина<span class="accent">.</span></h1>
       <p>Сопоставьте команды одного устройства, время проверок и изменения конфигурации.</p>
     </div>
-    <span class="tag">ТОЛЬКО ПАМЯТЬ ВКЛАДКИ</span>
+    <span class="tag">ПАМЯТЬ + АРХИВ ПО ЗАПРОСУ</span>
   </div>
   <form v-if="!session.active" class="panel feature-section" @submit.prevent="start">
     <h2>Создать рабочую сессию</h2>
@@ -112,7 +116,8 @@ function prepareReport() {
           <p>{{ session.context }} · {{ session.records.length }} / 20 проверок</p>
         </div>
         <div class="button-row">
-          <RouterLink class="button primary small" to="/analyzer">Добавить вывод</RouterLink
+          <RouterLink v-if="!session.restored" class="button primary small" to="/analyzer"
+            >Добавить вывод</RouterLink
           ><button
             class="button secondary small"
             :disabled="!session.records.length"
@@ -122,9 +127,13 @@ function prepareReport() {
           ><button class="button ghost small" @click="clear">Очистить сессию</button>
         </div>
       </div>
-      <p>
+      <p v-if="!session.restored">
         В анализаторе разберите команду и раскройте «Добавить эту проверку в рабочую сессию».
         Перезагрузка очищает сессию. Очистка анализатора не удаляет добавленные сюда проверки.
+      </p>
+      <p v-else role="status">
+        Восстановлена обезличенная модель. Источники и исходные наблюдения исключены; можно
+        сравнивать поддерживаемые поля и формировать отчёт. Для новой диагностики очистите сессию.
       </p>
     </section>
     <div class="session-records">
@@ -140,7 +149,11 @@ function prepareReport() {
           {{ record.analysis.parse.status }}
         </p>
         <div class="button-row">
-          <button class="button secondary small" @click="showSource(record.id)">
+          <button
+            class="button secondary small"
+            :disabled="!record.source"
+            @click="showSource(record.id)"
+          >
             Открыть источник</button
           ><button class="button ghost small" @click="session.remove(record.id)">
             Удалить проверку
@@ -163,6 +176,7 @@ function prepareReport() {
           <button
             v-for="(reference, index) in item.references"
             :key="reference.recordId"
+            :disabled="!session.records.find((r) => r.id === reference.recordId)?.source"
             class="button secondary small"
             @click="showSource(reference.recordId, reference.range)"
           >
@@ -214,7 +228,7 @@ function prepareReport() {
         </p>
         <div class="diff-list">
           <article v-for="(item, index) in differences" :key="index" class="session-observation">
-            <span class="tag">{{ item.scope }}</span>
+            <span class="tag">{{ revealed ? item.scope : `Контекст ${index + 1}` }}</span>
             <h3>{{ item.field }}</h3>
             <div class="comparison-columns">
               <div>
@@ -229,7 +243,7 @@ function prepareReport() {
         </div></template
       >
     </section>
-    <EvidenceViewer v-if="source" :key="source.id" :text="source.source" :range="range" />
+    <EvidenceViewer v-if="source?.source" :key="source.id" :text="source.source" :range="range" />
     <section v-if="preview" class="panel feature-section">
       <h2>Предпросмотр обезличенной сессии</h2>
       <p>Названия, контекст и исходники исключены. Проверьте отчёт перед передачей.</p>
@@ -243,4 +257,5 @@ function prepareReport() {
       </div>
     </section>
   </template>
+  <SessionArchivePanel />
 </template>

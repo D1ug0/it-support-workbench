@@ -103,6 +103,44 @@ export function explainResult(result: AnalysisResult<ParsedOutput>) {
       why: 'Проверьте адрес цели в заголовке и выводы наблюдений, затем проверьте нужный сервис.',
       command: undefined,
     }
+  } else if (output.kind === 'dns-records') {
+    headline = 'Прочитаны DNS-записи с типами и параметрами.'
+    facts.push({
+      label: 'Типы ответа',
+      text: `Записей: ${output.records.length}. Типы: ${[...new Set(output.records.map((r) => r.type))].join(', ')}.`,
+      range: line(output.records[0]?.line),
+    })
+    limitation =
+      'Записи описывают DNS-данные. SRV не подтверждает доступность target/порта; TXT может содержать чувствительные значения.'
+    next = {
+      label: 'Сверьте имя, тип и контекст резолвера',
+      why: 'Сопоставляйте ответ нужного запроса и секцию записи.',
+      command: 'Resolve-DnsName example.com -Type A',
+    }
+  } else if (output.kind === 'powershell') {
+    headline =
+      output.cmdlet === 'Test-NetConnection'
+        ? 'Разобрана проверка TCP-соединения.'
+        : 'Прочитана IP-конфигурация PowerShell.'
+    facts.push({
+      label: output.cmdlet,
+      text:
+        output.cmdlet === 'Test-NetConnection'
+          ? `Порт ${output.connection.remotePort}: ${output.connection.tcpSucceeded ? 'TCP установлен' : 'TCP не подтверждён'}.`
+          : `Интерфейсов: ${output.interfaces.length}.`,
+      range: line(
+        output.cmdlet === 'Test-NetConnection'
+          ? output.connection.line
+          : output.interfaces[0]?.line,
+      ),
+    })
+    limitation =
+      'Объекты получены из введённого JSON, а не с устройства. TCP не подтверждает HTTPS и права; конфигурация не доказывает доступность.'
+    next = {
+      label: 'Сопоставьте с ошибкой приложения',
+      why: 'Для TCP отдельно проверяйте TLS/HTTP/вход; для конфигурации — нужный ресурс.',
+      command: undefined,
+    }
   } else {
     headline = 'Таблица маршрутов прочитана. Для выбора пути нужен адрес ресурса.'
     facts.push({

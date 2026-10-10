@@ -45,7 +45,7 @@ test('knowledge search, categories and limitations', async ({ page }) => {
   await page.getByLabel('Поиск по справочнику').fill('unknown123')
   await expect(page.getByRole('heading', { name: 'Ничего не найдено' })).toBeVisible()
   await page.getByRole('button', { name: 'Сбросить поиск' }).click()
-  await expect(page.locator('.knowledge-card')).toHaveCount(18)
+  await expect(page.locator('.knowledge-card')).toHaveCount(22)
 })
 test('simulator explains a mistaken action and completes a scenario', async ({ page }) => {
   await page.goto('/#/simulator')

@@ -2,6 +2,7 @@ import { parseIpconfig } from './ipconfigParser'
 import { evaluateIpconfig } from '../../domain/rules/ipconfigRules'
 import { parsePing, parseNslookup, parseTracert, parseRoutes } from './outputParsers'
 import { evaluateOutput } from '../../domain/rules/outputRules'
+import { parseDnsRecords, parsePowerShell } from './extendedParsers'
 import type { ParsedOutput } from '../../domain/types/outputs'
 import type { ParseResult } from '../../domain/types/diagnostic'
 
@@ -17,4 +18,6 @@ export const parserRegistry = {
   nslookup: { kind: 'nslookup', parse: parseNslookup, analyze },
   tracert: { kind: 'tracert', parse: parseTracert, analyze },
   route: { kind: 'route', parse: parseRoutes, analyze },
+  'dns-records': { kind: 'dns-records', parse: parseDnsRecords, analyze },
+  powershell: { kind: 'powershell', parse: parsePowerShell, analyze },
 } as const

@@ -1,0 +1,6 @@
+Server: dns.lab.example
+Address: 192.0.2.53
+
+Non-authoritative answer:
+lab.example MX preference = 10, mail exchanger = mail-a.lab.example
+lab.example MX preference = 20, mail exchanger = mail-b.lab.example

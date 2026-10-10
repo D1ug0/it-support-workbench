@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   GraduationCap,
@@ -16,6 +16,18 @@ import { scenarios } from '../features/simulator/scenarios'
 import { chooseAction, initialSimulation, simulationScore } from '../features/simulator/engine'
 import type { Scenario } from '../features/simulator/engine'
 import { useLearningStore } from '../features/learning/useLearningStore'
+import ScenarioEditor from '../features/simulator/ScenarioEditor.vue'
+import { listScenarios } from '../features/simulator/customRepository'
+const custom = ref<Scenario[]>([])
+const loadError = ref('')
+const allScenarios = computed(() => [...scenarios, ...custom.value])
+onMounted(async () => {
+  try {
+    custom.value = await listScenarios()
+  } catch {
+    loadError.value = 'Пользовательские сценарии не загружены: хранилище браузера недоступно.'
+  }
+})
 const learning = useLearningStore()
 const selected = ref<Scenario>()
 const state = ref(initialSimulation())
@@ -27,10 +39,10 @@ function start(scenario: Scenario) {
 }
 const route = useRoute()
 watch(
-  () => route.query.scenario,
-  (value) => {
-    const scenario = scenarios.find((item) => item.id === value)
-    if (scenario && !selected.value) start(scenario)
+  () => [route.query.scenario, custom.value] as const,
+  ([value]) => {
+    const scenario = allScenarios.value.find((item) => item.id === value)
+    if (scenario && selected.value?.id !== scenario.id) start(scenario)
   },
   { immediate: true },
 )
@@ -57,9 +69,15 @@ function leaveScenario() {
       <h1>Практика без риска<span class="accent">.</span></h1>
       <p>Учебные инциденты. Вымышленные системы. Настоящая логика диагностики.</p>
     </div>
-    <span class="tag">{{ scenarios.length }} СЦЕНАРИЕВ</span>
+    <span class="tag">{{ allScenarios.length }} СЦЕНАРИЕВ</span>
   </div>
-  <template v-if="!selected"
+  <nav class="learning-mode-nav" aria-label="Режим тренажёра">
+    <RouterLink to="/simulator">Проходить инциденты</RouterLink
+    ><RouterLink to="/simulator?view=editor">Редактор инцидентов</RouterLink>
+  </nav>
+  <p v-if="loadError" role="alert">{{ loadError }}</p>
+  <ScenarioEditor v-if="route.query.view === 'editor'" @updated="custom = $event" />
+  <template v-else-if="!selected"
     ><div class="simulator-intro panel">
       <GraduationCap :size="29" />
       <div>
@@ -73,7 +91,7 @@ function leaveScenario() {
     </div>
     <div class="scenario-grid">
       <button
-        v-for="(scenario, index) in scenarios"
+        v-for="(scenario, index) in allScenarios"
         :key="scenario.id"
         class="panel scenario-card"
         @click="start(scenario)"

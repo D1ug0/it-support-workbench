@@ -1,0 +1,14 @@
+Server: dns.lab.example
+Address: 192.0.2.53
+
+_ldap._tcp.dc._msdcs.lab.example SRV service location:
+    priority = 0
+    weight = 100
+    port = 389
+    svr hostname = dc-a.lab.example
+
+_ldap._tcp.dc._msdcs.lab.example SRV service location:
+    priority = 10
+    weight = 0
+    port = 389
+    svr hostname = dc-b.lab.example

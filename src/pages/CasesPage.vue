@@ -233,7 +233,18 @@ function toggle(id: string) {
       ><label
         >Тип команды<select v-model="command" class="text-input">
           <option>Все</option>
-          <option v-for="kind in ['ipconfig', 'ping', 'nslookup', 'tracert', 'route']" :key="kind">
+          <option
+            v-for="kind in [
+              'ipconfig',
+              'ping',
+              'nslookup',
+              'tracert',
+              'route',
+              'dns-records',
+              'powershell',
+            ]"
+            :key="kind"
+          >
             {{ kind }}
           </option>
         </select></label

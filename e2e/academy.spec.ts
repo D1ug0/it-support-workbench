@@ -66,7 +66,7 @@ test('old progress migrates and due advanced questions reuse the review quiz wit
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Экспорт прогресса', exact: true }).click()
   const saved = JSON.parse(await readFile((await (await download).path())!, 'utf8'))
-  expect(saved.schemaVersion).toBe(2)
+  expect(saved.schemaVersion).toBe(3)
   expect(saved.answers[q.id].attempts).toBe(2)
   expect(saved.reviews[q.id].streak).toBe(1)
   await expect(page.getByTestId('learning-save-status')).toHaveText(

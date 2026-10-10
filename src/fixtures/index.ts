@@ -85,3 +85,62 @@ export const outputExamples = [
     text: routes,
   },
 ]
+
+import dnsMx from './dns-mx-en.txt?raw'
+import dnsSrv from './dns-srv-en.txt?raw'
+import dnsSrvRu from './dns-srv-ru.txt?raw'
+import dnsTxt from './dns-txt-ru.txt?raw'
+import psDns from './powershell-dns.json?raw'
+import psTcp from './powershell-tcp.json?raw'
+import psIp from './powershell-ip.json?raw'
+outputExamples.push(
+  {
+    id: 'dns-mx',
+    name: 'DNS MX: почтовые серверы',
+    tag: 'MX',
+    description: 'Приоритет и целевой сервер',
+    text: dnsMx,
+  },
+  {
+    id: 'dns-srv',
+    name: 'DNS SRV: поиск службы',
+    tag: 'SRV · EN',
+    description: 'Приоритет, вес и порт LDAP',
+    text: dnsSrv,
+  },
+  {
+    id: 'dns-srv-ru',
+    name: 'DNS SRV на русском',
+    tag: 'SRV · RU',
+    description: 'Русские поля SRV',
+    text: dnsSrvRu,
+  },
+  {
+    id: 'dns-txt',
+    name: 'DNS TXT: несколько строк',
+    tag: 'TXT · RU',
+    description: 'Сегменты текстовой записи',
+    text: dnsTxt,
+  },
+  {
+    id: 'ps-dns',
+    name: 'PowerShell: записи DNS',
+    tag: 'JSON · DNS',
+    description: 'Resolve-DnsName: четыре типа записей',
+    text: psDns,
+  },
+  {
+    id: 'ps-tcp',
+    name: 'PowerShell: проверка TCP',
+    tag: 'JSON · TCP',
+    description: 'Test-NetConnection: адрес и порт',
+    text: psTcp,
+  },
+  {
+    id: 'ps-ip',
+    name: 'PowerShell: интерфейсы',
+    tag: 'JSON · IP',
+    description: 'Get-NetIPConfiguration: адреса, шлюз и DNS',
+    text: psIp,
+  },
+)

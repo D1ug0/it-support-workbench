@@ -28,6 +28,7 @@ import CopyCommand from '../shared/components/CopyCommand.vue'
 import { useAnalysisStore } from '../features/network-analysis/model/useAnalysisStore'
 import { examples, outputExamples } from '../fixtures'
 import type { EvidenceRange, CommandKind } from '../domain/types/diagnostic'
+import { powerShellCommands } from '../features/network-analysis/powerShellCommands'
 
 const store = useAnalysisStore()
 const route = useRoute()
@@ -37,6 +38,12 @@ const commandHelp: Array<{ kind: CommandKind; command: string; purpose: string }
   { kind: 'nslookup', command: 'nslookup example.com', purpose: 'Поиск адреса по имени' },
   { kind: 'tracert', command: 'tracert example.com', purpose: 'Ответы переходов на пути' },
   { kind: 'route', command: 'route print', purpose: 'Таблица маршрутов' },
+  {
+    kind: 'dns-records',
+    command: 'nslookup -type=SRV _ldap._tcp.dc._msdcs.lab.example',
+    purpose: 'SRV-записи доменной службы',
+  },
+  { kind: 'powershell', command: powerShellCommands[1]!.command, purpose: 'TCP-проверка в JSON' },
 ]
 const requestedCommand = computed(() =>
   commandHelp.find((item) => item.kind === route.query.command),
@@ -170,6 +177,19 @@ function demo() {
           ><CopyCommand :command="item.command" />
         </div>
       </div>
+      <details class="feature-section">
+        <summary>PowerShell: экспортировать данные в JSON</summary>
+        <p>
+          Откройте PowerShell. Замените учебный домен на разрешённую цель. Скопируйте JSON целиком:
+          таблицы и Format-List не поддерживаются. Команды ниже только читают конфигурацию или
+          выполняют сетевую проверку.
+        </p>
+        <div v-for="item in powerShellCommands" :key="item.command" class="feature-section">
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.purpose }}</p>
+          <CopyCommand :command="item.command" />
+        </div>
+      </details>
       <p>
         Приложение команды не запускает. Если не знаете, что проверять,
         <RouterLink to="/guide">начните с помощника по симптому</RouterLink>.

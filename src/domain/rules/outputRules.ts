@@ -118,6 +118,49 @@ export function evaluateOutput(parsed: ParseResult<ParsedOutput>): DiagnosticFin
         true,
         'route print',
       )
+  } else if (output.kind === 'dns-records') {
+    add(
+      'DNS-RECORDS-001',
+      'Прочитаны типизированные DNS-записи',
+      `Записей: ${output.records.length}; типов: ${[...new Set(output.records.map((r) => r.type))].join(', ')}.`,
+      'MX/TXT/SRV описывают данные DNS. Запись не подтверждает доступность сервиса или корректность всех настроек.',
+      output.records.slice(0, 8).map((r) => r.line),
+      false,
+      'Resolve-DnsName example.com -Type A',
+    )
+    if (output.records.some((r) => r.type === 'SRV'))
+      add(
+        'DNS-SRV-001',
+        'SRV содержит параметры выбора сервиса',
+        'Сначала сравнивается priority; weight применяется между записями одного priority.',
+        'Проверяйте target, порт и транспорт. Ответ не подтверждает работу AD/Kerberos.',
+        output.records
+          .filter((r) => r.type === 'SRV')
+          .slice(0, 8)
+          .map((r) => r.line),
+      )
+  } else if (output.kind === 'powershell') {
+    if (output.cmdlet === 'Test-NetConnection')
+      add(
+        'PS-TCP-001',
+        output.connection.tcpSucceeded
+          ? 'TCP-соединение подтверждено'
+          : 'TCP-соединение не подтверждено',
+        `Проверен TCP-порт ${output.connection.remotePort}. Результат: ${output.connection.tcpSucceeded}.`,
+        'TCP не проверяет TLS, HTTP или авторизацию; отказ не доказывает выключение хоста.',
+        [output.connection.line],
+        !output.connection.tcpSucceeded,
+      )
+    else
+      add(
+        'PS-IP-001',
+        'Прочитана IP-конфигурация PowerShell',
+        `Интерфейсов: ${output.interfaces.length}.`,
+        'Назначенные адреса и DNS не подтверждают доступность сети.',
+        output.interfaces.slice(0, 8).map((i) => i.line),
+        false,
+        'Test-NetConnection example.com -Port 443',
+      )
   } else if (output.kind === 'route') {
     const defaults = [
       ...output.ipv4Routes.filter((r) => r.destination === '0.0.0.0' && r.prefix === 0),

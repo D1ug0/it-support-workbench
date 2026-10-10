@@ -71,6 +71,25 @@ export function redactReport(
         `- ${redact(entry.destination)}/${entry.prefix} → ${entry.gateway === 'on-link' ? 'On-link' : redact(entry.gateway)}; метрика ${entry.metric} (строка ${entry.line})`,
       )
   }
+  if (output?.kind === 'dns-records') {
+    content.push('## Типизированный DNS (имена и TXT исключены)')
+    for (const record of output.records)
+      content.push(
+        `- ${record.type}${record.address ? `: ${redact(record.address)}` : ''}; priority ${record.priority ?? '—'}; weight ${record.weight ?? '—'}; port ${record.port ?? '—'}; MX preference ${record.preference ?? '—'}; TTL ${record.ttl ?? '—'}; секция ${record.section ?? 'не определена'} (строка ${record.line})`,
+      )
+  }
+  if (output?.kind === 'powershell') {
+    content.push(`## PowerShell · ${output.cmdlet}`)
+    if (output.cmdlet === 'Test-NetConnection')
+      content.push(
+        `- TCP ${output.connection.remotePort}: ${output.connection.tcpSucceeded}; адрес ${redact(output.connection.remoteAddress)}${output.connection.sourceAddress ? `; источник ${redact(output.connection.sourceAddress)}` : ''}`,
+      )
+    else
+      for (const item of output.interfaces)
+        content.push(
+          `- Интерфейс ${item.index}; IPv4: ${item.ipv4.map(redact).join(', ')}; IPv6: ${item.ipv6.map(redact).join(', ')}; DNS: ${item.dns.map(redact).join(', ')}; шлюзы: ${item.gateways.map(redact).join(', ')}`,
+        )
+  }
   content.push('## Наблюдения')
   for (const finding of result.findings) {
     content.push(

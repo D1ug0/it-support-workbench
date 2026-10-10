@@ -48,7 +48,7 @@ describe('review schedule and progress migration', () => {
       scenarios: {},
     }
     const migrated = parse(old)
-    expect(migrated).toEqual({ ...old, schemaVersion: 2, reviews: {} })
+    expect(migrated).toEqual({ ...old, schemaVersion: 3, reviews: {}, journal: [], weeklyGoal: 10 })
     expect(buildReviewQueue(migrated, allLearningQuestions, now).map((q) => q.id)).toEqual([id])
     const updated = recordAnswer(migrated, id, true, now)
     expect(updated.answers[id]?.attempts).toBe(5)

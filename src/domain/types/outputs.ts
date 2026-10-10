@@ -61,4 +61,57 @@ export interface ParsedRoutes {
   }>
 }
 export type ParsedOutput =
-  ParsedIpconfig | ParsedPing | ParsedNslookup | ParsedTracert | ParsedRoutes
+  | ParsedIpconfig
+  | ParsedPing
+  | ParsedNslookup
+  | ParsedTracert
+  | ParsedRoutes
+  | ParsedDnsRecords
+  | ParsedPowerShell
+
+export interface DnsRecord {
+  type: 'A' | 'AAAA' | 'CNAME' | 'MX' | 'TXT' | 'SRV'
+  name: string
+  line: number
+  address?: string
+  target?: string
+  text?: string[]
+  preference?: number
+  priority?: number
+  weight?: number
+  port?: number
+  ttl?: number
+  section?: 'answer' | 'authority' | 'additional'
+}
+export interface ParsedDnsRecords {
+  kind: 'dns-records'
+  format: 'nslookup' | 'powershell-json'
+  records: DnsRecord[]
+}
+export type ParsedPowerShell =
+  | {
+      kind: 'powershell'
+      cmdlet: 'Test-NetConnection'
+      connection: {
+        remoteAddress: string
+        remotePort: number
+        tcpSucceeded: boolean
+        sourceAddress?: string
+        computerName?: string
+        interfaceAlias?: string
+        line: number
+      }
+    }
+  | {
+      kind: 'powershell'
+      cmdlet: 'Get-NetIPConfiguration'
+      interfaces: Array<{
+        index: number
+        alias: string
+        ipv4: string[]
+        ipv6: string[]
+        gateways: string[]
+        dns: string[]
+        line: number
+      }>
+    }

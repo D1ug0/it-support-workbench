@@ -1,4 +1,5 @@
-export type CommandKind = 'ipconfig' | 'ping' | 'nslookup' | 'tracert' | 'route'
+export type CommandKind =
+  'ipconfig' | 'ping' | 'nslookup' | 'tracert' | 'route' | 'dns-records' | 'powershell'
 export type ParseStatus = 'ok' | 'partial' | 'unsupported' | 'invalid'
 export type Severity = 'info' | 'warning' | 'critical'
 export type Confidence = 'high' | 'medium' | 'low'

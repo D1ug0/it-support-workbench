@@ -9,10 +9,17 @@ import { listCases } from '../features/cases/repository'
 const analysis = useAnalysisStore(),
   session = useSessionStore(),
   learning = useLearningStore()
+import { listArchives } from '../features/sessions/archiveRepository'
+import { listScenarios } from '../features/simulator/customRepository'
+const archiveCount = ref<number>(),
+  scenarioCount = ref<number>()
 const caseCount = ref<number>()
 const guide = useGuideStore()
 onMounted(async () => {
   await learning.initialize()
+  const [archives, scenarios] = await Promise.allSettled([listArchives(), listScenarios()])
+  archiveCount.value = archives.status === 'fulfilled' ? archives.value.length : undefined
+  scenarioCount.value = scenarios.status === 'fulfilled' ? scenarios.value.length : undefined
   try {
     caseCount.value = (await listCases()).length
   } catch {
@@ -50,6 +57,18 @@ function clearMemory() {
       <span>Рабочая сессия</span><strong>{{ session.records.length }} проверок в памяти</strong>
     </div>
     <div class="history-row">
+      <span>Обезличенные архивы</span
+      ><strong>{{
+        archiveCount === undefined ? 'Хранилище недоступно' : `${archiveCount} в IndexedDB`
+      }}</strong>
+    </div>
+    <div class="history-row">
+      <span>Собственные учебные сценарии</span
+      ><strong>{{
+        scenarioCount === undefined ? 'Хранилище недоступно' : `${scenarioCount} в IndexedDB`
+      }}</strong>
+    </div>
+    <div class="history-row">
       <span>Помощник диагностики</span
       ><strong>{{ guide.selected ? 'План и ответы в памяти' : 'Пусто' }}</strong>
     </div>
@@ -66,11 +85,15 @@ function clearMemory() {
     <div class="button-row">
       <button class="button secondary small" @click="clearMemory">Очистить временные данные</button
       ><RouterLink class="button secondary small" to="/cases">Управлять кейсами</RouterLink
-      ><RouterLink class="button secondary small" to="/learning">Управлять прогрессом</RouterLink>
+      ><RouterLink class="button secondary small" to="/learning">Управлять прогрессом</RouterLink
+      ><RouterLink class="button secondary small" to="/sessions">Архивы сессий</RouterLink
+      ><RouterLink class="button secondary small" to="/simulator?view=editor"
+        >Мои сценарии</RouterLink
+      >
     </div>
     <p>
-      Кейсы и прогресс не шифруются приложением и не синхронизируются. Экспортированные файлы,
-      clipboard и резервные копии браузера удаляются отдельно.
+      Кейсы, прогресс, архивы и сценарии не шифруются приложением и не синхронизируются.
+      Экспортированные файлы, clipboard и резервные копии браузера удаляются отдельно.
     </p>
   </section>
   <section class="panel feature-section">

@@ -56,6 +56,7 @@ export function canonicalAddress(value: string): string {
   )
 }
 export function targetAddress(target?: string): string | undefined {
+  if (target && /^\[IPv[46] [1-9]\d{0,5}\]$/.test(target)) return target
   const value = /\[([^\]]+)\]/.exec(target ?? '')?.[1] ?? target?.trim()
   return value && isIPAddress(value) ? value : undefined
 }
@@ -122,6 +123,56 @@ export function analyzeSession(records: SessionRecord[]): SessionObservation[] {
             range: match ? { startLine: match.line, endLine: match.line } : undefined,
           },
           { recordId: ping.id },
+        ],
+      })
+    }
+  }
+  const typedDns = chronological
+    .filter((r) => r.analysis.parse.value?.kind === 'dns-records')
+    .at(-1)
+  const tcp = chronological
+    .filter(
+      (r) =>
+        r.analysis.parse.value?.kind === 'powershell' &&
+        r.analysis.parse.value.cmdlet === 'Test-NetConnection',
+    )
+    .at(-1)
+  if (
+    typedDns?.analysis.parse.value?.kind === 'dns-records' &&
+    tcp?.analysis.parse.value?.kind === 'powershell' &&
+    tcp.analysis.parse.value.cmdlet === 'Test-NetConnection'
+  ) {
+    const records = typedDns.analysis.parse.value.records.filter(
+      (r) => r.type === 'A' || r.type === 'AAAA',
+    )
+    if (records.length) {
+      const match = records.find(
+        (r) =>
+          r.address &&
+          canonicalAddress(r.address) ===
+            canonicalAddress(
+              tcp.analysis.parse.value!.kind === 'powershell' &&
+                tcp.analysis.parse.value!.cmdlet === 'Test-NetConnection'
+                ? tcp.analysis.parse.value!.connection.remoteAddress
+                : '',
+            ),
+      )
+      observations.push({
+        id: 'SESSION-TCP-DNS-001',
+        title: match
+          ? 'TCP-цель присутствует в типизированном DNS-ответе'
+          : 'TCP-цель отличается от типизированного DNS-ответа',
+        explanation: match
+          ? 'Адрес Test-NetConnection найден среди записей A/AAAA выбранного DNS-ответа.'
+          : 'В записях A/AAAA выбранного ответа не найден адрес TCP-цели.',
+        limitation:
+          'Разные запросы, секции ответа, семейства адресов, CDN и время измерений могут менять результат. Сопоставление не проверяет TLS/HTTP и не устанавливает причину.',
+        references: [
+          {
+            recordId: typedDns.id,
+            range: match ? { startLine: match.line, endLine: match.line } : undefined,
+          },
+          { recordId: tcp.id },
         ],
       })
     }
@@ -298,6 +349,79 @@ export function compareOutputs(before: ParsedOutput, after: ParsedOutput): Outpu
       timings(before.hops),
       timings(after.hops),
     )
+  } else if (before.kind === 'dns-records' && after.kind === 'dns-records') {
+    const records = (items: typeof before.records): DifferenceValue[] =>
+      items.map((r) => ({
+        value: JSON.stringify([
+          r.type,
+          r.name.toLowerCase().replace(/\.$/, ''),
+          r.target?.toLowerCase().replace(/\.$/, ''),
+          r.address ? canonicalAddress(r.address) : undefined,
+          r.text,
+          r.preference,
+          r.priority,
+          r.weight,
+          r.port,
+          r.ttl,
+          r.section,
+        ]),
+        sensitive: true,
+      }))
+    add(
+      'DNS',
+      'Записи и связанные параметры (имена скрыты)',
+      records(before.records),
+      records(after.records),
+    )
+    for (const type of ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV'] as const)
+      add(
+        'DNS',
+        `Число записей ${type}`,
+        plain(before.records.filter((r) => r.type === type).length),
+        plain(after.records.filter((r) => r.type === type).length),
+      )
+  } else if (before.kind === 'powershell' && after.kind === 'powershell') {
+    add('PowerShell', 'Команда', plain(before.cmdlet), plain(after.cmdlet))
+    if (before.cmdlet === 'Test-NetConnection' && after.cmdlet === 'Test-NetConnection') {
+      const a = before.connection,
+        b = after.connection
+      add('TCP', 'TCP-проверка', plain(a.tcpSucceeded), plain(b.tcpSucceeded))
+      add('TCP', 'Порт', plain(a.remotePort), plain(b.remotePort))
+      add('TCP', 'Целевой адрес', ips([a.remoteAddress]), ips([b.remoteAddress]))
+      add(
+        'TCP',
+        'Исходный адрес',
+        ips(a.sourceAddress ? [a.sourceAddress] : []),
+        ips(b.sourceAddress ? [b.sourceAddress] : []),
+      )
+    } else if (
+      before.cmdlet === 'Get-NetIPConfiguration' &&
+      after.cmdlet === 'Get-NetIPConfiguration'
+    ) {
+      const interfaces = (items: typeof before.interfaces): DifferenceValue[] =>
+        items.map((v) => ({
+          value: JSON.stringify([
+            v.index,
+            v.alias,
+            ...[v.ipv4, v.ipv6, v.gateways, v.dns].map((addresses) =>
+              addresses.map(canonicalAddress).sort(),
+            ),
+          ]),
+          sensitive: true,
+        }))
+      add(
+        'IP',
+        'Количество интерфейсов',
+        plain(before.interfaces.length),
+        plain(after.interfaces.length),
+      )
+      add(
+        'IP',
+        'Интерфейсы и связанные адреса (имена скрыты)',
+        interfaces(before.interfaces),
+        interfaces(after.interfaces),
+      )
+    }
   } else if (before.kind === 'route' && after.kind === 'route') {
     for (const [field, label] of [
       ['ipv4Routes', 'IPv4'],

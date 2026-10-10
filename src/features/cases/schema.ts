@@ -3,7 +3,15 @@ export const caseSchema = z
   .object({
     id: z.uuid(),
     title: z.string().min(1).max(100),
-    command: z.enum(['ipconfig', 'ping', 'nslookup', 'tracert', 'route']),
+    command: z.enum([
+      'ipconfig',
+      'ping',
+      'nslookup',
+      'tracert',
+      'route',
+      'dns-records',
+      'powershell',
+    ]),
     createdAt: z.iso.datetime(),
     report: z.string().min(1).max(500_000),
   })

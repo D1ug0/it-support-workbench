@@ -209,4 +209,92 @@ knowledgeEntries.push(
     reviewedAt: course.reviewedAt,
   })),
 )
+knowledgeEntries.push(
+  {
+    id: 'dns-srv',
+    title: 'SRV: найти службу и проверить транспорт',
+    category: 'DNS',
+    summary: 'Не путайте приоритет, вес, порт и целевой сервер с доступностью службы.',
+    command: 'nslookup -type=SRV _ldap._tcp.lab.example',
+    shell: 'CMD',
+    checks: [
+      'Выберите согласованное имя службы и нужную зону.',
+      'Меньшая priority предпочтительнее; weight используется только внутри одинаковой priority.',
+      'Проверьте A/AAAA target и соответствующий порт/протокол.',
+      'Target "." означает, что служба не предоставляется; SRV-запись не подтверждает исправность AD.',
+    ],
+    limitation:
+      'Вес не является рейтингом качества сервера. LDAP SRV и TCP 389 не проверяют Kerberos и права пользователя.',
+    source: { title: 'RFC Editor · DNS SRV', url: 'https://www.rfc-editor.org/rfc/rfc2782.html' },
+    reviewedAt: '2026-10-10',
+    courseId: 'ad',
+  },
+  {
+    id: 'dns-mx-txt',
+    title: 'MX, TXT и TTL: читать DNS без лишних выводов',
+    category: 'DNS',
+    summary: 'Почтовые цели, текстовые политики и время кеширования требуют разных проверок.',
+    command: 'Resolve-DnsName lab.example -Type MX',
+    shell: 'PowerShell',
+    checks: [
+      'Сравните MX preference: меньшее число предпочтительнее.',
+      'Разделяйте сегменты одной TXT-записи и несколько независимых записей.',
+      'TXT может содержать чувствительные подтверждения: не включайте содержимое в общий отчёт.',
+      'TTL относится к кешированию DNS; IP TTL используется иначе.',
+    ],
+    limitation:
+      'MX/TXT не доказывают работу SMTP, применение SPF/DKIM/DMARC или корректность всей почтовой настройки.',
+    source: {
+      title: 'Microsoft Learn · DNS resource records',
+      url: 'https://learn.microsoft.com/en-us/windows-server/networking/dns/manage-resource-records',
+    },
+    reviewedAt: '2026-10-10',
+    courseId: 'dns',
+  },
+  {
+    id: 'path-mtu',
+    title: 'Path MTU: почему маленький ping проходит',
+    category: 'VPN',
+    summary: 'Размер пакета, DF и ICMP помогают проверить гипотезу MTU, особенно через туннель.',
+    command: 'ping -f -l 1472 192.0.2.20',
+    shell: 'CMD',
+    checks: [
+      'Зафиксируйте маршрут, интерфейс и согласованную цель проверки.',
+      'Для учебного IPv4 без options добавьте к ping payload 20 байт IP и 8 байт ICMP.',
+      'Положительная проба даёт нижнюю границу для этого размера; для оценки максимума нужны соседние размеры и явный результат.',
+      'Классический IPv4 PMTUD использует DF и ICMP fragmentation needed; IPv6 имеет другой механизм.',
+    ],
+    limitation:
+      'Тайм-аут может быть фильтрацией ICMP или изменением маршрута. Одна проба не устанавливает точный Path MTU и не доказывает доступность HTTPS.',
+    source: {
+      title: 'RFC Editor · IPv4 Path MTU Discovery',
+      url: 'https://www.rfc-editor.org/rfc/rfc1191.html',
+    },
+    reviewedAt: '2026-10-10',
+    courseId: 'vpn',
+  },
+  {
+    id: 'powershell-tcp',
+    title: 'PowerShell TCP: отделить порт от приложения',
+    category: 'Windows',
+    summary:
+      'TcpTestSucceeded показывает результат TCP-проверки; TLS, HTTP и авторизация требуют своих свидетельств.',
+    command: 'Test-NetConnection portal.lab.example -Port 443',
+    shell: 'PowerShell',
+    checks: [
+      'Зафиксируйте RemoteAddress, RemotePort и SourceAddress.',
+      'Экспортируйте выбранные поля через ConvertTo-Json из инструкции анализатора.',
+      'При успешном TCP перейдите к TLS/HTTP и контексту пользователя.',
+      'При неуспехе проверьте масштаб, маршрут, фильтрацию и сервис; не объявляйте хост выключенным.',
+    ],
+    limitation:
+      'Метод проверяет TCP; он не является проверкой UDP, HTTPS-контента или прав доступа.',
+    source: {
+      title: 'Microsoft Learn · Test-NetConnection',
+      url: 'https://learn.microsoft.com/powershell/module/nettcpip/test-netconnection',
+    },
+    reviewedAt: '2026-10-10',
+    courseId: 'tls',
+  },
+)
 export const categories = ['Все', ...new Set(knowledgeEntries.map((e) => e.category))]

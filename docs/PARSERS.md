@@ -31,3 +31,20 @@ NET-001 APIPA + DHCP; NET-002 отключение; NET-003 отсутствую
 Произвольные PowerShell objects, фотографии, другие локали и неизвестные форматы не поддерживаются. При слабом обнаружении можно вручную выбрать формат. Смешанный вывод нескольких команд нельзя считать единым ipconfig.
 
 Источники: [Microsoft ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig), [ping](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ping), [nslookup](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/nslookup), [tracert](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/tracert), [route](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/route_ws2008), [RFC 5737](https://www.rfc-editor.org/rfc/rfc5737), [RFC 4291](https://www.rfc-editor.org/rfc/rfc4291). Проверены при реализации 09.10.2026.
+
+## Типизированный DNS и PowerShell — parserVersion 1.2.0
+
+Добавлены два отдельных формата; старый nslookup A/AAAA сохраняет прежнюю модель.
+
+- `dns-records`: nslookup MX (`MX preference`, `mail exchanger` и русские варианты), SRV (`priority`, `weight`, `port`, `svr hostname` / русские поля), TXT (один или несколько сегментов в кавычках). Неполный SRV/TXT не становится полноценной записью. Общий лимит — 2000 записей.
+- JSON `Resolve-DnsName`: A/AAAA, CNAME, MX, TXT, SRV. Type принимается как DNS-число или название. TTL и Section (`Answer/Authority/Additional` либо 1/2/3) сохраняются. Для A/AAAA проверяется семейство IP, MX требует Preference/NameExchange, SRV — Priority/Weight/Port/NameTarget, TXT — Strings. Поля с JSON null не заменяют обязательные значения.
+- `powershell`: один JSON-объект `Test-NetConnection` с RemoteAddress, RemotePort 1–65535 и boolean TcpTestSucceeded. SourceAddress может быть строкой или вложенным объектом IPAddressToString/IPAddress. Строки True/False не принимаются вместо boolean.
+- `Get-NetIPConfiguration`: 1–2000 объектов с InterfaceIndex, InterfaceAlias, IPv4Address; IPv6Address, IPv4DefaultGateway и DNSServer поддерживают выбранные массивы адресов и описанные вложенные поля. Неверный адрес не удаляется молча: интерфейс пропускается с предупреждением и статусом partial.
+
+Локальные `.json` принимаются в UTF-8; UTF-16LE не поддерживается. Готовые read-only команды `Select-Object | ConvertTo-Json -Depth 4` находятся в анализаторе. Текстовые таблицы PowerShell/Format-List, произвольные CIM JSON, DNS error objects и нестандартные DNS debug dumps не поддерживаются. Общие лимиты 2 MiB/50 000 строк действуют до автоопределения. Смешение разных команд не распознаётся как одна.
+
+Физические номера строк JSON-объектов сохраняются даже при вложенных адресах и строках с кавычками/скобками. Имена/TXT скрыты в UI по умолчанию и исключены из обычного отчёта. Успешный TCP не означает успешный TLS/HTTP/аутентификацию. SRV не означает доступность target.
+
+Новые fixtures строго синтетические: четыре текстовых DNS-вывода и три JSON-вывода. Реальный экспорт из разных Windows/PowerShell ещё требует отдельной проверки.
+
+Первичные описания: [nslookup](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/nslookup), [типы DNS](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/nslookup-set-type), [Resolve-DnsName](https://learn.microsoft.com/en-us/powershell/module/dnsclient/resolve-dnsname?view=windowsserver2025-ps), [Test-NetConnection](https://learn.microsoft.com/powershell/module/nettcpip/test-netconnection).

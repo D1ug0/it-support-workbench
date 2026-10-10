@@ -1,0 +1,6 @@
+Сервер: dns.lab.example
+Адрес: 192.0.2.53
+
+lab.example текст =
+    "v=spf1 "
+    "-all"

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Search, X } from '@lucide/vue'
 import { knowledgeEntries } from '../../features/knowledge/catalog'
 import { glossary } from '../../features/knowledge/glossary'
+import { practiceTasks } from '../../features/practice/catalog'
 const router = useRouter()
 const dialog = ref<HTMLDialogElement>()
 const input = ref<HTMLInputElement>()
@@ -19,6 +20,9 @@ const pages = [
   ['Чек-листы', '/playbooks'],
   ['Тренажёр', '/simulator'],
   ['Учебный центр', '/learning'],
+  ['Самостоятельная практика', '/learning?view=practice'],
+  ['Журнал обучения', '/learning?view=journal'],
+  ['Редактор инцидентов', '/simulator?view=editor'],
   ['Локальные кейсы', '/cases'],
   ['Настройки', '/settings'],
   ['О проекте', '/about'],
@@ -31,6 +35,11 @@ const entries = [
       ? `/learning?course=${encodeURIComponent(entry.courseId)}`
       : `/knowledge?q=${encodeURIComponent(entry.title)}`,
     kind: entry.category,
+  })),
+  ...practiceTasks.map((t) => ({
+    label: `Практика: ${t.title}`,
+    path: `/learning?view=practice&task=${encodeURIComponent(t.id)}`,
+    kind: t.topic,
   })),
   ...glossary.map((entry) => ({
     label: entry.term,

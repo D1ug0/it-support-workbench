@@ -15,7 +15,8 @@ export function decodeText(bytes: Uint8Array, encoding: FileEncoding): string {
   return normalized
 }
 export async function readTextFile(file: File, encoding: FileEncoding = 'utf-8'): Promise<string> {
-  if (!/\.(txt|log)$/i.test(file.name)) throw new Error('Поддерживаются только файлы .txt и .log.')
+  if (!/\.(txt|log|json)$/i.test(file.name))
+    throw new Error('Поддерживаются файлы .txt, .log и .json.')
   if (file.size > MAX_INPUT_BYTES) throw new Error('Файл превышает лимит 2 MiB.')
   return decodeText(new Uint8Array(await file.arrayBuffer()), encoding)
 }

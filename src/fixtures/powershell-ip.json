@@ -1,0 +1,10 @@
+[
+  {
+    "InterfaceIndex": 12,
+    "InterfaceAlias": "Ethernet",
+    "IPv4Address": ["192.0.2.10"],
+    "IPv6Address": ["2001:db8::10"],
+    "IPv4DefaultGateway": ["192.0.2.1"],
+    "DNSServer": ["192.0.2.53"]
+  }
+]
