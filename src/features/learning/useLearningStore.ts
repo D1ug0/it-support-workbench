@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
-import { emptyProgress, recordAnswer, recordScenario } from './progress'
+import { computed, ref, shallowRef } from 'vue'
+import { emptyProgress, progressSchema, recordAnswer, recordScenario } from './progress'
 import type { LearningProgress } from './progress'
 export const useLearningStore = defineStore('learning', () => {
   const state = shallowRef(emptyProgress())
   const enabled = ref(false)
   const error = ref('')
   const ready = ref(false)
+  const pendingWrites = ref(0)
+  const saving = computed(() => pendingWrites.value > 0)
   let initialization: Promise<void> | undefined
   let queue = Promise.resolve()
   function initialize(): Promise<void> {
@@ -28,6 +30,7 @@ export const useLearningStore = defineStore('learning', () => {
   function persist() {
     const snapshot = structuredClone(state.value)
     const saveEnabled = enabled.value
+    pendingWrites.value++
     queue = queue
       .then(async () => {
         const { writeProgress } = await import('./repository')
@@ -36,6 +39,9 @@ export const useLearningStore = defineStore('learning', () => {
       .catch(() => {
         error.value =
           'Не удалось сохранить прогресс. Экспортируйте его; проверьте разрешения браузера.'
+      })
+      .finally(() => {
+        pendingWrites.value--
       })
     return queue
   }
@@ -57,7 +63,8 @@ export const useLearningStore = defineStore('learning', () => {
   }
   async function replace(value: LearningProgress) {
     await initialize()
-    state.value = structuredClone(value)
+    // Zod validates and produces plain data even when the preview is a Vue proxy.
+    state.value = progressSchema.parse(value)
     if (enabled.value) await persist()
   }
   async function clear() {
@@ -73,5 +80,17 @@ export const useLearningStore = defineStore('learning', () => {
       error.value = 'Не удалось удалить сохранённый прогресс.'
     }
   }
-  return { state, enabled, error, ready, initialize, answer, complete, setEnabled, replace, clear }
+  return {
+    state,
+    enabled,
+    error,
+    ready,
+    saving,
+    initialize,
+    answer,
+    complete,
+    setEnabled,
+    replace,
+    clear,
+  }
 })

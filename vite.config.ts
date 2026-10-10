@@ -18,6 +18,8 @@ export default defineConfig({
         'src/features/sessions/session.ts',
         'src/features/learning/progress.ts',
         'src/features/learning/path.ts',
+        'src/features/learning/review.ts',
+        'src/features/academy/lab.ts',
         'src/features/toolkit/subnetPractice.ts',
         'src/features/guide/catalog.ts',
         'src/features/network-analysis/application/explainResult.ts',

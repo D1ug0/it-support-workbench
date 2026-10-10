@@ -27,7 +27,9 @@ const entries = [
   ...pages.map(([label, path]) => ({ label: label!, path: path!, kind: 'Раздел' })),
   ...knowledgeEntries.map((entry) => ({
     label: entry.title,
-    path: `/knowledge?q=${encodeURIComponent(entry.title)}`,
+    path: entry.courseId
+      ? `/learning?course=${encodeURIComponent(entry.courseId)}`
+      : `/knowledge?q=${encodeURIComponent(entry.title)}`,
     kind: entry.category,
   })),
   ...glossary.map((entry) => ({

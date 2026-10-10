@@ -86,6 +86,9 @@ test('learning saves only after opt-in and supports retrying mistakes', async ({
   await page.getByRole('button', { name: 'Начать тест', exact: true }).click()
   await page.getByRole('button', { name: 'Ответ на ICMP Echo Request', exact: true }).click()
   await expect(page.locator('.learning-metrics strong').first()).toHaveText('1 / 30')
+  await expect(page.getByTestId('learning-save-status')).toHaveText(
+    'Прогресс сохранён на устройстве.',
+  )
   await page.reload()
   await expect(page.getByLabel('Сохранять учебный прогресс на этом устройстве')).toBeChecked()
   await expect(page.locator('.learning-metrics strong').first()).toHaveText('1 / 30')
@@ -204,6 +207,15 @@ for (const root of ['http://127.0.0.1:4173/', 'http://127.0.0.1:4174/preview/sit
     await expect(page.getByTestId('adapter-card')).toHaveCount(2)
     await page.goto(`${root}#/learning`)
     await expect(page.getByRole('button', { name: 'Начать тест' })).toBeEnabled()
+    await page.getByRole('link', { name: 'Продвинутый курс', exact: true }).click()
+    await page
+      .getByRole('button', { name: 'Изучить: HTTPS и доверие сертификатам', exact: true })
+      .click()
+    const lab = page.getByRole('region', { name: 'Лабораторная: HTTPS и доверие сертификатам' })
+    await lab.getByRole('button', { name: 'Показать подсказку', exact: true }).click()
+    await expect(lab.getByRole('status')).toBeVisible()
+    await lab.locator('.quiz-options button').first().click()
+    await expect(lab.locator('.quiz-explanation')).toBeVisible()
     await page.goto(`${root}#/guide`)
     await page.getByRole('button', { name: /^Не открывается сайт/ }).click()
     await page.getByLabel('Только у одного пользователя или устройства').check()

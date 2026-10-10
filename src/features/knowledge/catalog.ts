@@ -1,3 +1,4 @@
+import { academyCourses } from '../academy/catalog'
 export interface KnowledgeEntry {
   id: string
   title: string
@@ -9,6 +10,7 @@ export interface KnowledgeEntry {
   limitation: string
   source: { title: string; url: string }
   reviewedAt: string
+  courseId?: string
 }
 const entry = (value: Omit<KnowledgeEntry, 'reviewedAt'>): KnowledgeEntry => ({
   ...value,
@@ -194,4 +196,17 @@ export const knowledgeEntries: KnowledgeEntry[] = [
     },
   }),
 ]
+knowledgeEntries.push(
+  ...academyCourses.map((course): KnowledgeEntry => ({
+    id: `academy-${course.id}`,
+    courseId: course.id,
+    title: course.title,
+    category: 'Продвинутые темы',
+    summary: course.summary,
+    checks: course.checklist,
+    limitation: course.pitfall,
+    source: course.sources[0]!,
+    reviewedAt: course.reviewedAt,
+  })),
+)
 export const categories = ['Все', ...new Set(knowledgeEntries.map((e) => e.category))]

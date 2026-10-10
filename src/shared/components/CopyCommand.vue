@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { Copy, Check } from '@lucide/vue'
-const props = defineProps<{ command: string }>()
-const shell = computed(() => (/^(?:Get-|Test-)/i.test(props.command.trim()) ? 'PowerShell' : 'CMD'))
+const props = defineProps<{ command: string; shell?: 'CMD' | 'PowerShell' }>()
+const shell = computed(
+  () =>
+    props.shell ?? (/^(?:Get-|Test-|Resolve-)/i.test(props.command.trim()) ? 'PowerShell' : 'CMD'),
+)
 const copied = ref(false)
 const error = ref('')
 let timer: ReturnType<typeof setTimeout> | undefined

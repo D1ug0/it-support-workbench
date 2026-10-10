@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { questions, quizCategories } from '../features/learning/questions'
 import { useLearningStore } from '../features/learning/useLearningStore'
 import { parseProgress } from '../features/learning/progress'
@@ -9,6 +9,10 @@ import { scenarios } from '../features/simulator/scenarios'
 import { downloadText } from '../infrastructure/export/exportReport'
 import { buildLearningPath } from '../features/learning/path'
 import { knowledgeEntries } from '../features/knowledge/catalog'
+import AcademyPanel from '../features/academy/AcademyPanel.vue'
+import { academyCourses, academyQuestions } from '../features/academy/catalog'
+import { allLearningQuestions } from '../features/learning/catalog'
+import { buildReviewQueue } from '../features/learning/review'
 const store = useLearningStore()
 onMounted(() => void store.initialize())
 const category = ref('Все')
@@ -16,10 +20,29 @@ const weakOnly = ref(false)
 const deck = ref<string[]>([])
 const cursor = ref(0)
 const choice = ref<number>()
+const answering = ref(false)
 const imported = ref<LearningProgress>()
 const error = ref('')
 let readVersion = 0
-onBeforeUnmount(() => readVersion++)
+const now = ref(Date.now())
+let clock: ReturnType<typeof globalThis.setInterval> | undefined
+onMounted(() => {
+  clock = globalThis.setInterval(() => (now.value = Date.now()), 60_000)
+})
+onBeforeUnmount(() => {
+  readVersion++
+  globalThis.clearInterval(clock)
+})
+const due = computed(() => buildReviewQueue(store.state, allLearningQuestions, now.value))
+const nextDue = computed(
+  () =>
+    Object.values(store.state.reviews)
+      .map((r) => Date.parse(r.dueAt))
+      .filter((t) => t > now.value)
+      .sort((a, b) => a - b)[0],
+)
+const formatDate = (value: number) =>
+  new Date(value).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
 const candidates = computed(() =>
   questions.filter(
     (q) =>
@@ -27,13 +50,18 @@ const candidates = computed(() =>
       (!weakOnly.value || store.state.answers[q.id]?.lastCorrect === false),
   ),
 )
-const question = computed(() => questions.find((q) => q.id === deck.value[cursor.value]))
+const question = computed(() => allLearningQuestions.find((q) => q.id === deck.value[cursor.value]))
 const mastered = computed(
   () => questions.filter((q) => store.state.answers[q.id]?.lastCorrect).length,
 )
-const completed = computed(() => Object.keys(store.state.scenarios).length)
+const completed = computed(() => scenarios.filter((s) => store.state.scenarios[s.id]).length)
 const path = computed(() => buildLearningPath(store.state))
 const route = useRoute()
+const router = useRouter()
+const advanced = computed(
+  () => route.query.view === 'advanced' || academyCourses.some((c) => c.id === route.query.course),
+)
+watch(advanced, () => finish())
 watch(
   () => route.query.topic,
   (value) => {
@@ -59,10 +87,27 @@ function start() {
   cursor.value = 0
   choice.value = undefined
 }
-function answer(index: number) {
-  if (!question.value || choice.value !== undefined) return
+async function answer(index: number) {
+  if (!question.value || choice.value !== undefined || answering.value || !store.ready) return
   choice.value = index
-  void store.answer(question.value.id, index === question.value.correct)
+  answering.value = true
+  try {
+    await store.answer(question.value.id, index === question.value.correct)
+    now.value = Date.now()
+  } catch {
+    error.value = 'Не удалось обновить прогресс. Экспортируйте текущие результаты.'
+  } finally {
+    answering.value = false
+  }
+}
+async function startReview() {
+  const ids = due.value.map((q) => q.id)
+  await router.push('/learning')
+  deck.value = ids
+  cursor.value = 0
+  choice.value = undefined
+  await nextTick()
+  document.getElementById('quiz-section')?.focus()
 }
 function next() {
   cursor.value++
@@ -90,8 +135,8 @@ async function read(event: Event) {
     if (file.size > 256 * 1024) throw new Error('Файл превышает 256 KiB.')
     const value = parseProgress(
       await file.text(),
-      questions.map((q) => q.id),
-      scenarios.map((s) => s.id),
+      allLearningQuestions.map((q) => q.id),
+      [...scenarios.map((s) => s.id), ...academyCourses.map((c) => `LAB-${c.id}`)],
     )
     if (version === readVersion) imported.value = value
   } catch (cause) {
@@ -101,8 +146,13 @@ async function read(event: Event) {
 }
 async function apply() {
   if (!imported.value) return
-  await store.replace(imported.value)
-  imported.value = undefined
+  try {
+    await store.replace(imported.value)
+    imported.value = undefined
+    error.value = ''
+  } catch {
+    error.value = 'Не удалось применить прогресс. Текущие данные не заменены.'
+  }
 }
 </script>
 <template>
@@ -112,7 +162,10 @@ async function apply() {
       <h1>Знания превращаются в навык<span class="accent">.</span></h1>
       <p>Повторение, разбор ошибок и измеримый учебный прогресс.</p>
     </div>
-    <span class="tag">{{ questions.length }} ВОПРОСОВ · {{ quizCategories.length }} ТЕМ</span>
+    <span class="tag"
+      >{{ questions.length }} БАЗОВЫХ ВОПРОСОВ · {{ academyQuestions.length }} ПРАКТИЧЕСКИХ
+      РЕШЕНИЙ</span
+    >
   </div>
   <section class="panel feature-section">
     <div class="learning-metrics">
@@ -137,12 +190,68 @@ async function apply() {
     >
     <p>
       По умолчанию прогресс остаётся в памяти. При включении сохраняются только ID заданий, счётчики
-      и оценки; диагностические логи сюда не попадают. Отключение останавливает запись, прежний
-      прогресс удаляется отдельной кнопкой.
+      и оценки, даты повторений; диагностические логи сюда не попадают. Отключение останавливает
+      запись, прежний прогресс удаляется отдельной кнопкой.
     </p>
     <p v-if="store.error" role="alert" class="form-error">{{ store.error }}</p>
+    <p
+      v-if="store.ready && store.enabled && !store.error"
+      role="status"
+      data-testid="learning-save-status"
+    >
+      {{
+        store.saving
+          ? 'Сохраняем прогресс… Не перезагружайте вкладку.'
+          : 'Прогресс сохранён на устройстве.'
+      }}
+    </p>
   </section>
+  <nav class="learning-view-nav button-row" aria-label="Учебные направления">
+    <RouterLink
+      :class="['button', advanced ? 'secondary' : 'primary']"
+      :aria-current="!advanced ? 'page' : undefined"
+      to="/learning"
+      >Базовый маршрут</RouterLink
+    >
+    <RouterLink
+      :class="['button', advanced ? 'primary' : 'secondary']"
+      :aria-current="advanced ? 'page' : undefined"
+      to="/learning?view=advanced"
+      >Продвинутый курс</RouterLink
+    >
+  </nav>
+  <section class="panel feature-section review-section" aria-labelledby="review-title">
+    <span class="eyebrow">ИНТЕРВАЛЬНОЕ ПОВТОРЕНИЕ</span>
+    <h2 id="review-title">К повторению сейчас: {{ due.length }}</h2>
+    <p>
+      После верного ответа: 1 → 3 → 7 → 14 → 30 дней. После ошибки — через 10 минут; последние
+      ошибки можно разобрать сразу. Ответы раньше срока не увеличивают интервал. Это учебное
+      расписание, не оценка квалификации.
+    </p>
+    <p v-if="!due.length">
+      {{
+        nextDue
+          ? `Ближайшее повторение: ${formatDate(nextDue)}.`
+          : 'Пройдите тест или лабораторную — появится расписание.'
+      }}
+    </p>
+    <template v-else
+      ><p>
+        В подборке есть базовые и продвинутые задания. Старый прогресс без дат также можно
+        повторить.
+      </p>
+      <ul>
+        <li v-for="q in due.slice(0, 3)" :key="q.id">{{ q.category }}: {{ q.prompt }}</li>
+      </ul>
+      <button class="button primary small" :disabled="!store.ready" @click="startReview">
+        Повторить по расписанию
+      </button>
+    </template>
+    <button class="button ghost small" @click="now = Date.now()">Обновить расписание</button>
+  </section>
+  <AcademyPanel v-if="advanced" />
   <section
+    v-if="!advanced"
     class="panel feature-section learning-recommendation"
     aria-labelledby="recommendation-title"
   >
@@ -166,11 +275,11 @@ async function apply() {
       >
     </div>
   </section>
-  <p class="path-explanation">
+  <p v-if="!advanced" class="path-explanation">
     Проходите темы по порядку: прочитать → проверить понимание → применить на практике. Доступны все
     темы; верный последний ответ отмечает повторение, а не сертификат компетентности.
   </p>
-  <div class="learning-path">
+  <div v-if="!advanced" class="learning-path">
     <article
       v-for="item in path.modules"
       :key="item.topic"
@@ -199,6 +308,7 @@ async function apply() {
     </article>
   </div>
   <section
+    v-if="!advanced"
     id="quiz-section"
     class="panel feature-section quiz-section"
     tabindex="-1"
@@ -230,7 +340,7 @@ async function apply() {
         <button
           v-for="(value, index) in question.choices"
           :key="index"
-          :disabled="choice !== undefined"
+          :disabled="choice !== undefined || answering || !store.ready"
           :class="{
             correct: choice !== undefined && index === question.correct,
             incorrect: choice === index && index !== question.correct,
@@ -243,12 +353,20 @@ async function apply() {
       <div v-if="choice !== undefined" class="quiz-explanation" role="status">
         <strong>{{ choice === question.correct ? 'Верно' : 'Разберём ошибку' }}</strong>
         <p>{{ question.explanation }}</p>
+        <p v-if="store.state.reviews[question.id]">
+          Следующее повторение:
+          {{ formatDate(Date.parse(store.state.reviews[question.id]!.dueAt)) }}.
+        </p>
         <a :href="question.source.url" target="_blank" rel="noopener noreferrer">{{
           question.source.title
         }}</a
-        ><button class="button primary small" @click="next">Следующий вопрос</button>
+        ><button class="button primary small" :disabled="answering" @click="next">
+          Следующий вопрос
+        </button>
       </div>
-      <button class="button ghost small" @click="finish">Завершить тест</button></template
+      <button class="button ghost small" :disabled="answering" @click="finish">
+        Завершить тест
+      </button></template
     ><template v-else
       ><h3>Все вопросы этой подборки пройдены</h3>
       <p>Повторите ошибки или перейдите к практическому тренажёру.</p>
@@ -260,7 +378,9 @@ async function apply() {
   </section>
   <section class="panel feature-section">
     <h2>История практики</h2>
-    <p v-if="!completed">Пройдите сценарий в тренажёре — здесь появятся попытки и лучшая оценка.</p>
+    <p v-if="!Object.keys(store.state.scenarios).length">
+      Пройдите сценарий или лабораторную — здесь появятся попытки и лучшая оценка.
+    </p>
     <div
       v-for="scenario in scenarios.filter((s) => store.state.scenarios[s.id])"
       :key="scenario.id"
@@ -271,6 +391,17 @@ async function apply() {
       ><span>{{ store.state.scenarios[scenario.id]?.attempts }} попыток</span>
     </div>
     <RouterLink to="/playbooks">Открыть практические чек-листы</RouterLink>
+    <div
+      v-for="course in academyCourses.filter((c) => store.state.scenarios[`LAB-${c.id}`])"
+      :key="course.id"
+      class="history-row"
+    >
+      <RouterLink :to="{ path: '/learning', query: { course: course.id } }">{{
+        course.title
+      }}</RouterLink>
+      <strong>{{ store.state.scenarios[`LAB-${course.id}`]?.best }} / 100</strong>
+      <span>{{ store.state.scenarios[`LAB-${course.id}`]?.attempts }} попыток лабораторной</span>
+    </div>
   </section>
   <section class="panel feature-section">
     <h2>Перенос и управление прогрессом</h2>

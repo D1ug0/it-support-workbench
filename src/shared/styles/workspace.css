@@ -1994,3 +1994,67 @@
     display: none;
   }
 }
+/* Lessons keep long names and synthetic evidence readable on narrow screens. */
+.academy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.academy-grid > *,
+.academy-lesson,
+.academy-lab,
+.review-section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.academy-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.academy-card .button {
+  margin-top: auto;
+}
+.academy-prerequisites {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.learning-view-nav {
+  margin: 24px 0;
+}
+.academy-lesson {
+  margin-top: 24px;
+}
+.academy-lesson article {
+  margin: 24px 0;
+}
+.academy-command {
+  margin-bottom: 18px;
+  min-width: 0;
+}
+.academy-command code {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.academy-lesson li,
+.academy-summary li {
+  margin-bottom: 10px;
+}
+.academy-evidence {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.academy-lab .quiz-explanation .button {
+  margin-top: 14px;
+}
+@media (max-width: 700px) {
+  .academy-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

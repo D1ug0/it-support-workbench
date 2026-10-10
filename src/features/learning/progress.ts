@@ -1,6 +1,8 @@
 import { z } from 'zod'
+import { scheduleReview, reviewSchema } from './review'
+import type { Review } from './review'
 const count = z.number().int().min(0).max(1_000_000)
-export const progressSchema = z
+const legacyProgressSchema = z
   .object({
     schemaVersion: z.literal(1),
     answers: z
@@ -23,20 +25,39 @@ export const progressSchema = z
       .refine((v) => Object.keys(v).length <= 1000),
   })
   .strict()
+const currentProgressSchema = legacyProgressSchema
+  .extend({
+    schemaVersion: z.literal(2),
+    reviews: z
+      .record(z.string().max(80), reviewSchema)
+      .refine((v) => Object.keys(v).length <= 1000),
+  })
+  .refine((v) => Object.keys(v.reviews).every((id) => Object.hasOwn(v.answers, id)))
+export const progressSchema = z.union([
+  currentProgressSchema,
+  legacyProgressSchema.transform((value) => ({
+    ...value,
+    schemaVersion: 2 as const,
+    reviews: {} as Record<string, Review>,
+  })),
+])
 export type LearningProgress = z.infer<typeof progressSchema>
 export const emptyProgress = (): LearningProgress => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   answers: {},
   scenarios: {},
+  reviews: {},
 })
 export function recordAnswer(
   state: LearningProgress,
   id: string,
   correct: boolean,
+  now = Date.now(),
 ): LearningProgress {
   const previous = state.answers[id]
   return {
     ...state,
+    reviews: { ...state.reviews, [id]: scheduleReview(state.reviews[id], correct, now) },
     answers: {
       ...state.answers,
       [id]: {

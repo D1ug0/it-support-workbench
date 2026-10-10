@@ -83,6 +83,12 @@ async function copy(value: string) {
       </div>
       <h2>{{ entry.title }}</h2>
       <p>{{ entry.summary }}</p>
+      <RouterLink
+        v-if="entry.courseId"
+        class="button secondary small"
+        :to="{ path: '/learning', query: { course: entry.courseId } }"
+        >Урок и лабораторная</RouterLink
+      >
       <button v-if="entry.command" class="command-copy" @click="copy(entry.command)">
         <code>{{ entry.command }}</code
         ><Check v-if="copied === entry.command" :size="14" /><Copy v-else :size="14" /></button
