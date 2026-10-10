@@ -4,6 +4,8 @@
 
 Vue 3 · TypeScript strict · Vite · Pinia · Tailwind CSS 4 · Vitest · Playwright · MIT
 
+**Учебный терминал:** три лаборатории DNS/кэша/ICMP-TCP, ввод команд через xterm.js, изменяемая виртуальная среда, разбор и сравнение проверок, журнал и явные контрольные точки. Откройте «Учебный терминал» в меню; начните с `help`. [Руководство и поддерживаемый синтаксис](docs/TRAINING_TERMINAL.md).
+
 ![Обзор рабочей среды](docs/screenshots/overview.png)
 
 ## Быстрый запуск

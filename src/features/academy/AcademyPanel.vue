@@ -94,9 +94,23 @@ async function open(id: string) {
       </article>
       <h3>Команды и цель проверки</h3>
       <p>
-        Приложение команды не выполняет. Имена и адреса учебные; для ручной проверки используйте
-        разрешённый ресурс. PowerShell-выводы этих команд пока не разбираются анализатором.
+        Команды ниже предназначены для ручного выполнения на разрешённом устройстве. Имена и адреса
+        учебные. Анализатор принимает выбранные JSON-выводы сетевых cmdlet; другие форматы могут не
+        поддерживаться. Учебные варианты проверок доступны в терминале.
       </p>
+      <div v-if="selected.id === 'dns' || selected.id === 'tls'" class="button-row">
+        <template v-if="selected.id === 'dns'">
+          <RouterLink class="button secondary" to="/terminal?lab=TERM-DNS-SERVER"
+            >Проверить DNS в терминале</RouterLink
+          >
+          <RouterLink class="button secondary" to="/terminal?lab=TERM-DNS-CACHE"
+            >Исследовать DNS-кэш</RouterLink
+          >
+        </template>
+        <RouterLink v-else class="button secondary" to="/terminal?lab=TERM-ICMP-TCP"
+          >Проверить границу ICMP и TCP</RouterLink
+        >
+      </div>
       <div v-for="command in selected.commands" :key="command.command" class="academy-command">
         <CopyCommand :command="command.command" :shell="command.shell" />
         <p>{{ command.purpose }}</p>

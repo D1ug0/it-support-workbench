@@ -1,0 +1,96 @@
+.terminal-console {
+  padding: 20px;
+  min-width: 0;
+  margin: 20px 0;
+}
+.terminal-console > p {
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.xterm-container {
+  height: 340px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.terminal-command-form {
+  display: grid;
+  gap: 10px;
+}
+.terminal-transcript {
+  height: 300px;
+  overflow: auto;
+  padding: 12px;
+  background: var(--raised);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.terminal-command-list {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+}
+.terminal-command-list button {
+  display: grid;
+  text-align: left;
+  justify-content: start;
+  gap: 5px;
+}
+.terminal-command-list code,
+.terminal-records code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.terminal-command-list span {
+  color: var(--secondary);
+  font-size: 12px;
+}
+.terminal-records {
+  padding-left: 22px;
+  max-height: 430px;
+  overflow: auto;
+}
+.terminal-records li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.terminal-records .tag,
+.terminal-records button {
+  margin: 6px;
+}
+.terminal-records pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  background: var(--raised);
+}
+.terminal-hint,
+.terminal-origin,
+.terminal-checkpoint-preview {
+  padding: 14px;
+  background: var(--accent-dim);
+  border-radius: var(--radius);
+  line-height: 1.7;
+}
+.terminal-feedback {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--raised);
+  border-radius: var(--radius);
+}
+.terminal-feedback li {
+  margin: 8px 0;
+}
+.terminal-brief .button-row {
+  align-items: end;
+}
+@media (max-width: 600px) {
+  .terminal-console {
+    padding: 12px;
+  }
+  .xterm-container {
+    height: 280px;
+  }
+}

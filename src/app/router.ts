@@ -4,6 +4,11 @@ export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
+      path: '/terminal',
+      component: () => import('../pages/TerminalPage.vue'),
+      meta: { title: 'Учебный терминал' },
+    },
+    {
       path: '/guide',
       component: () => import('../pages/GuidePage.vue'),
       meta: { title: 'Помощник диагностики' },

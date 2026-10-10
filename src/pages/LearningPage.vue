@@ -16,6 +16,7 @@ import { buildReviewQueue } from '../features/learning/review'
 import PracticePanel from '../features/practice/PracticePanel.vue'
 import { practiceTasks } from '../features/practice/catalog'
 import LearningJournal from '../features/learning/LearningJournal.vue'
+import { labIds } from '../features/terminal/catalog'
 const store = useLearningStore()
 onMounted(() => void store.initialize())
 const category = ref('Все')
@@ -143,6 +144,7 @@ async function read(event: Event) {
       await file.text(),
       allLearningQuestions.map((q) => q.id),
       [
+        ...labIds,
         ...scenarios.map((s) => s.id),
         ...academyCourses.map((c) => `LAB-${c.id}`),
         ...practiceTasks.map((t) => `PRACTICE-${t.id}`),
@@ -218,6 +220,7 @@ async function apply() {
     </p>
   </section>
   <nav class="learning-view-nav button-row" aria-label="Учебные направления">
+    <RouterLink class="button secondary" to="/terminal">Практика в терминале</RouterLink>
     <RouterLink
       :class="['button', basic ? 'primary' : 'secondary']"
       :aria-current="basic ? 'page' : undefined"

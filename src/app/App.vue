@@ -35,6 +35,7 @@ const nav = [
   { to: '/knowledge', label: 'Справочник', icon: BookOpen },
   { to: '/playbooks', label: 'Чек-листы', icon: ListChecks },
   { to: '/simulator', label: 'Тренажёр', icon: GraduationCap },
+  { to: '/terminal', label: 'Учебный терминал', icon: Terminal },
   { to: '/learning', label: 'Учебный центр', icon: ChartNoAxesCombined },
   { to: '/cases', label: 'Локальные кейсы', icon: FolderOpen },
   { to: '/settings', label: 'Настройки', icon: Settings },

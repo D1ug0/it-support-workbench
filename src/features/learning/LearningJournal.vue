@@ -5,6 +5,7 @@ import { allLearningQuestions } from './catalog'
 import { academyCourses } from '../academy/catalog'
 import { practiceTasks } from '../practice/catalog'
 import { scenarios } from '../simulator/scenarios'
+import { terminalLabs } from '../terminal/catalog'
 import { learningSummary } from './journal'
 import { downloadText } from '../../infrastructure/export/exportReport'
 const store = useLearningStore()
@@ -18,7 +19,12 @@ const page = ref(0)
 const entries = computed(() =>
   [...store.state.journal]
     .reverse()
-    .filter((e) => filter.value === 'Все' || e.kind === filter.value),
+    .filter(
+      (e) =>
+        filter.value === 'Все' ||
+        e.kind === filter.value ||
+        (filter.value === 'terminal' && e.taskId.startsWith('TERM-')),
+    ),
 )
 const target = ref(store.state.weeklyGoal)
 const error = ref('')
@@ -32,6 +38,7 @@ function title(id: string) {
     practiceTasks.find((t) => `PRACTICE-${t.id}` === id)?.title ??
     academyCourses.find((c) => `LAB-${c.id}` === id)?.title ??
     scenarios.find((s) => s.id === id)?.title ??
+    terminalLabs.find((lab) => lab.id === id)?.title ??
     (id.startsWith('USR-') ? 'Собственный учебный инцидент' : id)
   )
 }
@@ -122,6 +129,7 @@ function exportJournal() {
           <option value="question">Ответы</option>
           <option value="scenario">Лабораторные и инциденты</option>
           <option value="practice">Самостоятельная практика</option>
+          <option value="terminal">Терминальные лаборатории</option>
         </select></label
       ><button class="button secondary small" @click="exportJournal">
         Скачать журнал обучения

@@ -11,6 +11,10 @@ const analysis = useAnalysisStore(),
   learning = useLearningStore()
 import { listArchives } from '../features/sessions/archiveRepository'
 import { listScenarios } from '../features/simulator/customRepository'
+import { countCheckpoints } from '../features/terminal/repository'
+import { useTerminalStore } from '../features/terminal/useTerminalStore'
+const terminal = useTerminalStore()
+const checkpointCount = ref<number>()
 const archiveCount = ref<number>(),
   scenarioCount = ref<number>()
 const caseCount = ref<number>()
@@ -21,6 +25,11 @@ onMounted(async () => {
   archiveCount.value = archives.status === 'fulfilled' ? archives.value.length : undefined
   scenarioCount.value = scenarios.status === 'fulfilled' ? scenarios.value.length : undefined
   try {
+    checkpointCount.value = await countCheckpoints()
+  } catch {
+    checkpointCount.value = undefined
+  }
+  try {
     caseCount.value = (await listCases()).length
   } catch {
     caseCount.value = undefined
@@ -29,13 +38,14 @@ onMounted(async () => {
 function clearMemory() {
   if (
     !window.confirm(
-      'Очистить ввод анализатора, рабочую сессию и план помощника? Сохранённые кейсы и учебный прогресс останутся.',
+      'Очистить ввод анализатора, рабочую сессию, план помощника и попытку учебного терминала? Сохранённые данные останутся.',
     )
   )
     return
   analysis.clear()
   session.clear()
   guide.clear()
+  terminal.start(terminal.lab.id)
 }
 </script>
 <template>
@@ -79,6 +89,15 @@ function clearMemory() {
       }}</strong>
     </div>
     <div class="history-row">
+      <span>Учебный терминал</span><strong>{{ terminal.records.length }} команд в памяти</strong>
+    </div>
+    <div class="history-row">
+      <span>Контрольные точки терминала</span
+      ><strong>{{
+        checkpointCount === undefined ? 'Хранилище недоступно' : `${checkpointCount} в IndexedDB`
+      }}</strong>
+    </div>
+    <div class="history-row">
       <span>Учебный прогресс</span
       ><strong>{{ learning.enabled ? 'Запись включена' : 'Автозапись выключена' }}</strong>
     </div>
@@ -86,14 +105,17 @@ function clearMemory() {
       <button class="button secondary small" @click="clearMemory">Очистить временные данные</button
       ><RouterLink class="button secondary small" to="/cases">Управлять кейсами</RouterLink
       ><RouterLink class="button secondary small" to="/learning">Управлять прогрессом</RouterLink
+      ><RouterLink class="button secondary small" to="/terminal"
+        >Контрольные точки терминала</RouterLink
       ><RouterLink class="button secondary small" to="/sessions">Архивы сессий</RouterLink
       ><RouterLink class="button secondary small" to="/simulator?view=editor"
         >Мои сценарии</RouterLink
       >
     </div>
     <p>
-      Кейсы, прогресс, архивы и сценарии не шифруются приложением и не синхронизируются.
-      Экспортированные файлы, clipboard и резервные копии браузера удаляются отдельно.
+      Кейсы, прогресс, архивы, сценарии и контрольные точки не шифруются приложением и не
+      синхронизируются. Экспортированные файлы, clipboard и резервные копии браузера удаляются
+      отдельно.
     </p>
   </section>
   <section class="panel feature-section">

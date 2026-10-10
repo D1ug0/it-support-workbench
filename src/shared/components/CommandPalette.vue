@@ -5,6 +5,7 @@ import { Search, X } from '@lucide/vue'
 import { knowledgeEntries } from '../../features/knowledge/catalog'
 import { glossary } from '../../features/knowledge/glossary'
 import { practiceTasks } from '../../features/practice/catalog'
+import { terminalLabs } from '../../features/terminal/catalog'
 const router = useRouter()
 const dialog = ref<HTMLDialogElement>()
 const input = ref<HTMLInputElement>()
@@ -19,6 +20,7 @@ const pages = [
   ['Справочник', '/knowledge'],
   ['Чек-листы', '/playbooks'],
   ['Тренажёр', '/simulator'],
+  ['Учебный терминал', '/terminal'],
   ['Учебный центр', '/learning'],
   ['Самостоятельная практика', '/learning?view=practice'],
   ['Журнал обучения', '/learning?view=journal'],
@@ -28,6 +30,11 @@ const pages = [
   ['О проекте', '/about'],
 ]
 const entries = [
+  ...terminalLabs.map((lab) => ({
+    label: `Терминал: ${lab.title}`,
+    path: `/terminal?lab=${lab.id}`,
+    kind: lab.topic,
+  })),
   ...pages.map(([label, path]) => ({ label: label!, path: path!, kind: 'Раздел' })),
   ...knowledgeEntries.map((entry) => ({
     label: entry.title,

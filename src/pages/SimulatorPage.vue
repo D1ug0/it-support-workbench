@@ -72,6 +72,7 @@ function leaveScenario() {
     <span class="tag">{{ allScenarios.length }} СЦЕНАРИЕВ</span>
   </div>
   <nav class="learning-mode-nav" aria-label="Режим тренажёра">
+    <RouterLink to="/terminal">Вводить команды в терминале</RouterLink>
     <RouterLink to="/simulator">Проходить инциденты</RouterLink
     ><RouterLink to="/simulator?view=editor">Редактор инцидентов</RouterLink>
   </nav>

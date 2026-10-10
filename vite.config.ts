@@ -30,6 +30,8 @@ export default defineConfig({
         'src/features/cases/schema.ts',
         'src/features/cases/exportBundle.ts',
         'src/features/simulator/engine.ts',
+        'src/features/terminal/engine.ts',
+        'src/features/terminal/checkpoint.ts',
         'src/features/playbooks/catalog.ts',
       ],
       exclude: ['**/*.test.ts', '**/types/**', '**/parserRegistry.ts'],
