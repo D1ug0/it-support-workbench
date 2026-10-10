@@ -1,3 +1,4 @@
+import { chooseOption } from './helpers/select'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 async function put(page: Page, name: string, table: string, values: unknown[]) {
@@ -183,10 +184,7 @@ test('report editing keeps one ID, drafts survive reload, and unsaved changes bl
   ).toBeVisible()
   await page.reload()
   await expect(page.getByLabel('Продолжить сохранённый черновик')).toBeVisible()
-  const draftOption = page.getByLabel('Продолжить сохранённый черновик').locator('option').nth(1)
-  await page
-    .getByLabel('Продолжить сохранённый черновик')
-    .selectOption((await draftOption.getAttribute('value'))!)
+  await chooseOption(page, page.getByLabel('Продолжить сохранённый черновик'), { index: 1 })
   await expect(page.getByLabel('Симптом', { exact: true })).toHaveValue(
     'Учебный портал не открывается по имени.',
   )
@@ -209,7 +207,7 @@ test('professional incident saves one concrete attempt and continues after reloa
     page.getByRole('heading', { name: 'Сквозные профессиональные инциденты' }),
   ).toBeVisible()
   for (const action of ['clarify', 'scope', 'dns', 'repair:cache', 'verify']) {
-    await page.getByLabel('Следующая проверка или действие').selectOption(action)
+    await chooseOption(page, page.getByLabel('Следующая проверка или действие'), action)
     await page.getByLabel('Гипотеза и обоснование').fill('Проверяю учебную гипотезу по фактам.')
     await page.getByRole('button', { name: 'Выполнить учебное действие' }).click()
   }

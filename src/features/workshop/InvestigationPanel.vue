@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChanges'
 import { useRoute } from 'vue-router'
 import { drafts, draftSchema, saveDraft } from './drafts'
@@ -218,40 +220,37 @@ function editReport(id: string) {
       автоматически не обезличивается; перед экспортом проверьте содержимое.
     </p>
     <label
-      >Статус отчёта<select v-model="status" class="text-input">
-        <option value="draft">Черновик</option>
-        <option value="completed">Законченный отчёт</option>
-      </select></label
+      >Статус отчёта<AppSelect v-model="status" class="text-input">
+        <AppSelectOption value="draft">Черновик</AppSelectOption>
+        <AppSelectOption value="completed">Законченный отчёт</AppSelectOption>
+      </AppSelect></label
     >
     <label
-      >Продолжить сохранённый черновик<select
-        class="text-input"
-        @change="resumeDraft(($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">Выберите черновик</option>
-        <option
+      >Продолжить сохранённый черновик<AppSelect class="text-input" @change="resumeDraft($event)">
+        <AppSelectOption value="">Выберите черновик</AppSelectOption>
+        <AppSelectOption
           v-for="d in savedDrafts.filter((d) => d.taskId === terminal.lab.id)"
           :key="d.id"
           :value="d.id"
         >
           {{ d.at }} · {{ d.attemptId }}
-        </option>
-      </select></label
+        </AppSelectOption>
+      </AppSelect></label
     >
     <label
-      >Редактировать отчёт этой лаборатории<select
+      >Редактировать отчёт этой лаборатории<AppSelect
         class="text-input"
-        @change="editReport(($event.target as HTMLSelectElement).value)"
+        @change="editReport($event)"
       >
-        <option value="">Выберите отчёт</option>
-        <option
+        <AppSelectOption value="">Выберите отчёт</AppSelectOption>
+        <AppSelectOption
           v-for="r in workshop.portfolio.filter((r) => r.labId === terminal.lab.id)"
           :key="r.id"
           :value="r.id"
         >
           {{ r.title }} · версия {{ r.version }}
-        </option>
-      </select></label
+        </AppSelectOption>
+      </AppSelect></label
     >
     <fieldset v-if="terminal.records.length && reportAttemptId === terminal.attemptId">
       <legend>Добавить ссылки на синтетические доказательства</legend>

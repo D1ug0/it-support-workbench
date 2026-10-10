@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../shared/components/AppSelect.vue'
+import AppSelectOption from '../shared/components/AppSelectOption.vue'
 import { confirmDiscardForms } from '../shared/unsavedChanges'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import '../features/terminal/terminal.css'
@@ -291,7 +293,7 @@ onMounted(async () => {
       {{ store.environment.network?.definition.dns ?? '192.0.2.53' }} · портал: TCP 443.
       Используются только вымышленные узлы.
     </p>
-    <div class="button-row">
+    <div class="button-row terminal-controls">
       <label
         >Вариант задания<input
           v-model.number="seed"
@@ -303,16 +305,16 @@ onMounted(async () => {
           @change="restart()"
       /></label>
       <label
-        >Режим лаборатории<select
+        >Режим лаборатории<AppSelect
           v-model="selectedMode"
           class="text-input"
           :disabled="store.records.length > 0 || store.finished"
           @change="restart()"
         >
-          <option value="guided">Обучение с подсказками</option>
-          <option value="practice">Самостоятельная практика</option>
-          <option value="exam">Проверочная работа</option>
-        </select></label
+          <AppSelectOption value="guided">Обучение с подсказками</AppSelectOption>
+          <AppSelectOption value="practice">Самостоятельная практика</AppSelectOption>
+          <AppSelectOption value="exam">Проверочная работа</AppSelectOption>
+        </AppSelect></label
       ><button class="button secondary" :disabled="busy || store.finishing" @click="restart()">
         Начать заново</button
       ><RouterLink class="button ghost" to="/learning?view=journal">Журнал обучения</RouterLink>
@@ -492,27 +494,27 @@ onMounted(async () => {
     <h2>Сравнить учебные проверки до и после</h2>
     <div class="form-grid">
       <label
-        >Учебная проверка до<select
+        >Учебная проверка до<AppSelect
           v-model="beforeId"
           class="text-input"
           aria-label="Учебная проверка до"
         >
-          <option value="">Выберите проверку</option>
-          <option v-for="r in analyzable" :key="r.id" :value="String(r.id)">
+          <AppSelectOption value="">Выберите проверку</AppSelectOption>
+          <AppSelectOption v-for="r in analyzable" :key="r.id" :value="String(r.id)">
             {{ r.id }} · {{ r.command }} · состояние {{ r.revision }}
-          </option>
-        </select></label
+          </AppSelectOption>
+        </AppSelect></label
       ><label
-        >Учебная проверка после<select
+        >Учебная проверка после<AppSelect
           v-model="afterId"
           class="text-input"
           aria-label="Учебная проверка после"
         >
-          <option value="">Выберите проверку</option>
-          <option v-for="r in analyzable" :key="r.id" :value="String(r.id)">
+          <AppSelectOption value="">Выберите проверку</AppSelectOption>
+          <AppSelectOption v-for="r in analyzable" :key="r.id" :value="String(r.id)">
             {{ r.id }} · {{ r.command }} · состояние {{ r.revision }}
-          </option>
-        </select></label
+          </AppSelectOption>
+        </AppSelect></label
       >
     </div>
     <p v-if="differences.error" role="status">{{ differences.error }}</p>

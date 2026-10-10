@@ -1,6 +1,6 @@
 {
   "name": "it-support-workbench",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "type": "module",
   "description": "Local-first IT support workbench for Windows diagnostics, guided troubleshooting, network tools, and hands-on learning",
@@ -22,6 +22,7 @@
     "test:changed": "vitest run --changed",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --project=chromium",
+    "test:ui": "playwright test e2e/visual-ui.spec.ts --project=chromium --project=webkit",
     "test:e2e:all": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
     "check:quick": "npm run lint && npm run typecheck",
@@ -39,6 +40,7 @@
     "@xterm/xterm": "6.0.0",
     "dexie": "4.4.6",
     "pinia": "4.0.3",
+    "reka-ui": "2.11.0",
     "vue": "3.5.43",
     "vue-router": "5.4.0",
     "zod": "4.6.5"

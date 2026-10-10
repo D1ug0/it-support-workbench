@@ -58,6 +58,8 @@ export const useLearningStore = defineStore('learning', () => {
     await initialize()
     const attemptId = globalThis.crypto.randomUUID()
     state.value = recordAnswer(state.value, id, correct, Date.now(), attemptId)
+    // Reserve this snapshot immediately; the independent workshop journal may still be loading.
+    const baseSave = enabled.value ? persist() : undefined
     const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
     const skill = taskSkill(id)
     if (skill)
@@ -78,12 +80,13 @@ export const useLearningStore = defineStore('learning', () => {
       outcome: correct ? 'completed' : 'failed',
       errors: correct ? [] : ['Повторите объяснение вопроса и вернитесь к проверке.'],
     })
-    if (enabled.value) await persist()
+    await baseSave
   }
   async function complete(id: string, score: number, terminalAttempt?: string) {
     await initialize()
     const attemptId = terminalAttempt ?? globalThis.crypto.randomUUID()
     state.value = recordScenario(state.value, id, score, Date.now(), attemptId)
+    const baseSave = enabled.value ? persist() : Promise.resolve<SaveResult>({ status: 'memory' })
     if (!terminalAttempt) {
       const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
       const skill = taskSkill(id)
@@ -109,7 +112,7 @@ export const useLearningStore = defineStore('learning', () => {
         outcome: score >= 85 ? 'completed' : 'failed',
       })
     }
-    return enabled.value ? persist() : ({ status: 'memory' } as SaveResult)
+    return baseSave
   }
   async function setEnabled(value: boolean) {
     await initialize()

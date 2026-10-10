@@ -1,3 +1,4 @@
+import { chooseOption } from './helpers/select'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 const dbName = 'it-support-workbench-workshop'
@@ -30,7 +31,7 @@ async function saveIncident(page: Page) {
   ).toBeVisible()
 }
 async function act(page: Page, action: string) {
-  await page.getByLabel('Следующая проверка или действие').selectOption(action)
+  await chooseOption(page, page.getByLabel('Следующая проверка или действие'), action)
   await page
     .getByLabel('Гипотеза и обоснование')
     .fill('Сравниваю проверку с учебными данными и масштабом отказа.')
@@ -128,7 +129,8 @@ test('two real IndexedDB tabs cannot silently overwrite a professional attempt',
   await expect(second.getByLabel('Симптом и масштаб', { exact: true })).toHaveValue(
     'Доказательство первой вкладки сохраняется без перезаписи.',
   )
-  await expect(second.getByRole('combobox', { name: 'Инцидент', exact: true })).toHaveValue(
+  await expect(second.getByRole('combobox', { name: 'Инцидент', exact: true })).toHaveAttribute(
+    'data-value',
     'portal',
   )
   // Equal note content after restore must still invalidate every old tab token.
@@ -178,9 +180,11 @@ test('two real IndexedDB tabs protect an investigation draft and retain the reje
   const id = (await rows(page, 'drafts'))[0]!.id as string,
     second = await context.newPage()
   await second.goto(page.url())
-  await second
-    .getByRole('combobox', { name: 'Продолжить сохранённый черновик', exact: true })
-    .selectOption(id)
+  await chooseOption(
+    second,
+    second.getByRole('combobox', { name: 'Продолжить сохранённый черновик', exact: true }),
+    id,
+  )
   await expect(second.getByLabel('Симптом', { exact: true })).toHaveValue(
     'Исходный учебный черновик.',
   )
@@ -215,7 +219,7 @@ test('Git theory locks the first answer and opens the Git stand instead of DNS',
   await expect(problem.getByRole('button', { name: 'Проверить расчёт' })).toBeDisabled()
   await expect(problem.getByRole('status')).toContainText('всего 6')
   await page.getByRole('link', { name: 'Незнакомая итоговая работа' }).click()
-  await expect(page.getByLabel('Задание настоящего стенда')).toHaveValue('git')
+  await expect(page.getByLabel('Задание настоящего стенда')).toHaveAttribute('data-value', 'git')
 })
 
 test('retained incident notes are guarded when leaving from its lesson, and an explicit final opens a new case', async ({
@@ -242,10 +246,13 @@ test('retained incident notes are guarded when leaving from its lesson, and an e
   await page.evaluate(() => {
     location.hash = '/learning?view=workshop&workshop=professional&incident=smb&variant=1&new=1'
   })
-  await expect(page.getByRole('combobox', { name: 'Инцидент', exact: true })).toHaveValue('smb')
-  await expect(page.getByRole('combobox', { name: 'Незнакомый вариант', exact: true })).toHaveValue(
-    '1',
+  await expect(page.getByRole('combobox', { name: 'Инцидент', exact: true })).toHaveAttribute(
+    'data-value',
+    'smb',
   )
+  await expect(
+    page.getByRole('combobox', { name: 'Незнакомый вариант', exact: true }),
+  ).toHaveAttribute('data-value', '1')
   await expect(
     page.getByRole('heading', { name: 'Доступ к общей папке', exact: true }),
   ).toBeVisible()
@@ -265,9 +272,11 @@ test('a stale partial stand draft remains exportable without completing a report
   const id = (await rows(page, 'drafts'))[0]!.id as string,
     second = await context.newPage()
   await second.goto(page.url())
-  await second
-    .getByRole('combobox', { name: 'Продолжить черновик стенда', exact: true })
-    .selectOption(id)
+  await chooseOption(
+    second,
+    second.getByRole('combobox', { name: 'Продолжить черновик стенда', exact: true }),
+    id,
+  )
   await expect(second.getByLabel('Симптом стенда', { exact: true })).toHaveValue(
     'Первоначальные заметки Git.',
   )

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, ref, watch } from 'vue'
 import { graphSchema, type IncidentGraph } from './graph'
 const text = defineModel<string>({ required: true })
@@ -69,11 +71,11 @@ function removeNode() {
       >Название расследования<input v-model="draft.title" class="text-input" maxlength="160"
     /></label>
     <label
-      >Начальный этап<select v-model="draft.start" class="text-input">
-        <option v-for="n in draft.nodes" :key="n.id" :value="n.id">
+      >Начальный этап<AppSelect v-model="draft.start" class="text-input">
+        <AppSelectOption v-for="n in draft.nodes" :key="n.id" :value="n.id">
           {{ n.id }} · {{ n.prompt.slice(0, 70) }}
-        </option>
-      </select></label
+        </AppSelectOption>
+      </AppSelect></label
     >
     <nav class="graph-overview" aria-label="Схема переходов">
       <button
@@ -122,10 +124,12 @@ function removeNode() {
           }}<input v-model="c.label" class="text-input" maxlength="180" /></label
         ><label
           >Переход действия {{ i + 1
-          }}<select v-model="c.to" class="text-input">
-            <option value="END">Завершение</option>
-            <option v-for="n in draft.nodes" :key="n.id" :value="n.id">{{ n.id }}</option>
-          </select></label
+          }}<AppSelect v-model="c.to" class="text-input">
+            <AppSelectOption value="END">Завершение</AppSelectOption>
+            <AppSelectOption v-for="n in draft.nodes" :key="n.id" :value="n.id">{{
+              n.id
+            }}</AppSelectOption>
+          </AppSelect></label
         ><label class="checkbox-label"
           ><input v-model="c.useful" type="checkbox" />Действие {{ i + 1 }} обосновано</label
         ><label

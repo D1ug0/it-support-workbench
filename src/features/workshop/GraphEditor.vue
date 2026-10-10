@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import {
   sampleGraph,
@@ -158,9 +160,11 @@ async function remove(id: string) {
       сценарии доступны в прежнем тренажёре.
     </p>
     <label
-      >Готовое расследование<select v-model="preset" class="text-input">
-        <option v-for="p in incidentPresets" :key="p.id" :value="p.id">{{ p.graph.title }}</option>
-      </select></label
+      >Готовое расследование<AppSelect v-model="preset" class="text-input">
+        <AppSelectOption v-for="p in incidentPresets" :key="p.id" :value="p.id">{{
+          p.graph.title
+        }}</AppSelectOption>
+      </AppSelect></label
     ><button class="button secondary" @click="loadPreset">Открыть учебное расследование</button>
     <GraphForm v-model="text" />
     <details>

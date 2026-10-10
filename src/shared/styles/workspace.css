@@ -7,6 +7,8 @@
   border-radius: 7px;
   font-size: 13px;
   min-width: 0;
+  min-height: 44px;
+  line-height: 1.5;
 }
 .text-input::placeholder {
   color: var(--muted);
@@ -1211,6 +1213,17 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 16px;
+}
+.button-row > label:not(.checkbox-label) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--secondary);
+}
+.button-row > label .app-select-trigger {
+  margin-top: 0;
 }
 .form-grid {
   display: grid;

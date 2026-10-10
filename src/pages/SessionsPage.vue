@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../shared/components/AppSelect.vue'
+import AppSelectOption from '../shared/components/AppSelectOption.vue'
 import { computed, ref } from 'vue'
 import { useSessionStore } from '../features/sessions/useSessionStore'
 import { compareOutputs, formatDifference, exportSession } from '../features/sessions/session'
@@ -189,19 +191,19 @@ function prepareReport() {
       <h2>Изменения до / после</h2>
       <div class="form-grid">
         <label
-          >До<select v-model="beforeId" class="text-input" aria-label="До">
-            <option value="">Выберите проверку</option>
-            <option v-for="record in session.records" :key="record.id" :value="record.id">
+          >До<AppSelect v-model="beforeId" class="text-input" aria-label="До">
+            <AppSelectOption value="">Выберите проверку</AppSelectOption>
+            <AppSelectOption v-for="record in session.records" :key="record.id" :value="record.id">
               {{ record.label }} · {{ record.analysis.parse.kind }}
-            </option>
-          </select></label
+            </AppSelectOption>
+          </AppSelect></label
         ><label
-          >После<select v-model="afterId" class="text-input" aria-label="После">
-            <option value="">Выберите проверку</option>
-            <option v-for="record in session.records" :key="record.id" :value="record.id">
+          >После<AppSelect v-model="afterId" class="text-input" aria-label="После">
+            <AppSelectOption value="">Выберите проверку</AppSelectOption>
+            <AppSelectOption v-for="record in session.records" :key="record.id" :value="record.id">
               {{ record.label }} · {{ record.analysis.parse.kind }}
-            </option>
-          </select></label
+            </AppSelectOption>
+          </AppSelect></label
         >
       </div>
       <p>

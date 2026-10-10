@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../shared/components/AppSelect.vue'
+import AppSelectOption from '../shared/components/AppSelectOption.vue'
 import ContinueLearning from '../features/workshop/ContinueLearning.vue'
 import {
   computed,
@@ -369,10 +371,12 @@ async function apply() {
     <template v-if="!deck.length"
       ><div class="form-grid">
         <label
-          >Тема вопросов<select v-model="category" class="text-input">
-            <option>Все</option>
-            <option v-for="item in quizCategories" :key="item">{{ item }}</option>
-          </select></label
+          >Тема вопросов<AppSelect v-model="category" class="text-input">
+            <AppSelectOption value="Все">Все</AppSelectOption>
+            <AppSelectOption v-for="item in quizCategories" :key="item" :value="item">{{
+              item
+            }}</AppSelectOption>
+          </AppSelect></label
         ><label class="checkbox-label"
           ><input v-model="weakOnly" type="checkbox" /> Только последние ошибки</label
         >

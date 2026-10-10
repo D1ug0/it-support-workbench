@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChanges'
 import { drafts, draftSchema, saveDraft } from './drafts'
 import { loadCollection } from './collectionLoader'
@@ -323,20 +325,23 @@ async function resumeReport(id: string) {
       результат не повышает оценку самостоятельного владения в симуляторе.
     </p>
     <label
-      >Задание настоящего стенда<select v-model="taskId" class="text-input" @change="changeTask()">
-        <option v-for="t in standTasks" :key="t.id" :value="t.id">{{ t.title }}</option>
-      </select></label
+      >Задание настоящего стенда<AppSelect
+        v-model="taskId"
+        class="text-input"
+        @change="changeTask()"
+      >
+        <AppSelectOption v-for="t in standTasks" :key="t.id" :value="t.id">{{
+          t.title
+        }}</AppSelectOption>
+      </AppSelect></label
     >
     <label
-      >Продолжить черновик стенда<select
-        class="text-input"
-        @change="resumeDraft(($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">Выберите черновик</option>
-        <option v-for="d in savedDrafts" :key="d.id" :value="d.id">
+      >Продолжить черновик стенда<AppSelect class="text-input" @change="resumeDraft($event)">
+        <AppSelectOption value="">Выберите черновик</AppSelectOption>
+        <AppSelectOption v-for="d in savedDrafts" :key="d.id" :value="d.id">
           {{ d.taskId }} · {{ d.at }}
-        </option>
-      </select></label
+        </AppSelectOption>
+      </AppSelect></label
     >
     <p>{{ task.objective }} · {{ task.platform }}</p>
     <RouterLink

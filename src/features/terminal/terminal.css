@@ -97,9 +97,24 @@
 
 .terminal-workspace {
   display: grid;
-  grid-template-columns: minmax(250px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(390px, 0.85fr) minmax(0, 1.35fr);
   gap: 16px;
   align-items: start;
+}
+.terminal-network-map {
+  display: block;
+  container-type: inline-size;
+}
+.terminal-map-heading .eyebrow {
+  font-size: 9px;
+}
+.terminal-map-heading h2 {
+  margin: 9px 0 8px;
+}
+.terminal-map-heading p {
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.7;
 }
 .terminal-workspace .terminal-console {
   margin: 0;
@@ -112,17 +127,90 @@
 }
 .network-node {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  text-align: left;
+  white-space: normal;
   min-width: 0;
-  gap: 8px;
-  padding: 14px;
+  gap: 10px;
+  padding: 12px;
+  min-height: 78px;
+}
+.network-node > svg {
+  color: var(--muted);
+}
+.network-node > span {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.network-node strong {
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 .network-node code {
   font-size: 12px;
   overflow-wrap: anywhere;
 }
 .network-node[aria-pressed='true'] {
-  outline: 2px solid var(--accent);
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+.network-node[aria-pressed='true'] > svg {
+  color: var(--accent);
+}
+.terminal-node-detail {
+  padding: 14px;
+  border-radius: 9px;
+  background: var(--raised);
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.terminal-node-detail p {
+  margin-top: 5px;
+  color: var(--secondary);
+}
+.terminal-network-path {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.terminal-network-path > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.terminal-network-path p {
+  color: var(--secondary);
+  margin: 6px 0;
+}
+.terminal-network-path code {
+  display: block;
+}
+.terminal-network-path.network-fail > div {
+  color: var(--warning);
+}
+.terminal-network-map .network-time {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.network-time > svg {
+  margin-top: 3px;
+}
+@container (max-width: 300px) {
+  .network-nodes {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .network-ok {
   color: var(--text);
@@ -135,8 +223,40 @@
 }
 .terminal-catalog summary {
   cursor: pointer;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.6;
 }
-@media (max-width: 1000px) {
+.terminal-catalog[open] summary {
+  border-color: var(--accent);
+}
+.terminal-controls > label:not(.checkbox-label) {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+.terminal-controls > label:first-child {
+  flex: 0 1 150px;
+}
+.terminal-console > .button-row {
+  margin-top: 0;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.terminal-console > .button-row > strong {
+  font-size: 14px;
+}
+.xterm-container {
+  margin-top: 16px;
+}
+.terminal-transcript {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  margin: 16px 0;
+}
+@media (max-width: 1200px) {
   .terminal-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -177,9 +297,54 @@
 .trace-timeline li {
   margin: 14px 0;
 }
-.workshop-root label {
+.workshop-root label:not(.checkbox-label) {
   display: block;
   margin: 12px 0;
+}
+.workshop-root .checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  margin: 12px 0;
+}
+.workshop-root .checkbox-label input {
+  margin-top: 2px;
+}
+.workshop-root fieldset {
+  min-width: 0;
+  padding: 16px;
+  margin: 18px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.workshop-root legend {
+  padding: 0 6px;
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.workshop-root > .learning-mode-nav {
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.workshop-root > .learning-mode-nav .button {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 11px;
+}
+@media (max-width: 700px) {
+  .workshop-root > .learning-mode-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .workshop-root > .learning-mode-nav .button {
+    flex-shrink: 0;
+    max-width: none;
+    white-space: nowrap;
+  }
 }
 .workshop-root .text-input {
   width: 100%;

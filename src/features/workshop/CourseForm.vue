@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { ref, watch } from 'vue'
 import { customCourseSchema, type CustomCourse } from './customCourses'
 import { skills } from './skills'
@@ -46,9 +48,11 @@ function moveStep(index: number) {
       >Название авторского курса<input v-model="draft.title" class="text-input" maxlength="160"
     /></label>
     <label
-      >Навык курса<select v-model="draft.skill" class="text-input">
-        <option v-for="s in skills" :key="s.id" :value="s.id">{{ s.title }}</option>
-      </select></label
+      >Навык курса<AppSelect v-model="draft.skill" class="text-input">
+        <AppSelectOption v-for="s in skills" :key="s.id" :value="s.id">{{
+          s.title
+        }}</AppSelectOption>
+      </AppSelect></label
     >
     <fieldset>
       <legend>Направления курса</legend>
@@ -133,11 +137,11 @@ function moveStep(index: number) {
       >
         Добавить ответ</button
       ><label
-        >Правильный ответ курса<select v-model.number="draft.correct" class="text-input">
-          <option v-for="(_, i) in draft.options" :key="i" :value="i">
+        >Правильный ответ курса<AppSelect v-model="draft.correct" class="text-input">
+          <AppSelectOption v-for="(_, i) in draft.options" :key="i" :value="i">
             {{ i + 1 }} · {{ draft.options[i] }}
-          </option>
-        </select></label
+          </AppSelectOption>
+        </AppSelect></label
       >
     </fieldset>
     <label

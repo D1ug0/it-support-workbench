@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { practiceTasks, checkPractice } from './catalog'
@@ -73,9 +75,11 @@ function exportAttempt() {
       возможный порядок любой диагностики.
     </p>
     <label
-      >Направление практики<select v-model="topic" class="text-input" :disabled="busy">
-        <option v-for="item in topics" :key="item">{{ item }}</option>
-      </select></label
+      >Направление практики<AppSelect v-model="topic" class="text-input" :disabled="busy">
+        <AppSelectOption v-for="item in topics" :key="item" :value="item">{{
+          item
+        }}</AppSelectOption>
+      </AppSelect></label
     >
   </section>
   <div class="practice-layout">

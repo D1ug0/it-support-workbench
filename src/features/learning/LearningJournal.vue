@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, ref, watch } from 'vue'
 import { useLearningStore } from './useLearningStore'
 import { allLearningQuestions } from './catalog'
@@ -124,13 +126,13 @@ function exportJournal() {
     <h3>История попыток</h3>
     <div class="button-row">
       <label
-        >Тип учебного события<select v-model="filter" class="text-input" @change="page = 0">
-          <option>Все</option>
-          <option value="question">Ответы</option>
-          <option value="scenario">Лабораторные и инциденты</option>
-          <option value="practice">Самостоятельная практика</option>
-          <option value="terminal">Терминальные лаборатории</option>
-        </select></label
+        >Тип учебного события<AppSelect v-model="filter" class="text-input" @change="page = 0">
+          <AppSelectOption value="Все">Все</AppSelectOption>
+          <AppSelectOption value="question">Ответы</AppSelectOption>
+          <AppSelectOption value="scenario">Лабораторные и инциденты</AppSelectOption>
+          <AppSelectOption value="practice">Самостоятельная практика</AppSelectOption>
+          <AppSelectOption value="terminal">Терминальные лаборатории</AppSelectOption>
+        </AppSelect></label
       ><button class="button secondary small" @click="exportJournal">
         Скачать журнал обучения
       </button>

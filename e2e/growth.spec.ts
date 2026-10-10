@@ -1,3 +1,4 @@
+import { chooseOption } from './helpers/select'
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
@@ -56,8 +57,10 @@ test('session explicitly groups outputs, correlates evidence and compares before
   await expect(
     page.getByRole('heading', { name: 'DNS-запрос использует другой адрес сервера' }),
   ).toBeVisible()
-  await page.getByLabel('До', { exact: true }).selectOption({ label: 'До VPN · ipconfig' })
-  await page.getByLabel('После', { exact: true }).selectOption({ label: 'После VPN · ipconfig' })
+  await chooseOption(page, page.getByLabel('До', { exact: true }), { label: 'До VPN · ipconfig' })
+  await chooseOption(page, page.getByLabel('После', { exact: true }), {
+    label: 'После VPN · ipconfig',
+  })
   await expect(page.locator('.diff-list')).toContainText('IPv4 / префикс')
   await expect(page.locator('.diff-list')).toContainText('DNS')
   await expect(page.locator('.diff-list')).not.toContainText('10.42.0.')

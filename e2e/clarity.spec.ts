@@ -1,3 +1,4 @@
+import { chooseOption } from './helpers/select'
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
@@ -60,7 +61,7 @@ test('guide links select empty-input format and preserve an existing diagnostic 
   await page.goto('/#/guide')
   await sitePlan(page)
   await page.getByRole('link', { name: 'Разобрать вывод этой команды' }).nth(1).click()
-  await expect(page.getByLabel('Формат', { exact: true })).toHaveValue('nslookup')
+  await expect(page.getByLabel('Формат', { exact: true })).toHaveAttribute('data-value', 'nslookup')
   const source = await readFile('src/fixtures/ping-en.txt', 'utf8')
   await page.getByLabel('Вывод команды').fill(source)
   await page.getByRole('link', { name: 'Помощник диагностики', exact: true }).click()
@@ -69,7 +70,7 @@ test('guide links select empty-input format and preserve an existing diagnostic 
   ).toBeVisible()
   await page.getByRole('link', { name: 'Разобрать вывод этой команды' }).first().click()
   await expect(page.getByLabel('Вывод команды')).toHaveValue(source)
-  await expect(page.getByLabel('Формат', { exact: true })).toHaveValue('nslookup')
+  await expect(page.getByLabel('Формат', { exact: true })).toHaveAttribute('data-value', 'nslookup')
   await page.getByRole('link', { name: 'Помощник диагностики', exact: true }).click()
   await page.getByLabel('Этот шаг я выполнил').first().check()
   await page.getByRole('link', { name: 'Учебный пример ситуации' }).click()
@@ -93,7 +94,7 @@ test('plain result links facts to source and glossary is reachable through globa
   page,
 }) => {
   await page.goto('/#/analyzer')
-  await page.getByLabel('Демопример', { exact: true }).selectOption('ping')
+  await chooseOption(page, page.getByLabel('Демопример', { exact: true }), 'ping')
   await page.getByRole('button', { name: 'Проанализировать', exact: true }).click()
   const summary = page.getByRole('region', { name: 'Коротко о результате', exact: true })
   await expect(summary).toContainText('ICMP')
@@ -111,7 +112,7 @@ test('learning path starts a topic, prioritizes its mistake and opens the select
   page,
 }) => {
   await page.goto('/#/learning?topic=DNS')
-  await expect(page.getByLabel('Тема вопросов')).toHaveValue('DNS')
+  await expect(page.getByLabel('Тема вопросов')).toHaveAttribute('data-value', 'DNS')
   await page.getByRole('button', { name: '2. Проверить: DNS', exact: true }).click()
   const question = questions.find((question) => question.category === 'DNS')!
   await page

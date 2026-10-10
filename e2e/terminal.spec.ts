@@ -1,3 +1,4 @@
+import { chooseOption } from './helpers/select'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
@@ -25,8 +26,8 @@ test('DNS lab changes virtual settings, analyzes and compares outputs, records o
   await run(page, 'Set-DnsClientServerAddress -InterfaceIndex 12 -ServerAddresses 192.0.2.53')
   await run(page, 'ipconfig /all')
   await run(page, tcp)
-  await page.getByLabel('Учебная проверка до', { exact: true }).selectOption('1')
-  await page.getByLabel('Учебная проверка после', { exact: true }).selectOption('5')
+  await chooseOption(page, page.getByLabel('Учебная проверка до', { exact: true }), '1')
+  await chooseOption(page, page.getByLabel('Учебная проверка после', { exact: true }), '5')
   await expect(page.locator('.diff-list')).toContainText('DNS')
   await expect(page.locator('.diff-list')).toContainText('192.0.2.53')
   await page.getByLabel('На адаптере выбран DNS-сервер без записи портала', { exact: true }).check()
@@ -34,7 +35,7 @@ test('DNS lab changes virtual settings, analyzes and compares outputs, records o
   await expect(page.locator('.terminal-feedback')).toContainText('100/100')
   await expect(page.getByRole('button', { name: 'Проверить решение', exact: true })).toBeDisabled()
   await page.getByRole('link', { name: 'Журнал обучения', exact: true }).click()
-  await page.getByLabel('Тип учебного события').selectOption('terminal')
+  await chooseOption(page, page.getByLabel('Тип учебного события'), 'terminal')
   await expect(page.locator('.learning-event-list')).toContainText('Неверный DNS-сервер')
 })
 test('cache lab keeps authoritative DNS and client cache distinct, compares TCP before and after', async ({
@@ -48,8 +49,8 @@ test('cache lab keeps authoritative DNS and client cache distinct, compares TCP 
   await expect(page.locator('.terminal-records li').first()).toContainText('198.51.100.99')
   await run(page, 'ipconfig /flushdns')
   await run(page, tcp)
-  await page.getByLabel('Учебная проверка до', { exact: true }).selectOption('3')
-  await page.getByLabel('Учебная проверка после', { exact: true }).selectOption('5')
+  await chooseOption(page, page.getByLabel('Учебная проверка до', { exact: true }), '3')
+  await chooseOption(page, page.getByLabel('Учебная проверка после', { exact: true }), '5')
   await expect(page.locator('.diff-list')).toContainText('192.0.2.20')
   await page.getByLabel('В клиентском DNS-кэше остался старый адрес', { exact: true }).check()
   await page.getByRole('button', { name: 'Проверить решение', exact: true }).click()
@@ -57,7 +58,7 @@ test('cache lab keeps authoritative DNS and client cache distinct, compares TCP 
 })
 test('exam finalizes once and opt-in progress survives reload', async ({ page }) => {
   await start(page, 'TERM-ICMP-TCP')
-  await page.getByLabel('Режим лаборатории').selectOption('exam')
+  await chooseOption(page, page.getByLabel('Режим лаборатории'), 'exam')
   await page.getByLabel('Сохранять учебный прогресс на этом устройстве').check()
   await expect(page.getByRole('button', { name: 'Следующая подсказка', exact: false })).toHaveCount(
     0,

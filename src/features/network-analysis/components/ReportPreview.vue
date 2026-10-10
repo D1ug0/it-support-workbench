@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../../shared/components/AppSelectOption.vue'
 import { computed, onMounted, ref } from 'vue'
 import { X, Download, ShieldCheck, AlertTriangle, FolderPlus } from '@lucide/vue'
 import type { AnalysisResult } from '../../../domain/types/diagnostic'
@@ -127,10 +129,10 @@ function download() {
     </div>
     <div class="dialog-footer">
       <label class="format-select"
-        >Формат<select v-model="format">
-          <option value="md">Markdown (.md)</option>
-          <option value="txt">Текст (.txt)</option>
-        </select></label
+        >Формат<AppSelect v-model="format">
+          <AppSelectOption value="md">Markdown (.md)</AppSelectOption>
+          <AppSelectOption value="txt">Текст (.txt)</AppSelectOption>
+        </AppSelect></label
       ><button class="button primary" :disabled="includeRaw && !consent" @click="download">
         <Download :size="17" /> Скачать отчёт
       </button>

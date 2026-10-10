@@ -4,6 +4,7 @@ import { reactive } from 'vue'
 import { useLearningStore } from './useLearningStore'
 import { emptyProgress, recordAnswer } from './progress'
 import { writeProgress } from './repository'
+import { useWorkshopStore } from '../workshop/useWorkshopStore'
 vi.mock('./repository', () => ({
   readProgress: vi.fn(async () => undefined),
   writeProgress: vi.fn(async () => 1),
@@ -62,5 +63,33 @@ describe('learning import and opt-in', () => {
     finishSecond()
     await second
     expect(store.saving).toBe(false)
+  })
+  it('reserves and writes the answer before the independent workshop journal finishes', async () => {
+    const store = useLearningStore()
+    await store.setEnabled(true)
+    let finishWrite!: () => void
+    let finishWorkshop!: () => void
+    vi.mocked(writeProgress).mockImplementationOnce(
+      () =>
+        new Promise<number>((resolve) => {
+          finishWrite = () => resolve(2)
+        }),
+    )
+    vi.spyOn(useWorkshopStore(), 'addEvent').mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishWorkshop = () => resolve({ status: 'memory' })
+        }),
+    )
+    const answering = store.answer('q', true)
+    await vi.waitFor(() => expect(store.state.answers.q?.lastCorrect).toBe(true))
+    expect(store.saving).toBe(true)
+    await vi.waitFor(() => expect(finishWrite).toBeTypeOf('function'))
+    finishWrite()
+    await store.flush()
+    expect(store.saving).toBe(false)
+    expect(writeProgress).toHaveBeenLastCalledWith(true, store.state, expect.any(Number))
+    finishWorkshop()
+    await answering
   })
 })

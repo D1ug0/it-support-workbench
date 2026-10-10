@@ -1,3 +1,4 @@
+import { chooseOption } from './helpers/select'
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
@@ -8,10 +9,10 @@ for (const [name, heading] of [
   ['Nslookup: DNS-ответ', 'Ответ DNS'],
   ['Tracert: пропуск хопа', 'Переходы маршрута'],
   ['Route print: IPv4 / IPv6', 'Таблица маршрутов'],
-]) {
+] as const) {
   test(`analyzes ${name}`, async ({ page }) => {
     await page.goto('/#/analyzer')
-    await page.getByLabel('Демопример', { exact: true }).selectOption({ label: name })
+    await chooseOption(page, page.getByLabel('Демопример', { exact: true }), { label: name })
     const text = await page.getByLabel('Вывод команды').inputValue()
     await page
       .getByLabel('Вывод команды')

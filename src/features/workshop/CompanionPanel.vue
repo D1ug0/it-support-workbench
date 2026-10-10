@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import {
   CompanionClient,
@@ -219,9 +221,11 @@ async function explainExternal() {
     >
     <h3>Учебный помощник</h3>
     <label
-      >Тема объяснения<select v-model="courseId" class="text-input">
-        <option v-for="c in workshopCourses" :key="c.id" :value="c.id">{{ c.title }}</option>
-      </select></label
+      >Тема объяснения<AppSelect v-model="courseId" class="text-input">
+        <AppSelectOption v-for="c in workshopCourses" :key="c.id" :value="c.id">{{
+          c.title
+        }}</AppSelectOption>
+      </AppSelect></label
     ><button class="button secondary" @click="explainLocal">
       Объяснить по локальным материалам
     </button>

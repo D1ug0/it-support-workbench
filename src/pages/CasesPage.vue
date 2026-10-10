@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../shared/components/AppSelect.vue'
+import AppSelectOption from '../shared/components/AppSelectOption.vue'
 import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import {
   FolderOpen,
@@ -231,9 +233,9 @@ function toggle(id: string) {
           class="text-input"
           placeholder="Название проверки" /></label
       ><label
-        >Тип команды<select v-model="command" class="text-input">
-          <option>Все</option>
-          <option
+        >Тип команды<AppSelect v-model="command" class="text-input">
+          <AppSelectOption value="Все">Все</AppSelectOption>
+          <AppSelectOption
             v-for="kind in [
               'ipconfig',
               'ping',
@@ -244,16 +246,17 @@ function toggle(id: string) {
               'powershell',
             ]"
             :key="kind"
+            :value="kind"
           >
             {{ kind }}
-          </option>
-        </select></label
+          </AppSelectOption>
+        </AppSelect></label
       ><label
-        >Порядок кейсов<select v-model="sort" class="text-input">
-          <option value="newest">Сначала новые</option>
-          <option value="oldest">Сначала старые</option>
-          <option value="title">По названию</option>
-        </select></label
+        >Порядок кейсов<AppSelect v-model="sort" class="text-input">
+          <AppSelectOption value="newest">Сначала новые</AppSelectOption>
+          <AppSelectOption value="oldest">Сначала старые</AppSelectOption>
+          <AppSelectOption value="title">По названию</AppSelectOption>
+        </AppSelect></label
       >
     </div>
     <p role="status">Найдено: {{ filtered.length }} / {{ cases.length }}</p>

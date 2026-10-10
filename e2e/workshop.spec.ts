@@ -1,3 +1,4 @@
+import { chooseOption } from './helpers/select'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
@@ -101,9 +102,11 @@ test('branching Git incident validates and exports a debrief; invalid links cann
   page,
 }) => {
   await workshop(page, 'graphs')
-  await page
-    .getByRole('combobox', { name: 'Готовое расследование', exact: true })
-    .selectOption('GIT')
+  await chooseOption(
+    page,
+    page.getByRole('combobox', { name: 'Готовое расследование', exact: true }),
+    'GIT',
+  )
   await page.getByRole('button', { name: 'Открыть учебное расследование', exact: true }).click()
   for (const name of [
     'Сравнить SHA и лог проверки PR',

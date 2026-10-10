@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { computed, onMounted, ref, watch } from 'vue'
 import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChanges'
@@ -42,7 +44,7 @@ const { markSaved } = useUnsavedChanges(
       !to.query.attempt ||
       to.query.attempt === attempt.value.id),
 )
-const actions = [
+const actions: Array<[string, string]> = [
   ['clarify', 'Уточнить заявку'],
   ['scope', 'Определить масштаб'],
   ['dns', 'Сопоставить DNS и кэш'],
@@ -252,14 +254,16 @@ async function remove(id: string) {
       Старая рубрика сохранённых отчётов отмечается как legacy.
     </p>
     <label
-      >Инцидент<select v-model="caseId" class="text-input">
-        <option v-for="c in professionalCases" :key="c.id" :value="c.id">{{ c.title }}</option>
-      </select></label
+      >Инцидент<AppSelect v-model="caseId" class="text-input">
+        <AppSelectOption v-for="c in professionalCases" :key="c.id" :value="c.id">{{
+          c.title
+        }}</AppSelectOption>
+      </AppSelect></label
     >
     <label
-      >Незнакомый вариант<select v-model.number="variant" class="text-input">
-        <option v-for="i in 3" :key="i" :value="i - 1">{{ i }}</option>
-      </select></label
+      >Незнакомый вариант<AppSelect v-model="variant" class="text-input">
+        <AppSelectOption v-for="i in 3" :key="i" :value="i - 1">{{ i }}</AppSelectOption>
+      </AppSelect></label
     ><button class="button secondary" @click="start">Начать профессиональный инцидент</button>
     <h4>{{ current.title }}</h4>
     <p>{{ current.brief }}</p>
@@ -274,9 +278,11 @@ async function remove(id: string) {
     >
     <template v-if="attempt.status === 'active'"
       ><label
-        >Следующая проверка или действие<select v-model="action" class="text-input">
-          <option v-for="[id, title] in actions" :key="id" :value="id">{{ title }}</option>
-        </select></label
+        >Следующая проверка или действие<AppSelect v-model="action" class="text-input">
+          <AppSelectOption v-for="[id, title] in actions" :key="id" :value="id">{{
+            title
+          }}</AppSelectOption>
+        </AppSelect></label
       ><label
         >Гипотеза и обоснование<textarea
           v-model="reason"
@@ -293,14 +299,14 @@ async function remove(id: string) {
       >
     </fieldset>
     <label v-if="attempt.caseId === 'recovery' && attempt.status === 'active'"
-      >Проверенная копия для следующего восстановления<select
+      >Проверенная копия для следующего восстановления<AppSelect
         v-model="attempt.selectedSnapshot"
         class="text-input"
       >
-        <option :value="null">Выберите после проверки копий</option>
-        <option value="09:30">09:30</option>
-        <option value="10:02">10:02</option>
-      </select></label
+        <AppSelectOption :value="null">Выберите после проверки копий</AppSelectOption>
+        <AppSelectOption value="09:30">09:30</AppSelectOption>
+        <AppSelectOption value="10:02">10:02</AppSelectOption>
+      </AppSelect></label
     >
     <ol>
       <li v-for="(s, i) in attempt.steps" :key="i">

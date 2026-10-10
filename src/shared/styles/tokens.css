@@ -49,7 +49,7 @@
 }
 body {
   margin: 0;
-  min-width: 360px;
+  min-width: 320px;
   background: var(--bg);
   color: var(--text);
 }
@@ -377,7 +377,10 @@ svg {
   padding: 11px 17px;
   font-size: 12px;
   font-weight: 600;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.5;
+  text-align: center;
   transition: transform 0.15s;
 }
 .button:hover:not(:disabled) {
@@ -929,7 +932,7 @@ svg {
   padding: 19px 17px 17px;
 }
 .input-options label {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   min-width: 0;
 }
@@ -1945,7 +1948,7 @@ select {
 }
 @media (max-width: 700px) {
   body {
-    min-width: 360px;
+    min-width: 320px;
   }
   .app-layout {
     display: block;
@@ -2319,5 +2322,16 @@ select {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+@media (max-width: 400px) {
+  .app-header .local-indicator {
+    display: none;
+  }
+  .breadcrumb {
+    min-width: 0;
+  }
+  .header-actions {
+    flex-shrink: 0;
   }
 }

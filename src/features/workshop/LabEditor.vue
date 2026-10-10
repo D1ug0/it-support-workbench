@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { extendedLabs } from '../terminal/labDefinitions'
@@ -106,9 +108,11 @@ async function remove(id: string) {
       выполняется.
     </p>
     <label
-      >Шаблон<select v-model="template" class="text-input" @change="reset">
-        <option v-for="lab in extendedLabs" :key="lab.id" :value="lab.id">{{ lab.title }}</option>
-      </select></label
+      >Шаблон<AppSelect v-model="template" class="text-input" @change="reset">
+        <AppSelectOption v-for="lab in extendedLabs" :key="lab.id" :value="lab.id">{{
+          lab.title
+        }}</AppSelectOption>
+      </AppSelect></label
     >
     <div class="form-grid">
       <label
@@ -148,9 +152,11 @@ async function remove(id: string) {
         >Вариант {{ i + 1
         }}<input v-model="draft.causes[i]" class="text-input" maxlength="160" /></label
       ><label
-        >Правильный вариант<select v-model.number="draft.correctCause" class="text-input">
-          <option v-for="(_, i) in draft.causes" :key="i" :value="i">{{ i + 1 }}</option>
-        </select></label
+        >Правильный вариант<AppSelect v-model="draft.correctCause" class="text-input">
+          <AppSelectOption v-for="(_, i) in draft.causes" :key="i" :value="i">{{
+            i + 1
+          }}</AppSelectOption>
+        </AppSelect></label
       >
     </fieldset>
     <details>
@@ -168,23 +174,23 @@ async function remove(id: string) {
           }}<input v-model="h.title" class="text-input" maxlength="160" /></label
         ><label
           >Роль узла {{ i + 1
-          }}<select v-model="h.role" class="text-input" @change="h.fault = 'none'">
-            <option value="client">Клиент</option>
-            <option value="server">Сервер</option>
-          </select></label
+          }}<AppSelect v-model="h.role" class="text-input" @change="h.fault = 'none'">
+            <AppSelectOption value="client">Клиент</AppSelectOption>
+            <AppSelectOption value="server">Сервер</AppSelectOption>
+          </AppSelect></label
         ><label>Адрес узла {{ i + 1 }}<input v-model="h.address" class="text-input" /></label
         ><label>Имя узла {{ i + 1 }}<input v-model="h.name" class="text-input" /></label
         ><label
           >Неисправность узла {{ i + 1
-          }}<select v-model="h.fault" class="text-input">
-            <option value="none">Исправен</option>
-            <option value="offline">Узел недоступен</option>
-            <option v-if="h.role === 'client'" value="dns">Неверный DNS</option>
+          }}<AppSelect v-model="h.fault" class="text-input">
+            <AppSelectOption value="none">Исправен</AppSelectOption>
+            <AppSelectOption value="offline">Узел недоступен</AppSelectOption>
+            <AppSelectOption v-if="h.role === 'client'" value="dns">Неверный DNS</AppSelectOption>
             <template v-else
-              ><option value="service">Остановлена служба</option>
-              <option value="http">HTTP 503</option></template
+              ><AppSelectOption value="service">Остановлена служба</AppSelectOption>
+              <AppSelectOption value="http">HTTP 503</AppSelectOption></template
             >
-          </select></label
+          </AppSelect></label
         ><button class="button ghost small" @click="draft.additionalHosts?.splice(i, 1)">
           Удалить узел {{ i + 1 }}
         </button>

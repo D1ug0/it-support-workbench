@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { confirmDiscardForms } from '../../shared/unsavedChanges'
 import '../terminal/terminal.css'
 import linuxGuide from '../../../lab-environments/linux-http/README.md?raw'
@@ -164,8 +166,8 @@ async function answer(index: number) {
     assessment: { ...store.state.assessment, [course.value.skill]: index === course.value.correct },
   })
 }
-async function track(event: Event) {
-  await store.replace({ ...store.state, track: (event.target as HTMLSelectElement).value })
+async function track(value: string) {
+  await store.replace({ ...store.state, track: value })
 }
 function openCourse(id: string) {
   void store.replace({ ...store.state, currentLesson: id })
@@ -325,9 +327,15 @@ function exportTeacher() {
       <section class="panel feature-section">
         <h3>Ваш учебный маршрут</h3>
         <label
-          >Направление<select :value="store.state.track" class="text-input" @change="track">
-            <option v-for="t in tracks" :key="t.id" :value="t.id">{{ t.title }}</option>
-          </select></label
+          >Направление<AppSelect
+            :model-value="store.state.track"
+            class="text-input"
+            @change="track"
+          >
+            <AppSelectOption v-for="t in tracks" :key="t.id" :value="t.id">{{
+              t.title
+            }}</AppSelectOption>
+          </AppSelect></label
         >
         <p>
           <strong>Рекомендуется: {{ recommendation.skill.title }}</strong
@@ -415,9 +423,15 @@ function exportTeacher() {
             class="text-input"
             placeholder="TLS, DHCP, Linux, Git…" /></label
         ><label
-          >Направление<select :value="store.state.track" class="text-input" @change="track">
-            <option v-for="t in tracks" :key="t.id" :value="t.id">{{ t.title }}</option>
-          </select></label
+          >Направление<AppSelect
+            :model-value="store.state.track"
+            class="text-input"
+            @change="track"
+          >
+            <AppSelectOption v-for="t in tracks" :key="t.id" :value="t.id">{{
+              t.title
+            }}</AppSelectOption>
+          </AppSelect></label
         >
         <div class="button-row">
           <button

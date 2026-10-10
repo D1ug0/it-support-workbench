@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../../shared/components/AppSelectOption.vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { FileUp, Play, Trash2, Terminal, FlaskConical, Copy, Check, WrapText } from '@lucide/vue'
 import { useAnalysisStore } from '../model/useAnalysisStore'
@@ -12,6 +14,7 @@ const encoding = ref<FileEncoding>('utf-8')
 const file = ref<File>()
 const fileInput = ref<HTMLInputElement>()
 const fileError = ref('')
+const exampleId = ref('')
 const copied = ref(false)
 const wrap = ref(false)
 const reading = ref(false)
@@ -21,6 +24,7 @@ function replaceInput(text: string, source?: string) {
   readVersion++
   reading.value = false
   fileError.value = ''
+  exampleId.value = ''
   store.setInput(text, source)
 }
 function moveTab(event: KeyboardEvent, next: 'text' | 'file') {
@@ -35,6 +39,7 @@ watch(
     readVersion++
     file.value = undefined
     fileError.value = ''
+    exampleId.value = ''
     reading.value = false
     if (fileInput.value) fileInput.value.value = ''
   },
@@ -46,7 +51,10 @@ async function loadFile() {
   fileError.value = ''
   try {
     const text = await readTextFile(file.value, encoding.value)
-    if (version === readVersion) store.setInput(text, 'Локальный файл')
+    if (version === readVersion) {
+      exampleId.value = ''
+      store.setInput(text, 'Локальный файл')
+    }
   } catch (error: unknown) {
     if (version === readVersion)
       fileError.value = error instanceof Error ? error.message : 'Не удалось прочитать файл.'
@@ -58,10 +66,12 @@ function selectFile(event: Event) {
   file.value = (event.target as HTMLInputElement).files?.[0]
   void loadFile()
 }
-function selectExample(event: Event) {
-  const example = examples.find((e) => e.id === (event.target as HTMLSelectElement).value)
+function selectExample(value: string) {
+  const example = examples.find((e) => e.id === value)
   if (example) {
     replaceInput(example.text, `Пример: ${example.name}`)
+    exampleId.value = value
+    store.mode = 'auto'
     tab.value = 'text'
   }
 }
@@ -127,11 +137,11 @@ async function copyCommand() {
           aria-label="Выбрать локальный файл"
           @change="selectFile" /></label
       ><label class="encoding-label"
-        >Кодировка<select v-model="encoding" @change="loadFile">
-          <option value="utf-8">UTF-8</option>
-          <option value="windows-1251">Windows-1251</option>
-          <option value="ibm866">CP866 (CMD)</option>
-        </select></label
+        >Кодировка<AppSelect v-model="encoding" @change="loadFile">
+          <AppSelectOption value="utf-8">UTF-8</AppSelectOption>
+          <AppSelectOption value="windows-1251">Windows-1251</AppSelectOption>
+          <AppSelectOption value="ibm866">CP866 (CMD)</AppSelectOption>
+        </AppSelect></label
       ><span v-if="reading" role="status">Чтение локального файла…</span>
     </div>
     <div v-show="tab === 'text'" id="input-text-panel" role="tabpanel" aria-labelledby="tab-text">
@@ -167,24 +177,28 @@ async function copyCommand() {
     <p v-if="fileError" class="form-error" role="alert">{{ fileError }}</p>
     <div class="input-options">
       <label
-        >Формат<select v-model="store.mode" aria-label="Формат">
-          <option value="auto">Определить автоматически</option>
-          <option value="ipconfig">ipconfig /all (RU / EN)</option>
-          <option value="ping">ping</option>
-          <option value="nslookup">nslookup</option>
-          <option value="tracert">tracert</option>
-          <option value="route">route print</option>
-          <option value="dns-records">DNS MX/TXT/SRV · Resolve-DnsName JSON</option>
-          <option value="powershell">PowerShell JSON · TCP / IP-конфигурация</option>
-        </select></label
+        >Формат<AppSelect v-model="store.mode" aria-label="Формат">
+          <AppSelectOption value="auto">Определить автоматически</AppSelectOption>
+          <AppSelectOption value="ipconfig">ipconfig /all (RU / EN)</AppSelectOption>
+          <AppSelectOption value="ping">ping</AppSelectOption>
+          <AppSelectOption value="nslookup">nslookup</AppSelectOption>
+          <AppSelectOption value="tracert">tracert</AppSelectOption>
+          <AppSelectOption value="route">route print</AppSelectOption>
+          <AppSelectOption value="dns-records"
+            >DNS MX/TXT/SRV · Resolve-DnsName JSON</AppSelectOption
+          >
+          <AppSelectOption value="powershell"
+            >PowerShell JSON · TCP / IP-конфигурация</AppSelectOption
+          >
+        </AppSelect></label
       ><label
         ><span><FlaskConical :size="13" /> Демопример</span
-        ><select aria-label="Демопример" @change="selectExample">
-          <option value="">Выбрать пример…</option>
-          <option v-for="example in examples" :key="example.id" :value="example.id">
+        ><AppSelect v-model="exampleId" aria-label="Демопример" @change="selectExample">
+          <AppSelectOption value="">Выбрать пример…</AppSelectOption>
+          <AppSelectOption v-for="example in examples" :key="example.id" :value="example.id">
             {{ example.name }}
-          </option>
-        </select></label
+          </AppSelectOption>
+        </AppSelect></label
       >
     </div>
     <div class="input-actions">

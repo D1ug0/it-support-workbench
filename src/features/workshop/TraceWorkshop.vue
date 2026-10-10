@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { trainingTraces, parseTrace, type TrainingTrace } from './traces'
 import { downloadText } from '../../infrastructure/export/exportReport'
@@ -48,9 +50,11 @@ function change() {
       PCAP/EVTX. Импортированные данные остаются в памяти и скрыты до явного раскрытия.
     </p>
     <label
-      >Пример трассы<select v-model="selected" class="text-input" @change="change">
-        <option v-for="(t, i) in trainingTraces" :key="t.title" :value="i">{{ t.title }}</option>
-      </select></label
+      >Пример трассы<AppSelect v-model="selected" class="text-input" @change="change">
+        <AppSelectOption v-for="(t, i) in trainingTraces" :key="t.title" :value="i">{{
+          t.title
+        }}</AppSelectOption>
+      </AppSelect></label
     >
     <label
       >Импорт трассы JSON<input type="file" accept=".json,application/json" @change="read"
@@ -70,12 +74,16 @@ function change() {
       чувствительные данные</label
     >
     <label
-      >Уровень<select v-model="filter" class="text-input">
-        <option>Все</option>
-        <option v-for="layer in ['DNS', 'ICMP', 'TCP', 'TLS', 'HTTP', 'SERVICE']" :key="layer">
+      >Уровень<AppSelect v-model="filter" class="text-input">
+        <AppSelectOption value="Все">Все</AppSelectOption>
+        <AppSelectOption
+          v-for="layer in ['DNS', 'ICMP', 'TCP', 'TLS', 'HTTP', 'SERVICE']"
+          :key="layer"
+          :value="layer"
+        >
           {{ layer }}
-        </option>
-      </select></label
+        </AppSelectOption>
+      </AppSelect></label
     >
     <ol class="trace-timeline">
       <li v-for="(e, i) in events" :key="i">
@@ -84,12 +92,16 @@ function change() {
       </li>
     </ol>
     <label
-      >Первый наблюдаемый отказ<select v-model="answer" class="text-input">
-        <option value="">Выберите уровень</option>
-        <option v-for="layer in ['DNS', 'ICMP', 'TCP', 'TLS', 'HTTP', 'SERVICE']" :key="layer">
+      >Первый наблюдаемый отказ<AppSelect v-model="answer" class="text-input">
+        <AppSelectOption value="">Выберите уровень</AppSelectOption>
+        <AppSelectOption
+          v-for="layer in ['DNS', 'ICMP', 'TCP', 'TLS', 'HTTP', 'SERVICE']"
+          :key="layer"
+          :value="layer"
+        >
           {{ layer }}
-        </option>
-      </select></label
+        </AppSelectOption>
+      </AppSelect></label
     >
     <p v-if="answer" role="status">
       {{

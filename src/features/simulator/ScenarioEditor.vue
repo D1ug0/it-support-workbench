@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { onMounted, ref } from 'vue'
 import type { Scenario } from './engine'
 import {
@@ -178,9 +180,11 @@ async function remove(id: string) {
     <div class="button-row">
       <button class="button secondary small" @click="blank">Новый сценарий</button
       ><label
-        >Шаблон<select v-model="templateId" class="text-input">
-          <option v-for="s in scenarios" :key="s.id" :value="s.id">{{ s.title }}</option>
-        </select></label
+        >Шаблон<AppSelect v-model="templateId" class="text-input">
+          <AppSelectOption v-for="s in scenarios" :key="s.id" :value="s.id">{{
+            s.title
+          }}</AppSelectOption>
+        </AppSelect></label
       ><button class="button secondary small" @click="fromTemplate">Взять за основу</button>
     </div>
     <form @submit.prevent="save">
@@ -196,10 +200,10 @@ async function remove(id: string) {
           >Категория<input v-model="draft.category" required maxlength="60" class="text-input"
         /></label>
         <label
-          >Сложность<select v-model="draft.difficulty" class="text-input">
-            <option>Начальный</option>
-            <option>Средний</option>
-          </select></label
+          >Сложность<AppSelect v-model="draft.difficulty" class="text-input">
+            <AppSelectOption value="Начальный">Начальный</AppSelectOption>
+            <AppSelectOption value="Средний">Средний</AppSelectOption>
+          </AppSelect></label
         >
       </div>
       <label class="editor-field"
@@ -265,9 +269,11 @@ async function remove(id: string) {
           />
         </label>
         <label class="editor-field"
-          >Обоснованное действие<select v-model="step.recommendedId" class="text-input">
-            <option v-for="c in step.choices" :key="c.id" :value="c.id">{{ c.label }}</option>
-          </select></label
+          >Обоснованное действие<AppSelect v-model="step.recommendedId" class="text-input">
+            <AppSelectOption v-for="c in step.choices" :key="c.id" :value="c.id">{{
+              c.label
+            }}</AppSelectOption>
+          </AppSelect></label
         >
         <div v-for="(choice, ci) in step.choices" :key="choice.id" class="editor-choice">
           <h3>Действие {{ ci + 1 }}</h3>

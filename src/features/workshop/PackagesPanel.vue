@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '../../shared/components/AppSelect.vue'
+import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { learningPackages, packageChecks, packageFinals, type PackageCheck } from './packages'
@@ -79,9 +81,11 @@ async function check(item: PackageCheck, answer: number) {
   <section class="panel feature-section">
     <h3>Углублённые тематические пакеты</h3>
     <label
-      >Пакет<select v-model="selected" class="text-input" @change="selectPackage">
-        <option v-for="p in learningPackages" :key="p.id" :value="p.id">{{ p.title }}</option>
-      </select></label
+      >Пакет<AppSelect v-model="selected" class="text-input" @change="selectPackage">
+        <AppSelectOption v-for="p in learningPackages" :key="p.id" :value="p.id">{{
+          p.title
+        }}</AppSelectOption>
+      </AppSelect></label
     >
     <h4>{{ packet.title }}</h4>
     <p>

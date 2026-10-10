@@ -1,3 +1,4 @@
+import { chooseOption } from './helpers/select'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
@@ -44,7 +45,7 @@ test('independent practice validates input, locks attempts and persists journal/
   expect(saved.journal[0]).not.toHaveProperty('answer')
   expect(saved.journal[0].kind).toBe('practice')
   await page.getByRole('link', { name: 'Самостоятельная практика', exact: true }).click()
-  await page.getByLabel('Направление практики').selectOption({ label: 'Подсети' })
+  await chooseOption(page, page.getByLabel('Направление практики'), { label: 'Подсети' })
   await page.getByRole('button', { name: 'Быстрый поиск (Ctrl или Command K)' }).click()
   await page.getByLabel('Поиск разделов и знаний').fill('Практика: IPv4 ICMP payload')
   await page.keyboard.press('Enter')
@@ -169,8 +170,12 @@ test('session archive explicitly saves, redacts, restores after reload and round
   await page.getByRole('button', { name: 'Восстановить сессию' }).click()
   await expect(page.locator('.session-records article')).toHaveCount(2)
   await expect(page.getByRole('button', { name: 'Открыть источник' }).first()).toBeDisabled()
-  await page.getByLabel('До', { exact: true }).selectOption({ label: 'Проверка 1 · ipconfig' })
-  await page.getByLabel('После', { exact: true }).selectOption({ label: 'Проверка 2 · ipconfig' })
+  await chooseOption(page, page.getByLabel('До', { exact: true }), {
+    label: 'Проверка 1 · ipconfig',
+  })
+  await chooseOption(page, page.getByLabel('После', { exact: true }), {
+    label: 'Проверка 2 · ipconfig',
+  })
   await expect(page.locator('.diff-list')).toContainText('IPv4 / префикс')
   await expect(page.locator('.diff-list')).not.toContainText('10.42.0.')
   await page.getByLabel('Импорт архива JSON').setInputFiles({
