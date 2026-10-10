@@ -188,7 +188,7 @@ docs                           архитектура, безопасность,
 
 ## GitHub Pages
 
-Проект пока локальный: публичный репозиторий, CI-run и Pages URL ещё не созданы.
+Исходники опубликованы в [GitHub](https://github.com/D1ug0/it-support-workbench). Результаты удалённых проверок доступны в [Actions](https://github.com/D1ug0/it-support-workbench/actions). Публикация сайта Pages запускается отдельно по шагам ниже.
 
 Подготовка первого репозитория, название и готовые поля GitHub: [GITHUB_PREPARATION.md](docs/GITHUB_PREPARATION.md).
 
@@ -199,7 +199,7 @@ docs                           архитектура, безопасность,
 
 Deploy разрешён только из `main`, проверяет успешный CI для того же коммита и повторяет проверки перед загрузкой `dist/`. Используется относительный `base: './'` и hash routes, поэтому имя репозитория не нужно зашивать в код. Права записи `pages`/`id-token` выдаются только deploy-job. На управляемом хостинге добавьте HTTP security headers; meta CSP — частичная защита для Pages.
 
-Ни git remote, ни commit/push, ни публичное развёртывание автоматически не выполнялись.
+Подготовка проекта не выполняет commit/push или развёртывание автоматически. Появление веток Dependabot и их удаление после слияния описаны в [GITHUB_PREPARATION.md](docs/GITHUB_PREPARATION.md).
 
 ## Следующее развитие
 

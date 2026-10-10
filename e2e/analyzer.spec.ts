@@ -56,17 +56,38 @@ test('raw report requires separate consent and dialog supports Escape', async ({
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).not.toBeVisible()
 })
-test('responsive layout and theme at 375px', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 })
-  for (const route of ['/', '/#/analyzer', '/#/about']) {
-    await page.goto(route)
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true)
-  }
-  await page.getByRole('button', { name: 'Включить светлую тему' }).click()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
-})
+for (const width of [360, 375, 414]) {
+  test(`responsive layout and theme at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    for (const route of ['/', '/#/analyzer', '/#/about']) {
+      await page.goto(route)
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      for (const font of ['', 'Verdana, sans-serif']) {
+        // Broader fallback glyphs reproduce the Linux CI overflow on macOS too.
+        await page.evaluate((family) => {
+          document.documentElement.style.fontFamily = family
+        }, font)
+        await expect
+          .poll(
+            () =>
+              page.evaluate(
+                () =>
+                  Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) -
+                  window.innerWidth,
+              ),
+            {
+              message: `${route} at ${width}px with ${font || 'system font'} must fit the viewport`,
+            },
+          )
+          .toBeLessThanOrEqual(0)
+      }
+    }
+    await page.getByRole('button', { name: 'Включить светлую тему' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    await page.getByRole('button', { name: 'Включить тёмную тему' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  })
+}
 test('main routes have no serious accessibility violations', async ({ page }) => {
   for (const route of ['/', '/#/analyzer', '/#/about']) {
     await page.goto(route)

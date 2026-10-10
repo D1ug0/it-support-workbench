@@ -449,10 +449,13 @@ svg {
 }
 .hero {
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 38px;
   align-items: center;
   padding: 25px 0 47px;
+}
+.hero > * {
+  min-width: 0;
 }
 .hero-copy > .eyebrow {
   color: var(--secondary);
@@ -1855,7 +1858,7 @@ select {
     padding: 0 5px;
   }
   .hero {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 34px;
   }
   .hero h1 {
@@ -2024,8 +2027,9 @@ select {
     gap: 32px;
   }
   .hero h1 {
-    font-size: 58px;
+    font-size: clamp(40px, 12vw, 58px);
     line-height: 1.02;
+    overflow-wrap: anywhere;
   }
   .hero h1 br:nth-child(2) {
     display: block;
