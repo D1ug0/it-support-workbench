@@ -23,6 +23,14 @@ npm run check:feature -- workshop
 
 Команды фильтрации: [Vitest CLI](https://vitest.dev/guide/cli.html), [Playwright](https://playwright.dev/docs/running-tests). Проверка конкретного SHA: [GitHub Actions API](https://docs.github.com/en/rest/actions/workflow-runs).
 
+Для выборочной проверки исправленных сбоев Firefox после актуальной сборки:
+
+```sh
+npx playwright test e2e/terminal.spec.ts e2e/evolution.spec.ts --project=firefox --grep "xterm keyboard|terminal lab works offline|complete backup" --retries=0
+```
+
+Это четыре сценария: вставка, два пути офлайн-терминала и резервная копия. Для сравнения доступны `--project=chromium --project=webkit`. Ожидание `load` после `reload()` не означает готовность первоначальной lazy-навигации Vue: перед последующим переходом проверяется заголовок страницы, а перед отключением сети — активный контроллер Service Worker. Офлайн-терминал также полностью перезагружается без сети. Искусственная вставка использует явно заданный `clipboardData.getData`, поскольку синтетический DataTransfer Firefox не обеспечивает тот же payload. Тест проходит через настоящий обработчик xterm и сохраняет проверку ручного Enter.
+
 Тесты используют синтетические fixtures. Unit проверяет октеты, IPv6, маски, /0, /31, /32, локали, продолжения, evidence, неполный вывод, детерминизм, неизменность моделей и отсутствие ложных диагнозов. Также проверяются longest-prefix routes, корреляция времени, семантический diff CMD и новых DNS/PowerShell моделей, неоднозначные интерфейсы, целостность строк маршрутов, приватность сессионного отчёта, round-trip экспорта частями, строгий учебный импорт и прогресс. Coverage ограничен выбранной чистой логикой; минимальный общий порог 85% по строкам, statements, functions и branches.
 
 Component проверяет ограничения, текстовый XSS-safe вывод и отмену позднего чтения файла после очистки/нового ввода/ухода со страницы. Тесты расширений проверяют модели команд, импорт кейсов и все шесть сценариев тренажёра.

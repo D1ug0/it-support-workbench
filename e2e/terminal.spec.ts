@@ -145,11 +145,15 @@ test('xterm keyboard editing, completion and history execute through the virtual
   await page.keyboard.press('Enter')
   await expect(page.locator('.terminal-records li')).toHaveCount(2)
   await input.evaluate((element) => {
-    const data = new DataTransfer()
-    data.setData('text/plain', 'help\nipconfig /flushdns')
-    element.dispatchEvent(
-      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
-    )
+    // Firefox protects a synthetic DataTransfer's data store. Supply the clipboard
+    // payload explicitly while still dispatching through xterm's real paste handler.
+    const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', {
+      value: {
+        getData: (type: string) => (type === 'text/plain' ? 'help\nipconfig /flushdns' : ''),
+      },
+    })
+    element.dispatchEvent(event)
   })
   await expect(page.locator('.terminal-records li')).toHaveCount(2)
   await page.keyboard.press('Enter')
@@ -198,8 +202,19 @@ for (const root of ['http://127.0.0.1:4173/', 'http://127.0.0.1:4174/preview/sit
       ),
     ).toBeVisible()
     await page.reload()
+    // load does not wait for Vue's initial lazy route. Changing the hash too early
+    // lets that navigation overwrite the terminal route, especially in Firefox.
+    await expect(
+      page.getByRole('heading', { name: 'Ваше рабочее место.', exact: true }),
+    ).toBeVisible()
+    await expect
+      .poll(() => page.evaluate(() => navigator.serviceWorker.controller?.state))
+      .toBe('activated')
     await context.setOffline(true)
     await page.goto(`${root}#/terminal?lab=TERM-DNS-CACHE`)
+    await page.getByLabel('Простой ввод и текстовый вывод').check()
+    // Also exercise a full document load from the offline cache, not only a hash change.
+    await page.reload()
     await page.getByLabel('Простой ввод и текстовый вывод').check()
     await run(page, 'ipconfig /displaydns')
     await expect(page.locator('.terminal-records li').first()).toContainText('198.51.100.99')

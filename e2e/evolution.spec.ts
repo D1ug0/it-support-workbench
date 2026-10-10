@@ -123,6 +123,10 @@ test('complete backup restores atomically, rejects changed previews and keeps au
   await page.getByRole('button', { name: 'Восстановить общую учебную копию', exact: true }).click()
   await expect(page.getByRole('alert')).toBeVisible()
   await page.reload()
+  // Wait for the initial lazy route before starting another hash navigation.
+  await expect(
+    page.getByRole('heading', { name: 'Ваше рабочее место.', exact: true }),
+  ).toBeVisible()
   await openWorkshop(page, 'course-editor')
   await expect(page.getByText('Курс до восстановления', { exact: true })).toBeVisible()
   await expect(page.getByText('Курс после восстановления', { exact: true })).toHaveCount(0)
