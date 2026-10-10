@@ -1,6 +1,7 @@
 import { prefixToMask, isIPv4, calculateSubnet } from '../../domain/network'
 import type { CommandKind } from '../../domain/types/diagnostic'
 import { networkCommands } from './commandRegistry'
+import { fleetProbe, fleetMatrix } from './fleet'
 import {
   evidence,
   mutate,
@@ -35,8 +36,9 @@ export function executeNetwork(
   const verify = (success: boolean, message: string, kind = 'observe') => {
     if (success || s.revision === 0) evidence(s, success ? 'success' : 'failure')
     const fault = d.fault
-    const expected =
-      fault === 'smb'
+    const expected = s.hosts.length
+      ? 'fleet'
+      : fault === 'smb'
         ? 'smb'
         : fault === 'gpo'
           ? 'gpo'
@@ -63,8 +65,63 @@ export function executeNetwork(
     return { state: original, output: 'Лимит изменений: перезапустите лабораторию.', ok: false }
   if (cmd === 'help' && !args.length)
     return out(
-      `Учебная модель: ${d.title}\nПлан: ${d.client}/${d.prefix}, шлюз ${d.gateway}, DNS ${d.dns}; ${d.target}: ${d.server}.\nСинтаксис ограничен реализованными формами; ОС не запускается.\n\nipconfig /all\nipconfig /displaydns\nipconfig /flushdns\nnslookup ${d.target} [${d.dns}]\nResolve-DnsName ${d.target} [-Type A|AAAA|CNAME|MX|TXT|SRV]\nTest-NetConnection ${d.target} -Port 443\nping ${d.target}\ntracert ${d.target}\nroute print\n${networkCommands.map(([c, t]) => `${c} — ${t}`).join('\n')}`,
+      `Учебная модель: ${d.title}\nПлан: ${d.client}/${d.prefix}, шлюз ${d.gateway}, DNS ${d.dns}; ${d.target}: ${d.server}.\nСинтаксис ограничен реализованными формами; ОС не запускается.\n\nipconfig /all\nipconfig /displaydns\nipconfig /flushdns\nnslookup ${d.target} [${d.dns}]\nResolve-DnsName ${d.target} [-Type A|AAAA|CNAME|MX|TXT|SRV]\nTest-NetConnection ${d.target} -Port 443\nping ${d.target}\ntracert ${d.target}\nroute print\n${networkCommands.map(([c, t]) => `${c} — ${t}`).join('\n')}${s.hosts.length ? '\n\nДополнительные узлы (учебные операции):\nlab hosts\nlab inspect ID\nlab probe CLIENT SERVER\nlab repair ID dns|service|http|online\nlab verify-fleet — итоговая проверка всех пар после последнего изменения' : ''}`,
     )
+  if (form === 'lab hosts' && s.hosts.length) {
+    read('config', 'План дополнительных узлов')
+    read('service', 'Состояние распределённого приложения')
+    return out(
+      `Основные узлы: client ${d.client}; server ${d.server}.\n${(d.additionalHosts ?? []).map((h) => `${h.id} · ${h.role} · ${h.address} · ${h.name}`).join('\n')}\nУчебные формы: lab inspect ID; lab probe CLIENT SERVER; lab repair ID dns|service|http|online; lab verify-fleet. Это операции модели, не команды ОС.`,
+    )
+  }
+  if (cmd === 'lab' && args[0] === 'inspect' && args.length === 2) {
+    const host = s.hosts.find((h) => h.id === args[1])
+    if (!host) return fail()
+    read('config', 'Параметры дополнительного узла')
+    read('service', 'Служба дополнительного узла')
+    read('dns', 'DNS дополнительного узла')
+    return json(host)
+  }
+  if (cmd === 'lab' && args[0] === 'probe' && args.length === 3 && s.hosts.length) {
+    try {
+      const p = fleetProbe(s, args[1]!, args[2]!)
+      verify(p.https, `${p.source} → ${p.target}: ${p.result}`)
+      return json(p)
+    } catch {
+      return fail()
+    }
+  }
+  if (cmd === 'lab' && args[0] === 'repair' && args.length === 3) {
+    const host = s.hosts.find((h) => h.id === args[1]),
+      definition = d.additionalHosts?.find((h) => h.id === args[1]),
+      key = args[2]
+    if (
+      !host ||
+      !definition ||
+      !['dns', 'service', 'http', 'online'].includes(key ?? '') ||
+      (key === 'dns' && definition.role !== 'client') ||
+      (['service', 'http'].includes(key ?? '') && definition.role !== 'server')
+    )
+      return fail()
+    if (key === 'dns') host.dnsCorrect = true
+    else if (key === 'service') host.service = true
+    else if (key === 'http') host.httpHealthy = true
+    else host.online = true
+    change(`Учебное исправление ${host.id}: ${key}`)
+    return out(
+      `Изменён только узел ${host.id}. Повторите проверки затронутых клиентов и lab verify-fleet.`,
+    )
+  }
+  if (form === 'lab verify-fleet' && s.hosts.length) {
+    const rows = fleetMatrix(s),
+      success = rows.every((p) => p.https)
+    verify(
+      success,
+      `Матрица сервисов: ${rows.filter((p) => p.https).length}/${rows.length}`,
+      'fleet',
+    )
+    return out(rows.map((p) => `${p.source} → ${p.target}: ${p.result}`).join('\n'))
+  }
   if (cmd === 'cls' && !args.length)
     return { ...out('Экран очищен; среда сохранена.'), clear: true }
   if (
@@ -276,9 +333,16 @@ export function executeNetwork(
       address = resolveNetwork(s, target),
       port = Number(args[2])
     const success =
-      address === d.server &&
+      !!address &&
       routeTo(s, address).reachable &&
-      s.service &&
+      (address === d.server
+        ? s.service
+        : !!d.additionalHosts?.some(
+            (h) =>
+              h.role === 'server' &&
+              h.address === address &&
+              s.hosts.find((state) => state.id === h.id)?.service,
+          )) &&
       (port === 443 || port === 445)
     verify(
       success,
@@ -373,10 +437,22 @@ export function executeNetwork(
       'tracert',
     )
   }
-  if (form === `curl -i https://${d.target}`) {
-    const address = resolveNetwork(s, d.target),
-      reachable = !!address && routeTo(s, address).reachable && s.service
-    const success = reachable && s.mtu <= s.pathMtu && s.clockCorrect && s.trusted && s.httpHealthy
+  if (
+    cmd === 'curl' &&
+    args.length === 2 &&
+    args[0] === '-i' &&
+    [
+      d.target,
+      ...(d.additionalHosts ?? []).filter((h) => h.role === 'server').map((h) => h.name),
+    ].some((name) => args[1] === `https://${name}`)
+  ) {
+    const target = args[1]!.slice(8),
+      extra = d.additionalHosts?.find((h) => h.name === target),
+      host = extra && s.hosts.find((h) => h.id === extra.id)
+    const address = resolveNetwork(s, target),
+      reachable = !!address && routeTo(s, address).reachable && (host ? host.service : s.service)
+    const httpHealthy = host ? host.httpHealthy : s.httpHealthy
+    const success = reachable && s.mtu <= s.pathMtu && s.clockCorrect && s.trusted && httpHealthy
     verify(success, success ? 'HTTPS: 200' : 'HTTPS: отказ', 'https')
     return out(
       !reachable
@@ -387,7 +463,7 @@ export function executeNetwork(
             ? 'curl: (60) Certificate is not yet valid: client clock'
             : !s.trusted
               ? 'curl: (60) Unable to get local issuer certificate'
-              : `HTTP/1.1 ${s.httpHealthy ? '200 OK' : '503 Service Unavailable'}\nServer: LabWeb\nX-Lab: synthetic`,
+              : `HTTP/1.1 ${httpHealthy ? '200 OK' : '503 Service Unavailable'}\nServer: LabWeb\nX-Lab: synthetic`,
     )
   }
   if (form === 'certutil -verify lab.cer') {

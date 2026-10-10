@@ -18,6 +18,7 @@ import CompanionPanel from './CompanionPanel.vue'
 import TeacherPanel from './TeacherPanel.vue'
 import LabEditor from './LabEditor.vue'
 import CourseEditor from './CourseEditor.vue'
+import StandPanel from './StandPanel.vue'
 import GraphEditor from './GraphEditor.vue'
 import TraceWorkshop from './TraceWorkshop.vue'
 import { reportMarkdown } from './portfolio'
@@ -477,6 +478,7 @@ function exportTeacher() {
         Скачать инструкцию стенда
       </button>
       <h4>Задания для стенда</h4>
+      <StandPanel />
       <ul>
         <li>Windows: настройки адаптеров, DNS-кэш, служба, журналы, результирующая политика.</li>
         <li>Linux: файл конфигурации, владелец/группа/права, status службы и journal.</li>

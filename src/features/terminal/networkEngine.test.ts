@@ -14,6 +14,15 @@ import { executeCommand, createEnvironment } from './engine'
 import { analyzeOutput } from '../network-analysis/application/analyzeOutput'
 import { parseCheckpoint } from './checkpoint'
 const fixes: Record<string, string[]> = {
+  fleet: [
+    'lab hosts',
+    'lab verify-fleet',
+    'lab repair pc-2 dns',
+    'lab repair web-2 service',
+    'lab repair api http',
+    'Restart-Service WebApp',
+    'lab verify-fleet',
+  ],
   conflict: ['ipconfig /all', 'curl -I https://portal.lab.example', 'ipconfig /renew'],
   mtu: [
     'Get-NetIPInterface',
@@ -96,7 +105,10 @@ describe('declarative laboratory workflow', () => {
   it.each(extendedLabs)('$id can be solved with evidence and final verification', (definition) => {
     const original = createNetwork(definition)
     expect(topologySchema.safeParse(definition).success).toBe(true)
-    const commands = [...fixes[definition.fault]!, 'curl -I https://portal.lab.example']
+    const commands = [
+      ...fixes[definition.id === 'TERM-FLEET' ? 'fleet' : definition.fault]!,
+      'curl -I https://portal.lab.example',
+    ]
     const state = run(definition.id, commands)
     expect(assessNetwork(state.network!, 0, 0).complete, definition.id).toBe(true)
     expect(assessNetwork(state.network!, 1, 0).complete).toBe(false)

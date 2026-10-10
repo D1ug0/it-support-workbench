@@ -248,6 +248,7 @@ export function variant(definition: LabDefinition, seed: number): LabDefinition 
         definition.server,
         '192.0.2.54',
         '192.0.2.254',
+        ...(definition.additionalHosts ?? []).map((h) => h.address),
       ].includes(address) && contains(address, definition.gateway, definition.prefix),
   )
   const client =
@@ -258,6 +259,53 @@ export function variant(definition: LabDefinition, seed: number): LabDefinition 
   copy.brief = copy.brief.replaceAll(definition.client, client)
   return copy
 }
+extendedLabs.push({
+  ...extendedLabs.find((l) => l.id === 'TERM-HTTP')!,
+  id: 'TERM-FLEET',
+  title: 'Несколько клиентов и серверов: найти масштаб отказа',
+  topic: 'Распределённый инцидент',
+  brief:
+    'Два клиента обращаются к трём серверам. Основной портал возвращает 503, второй клиент использует неверный DNS, на дополнительном веб-сервере остановлена служба, API не готов. Найдите границы каждого отказа и проверьте всю матрицу после исправлений.',
+  hints: [
+    'Начните с lab hosts, lab verify-fleet и lab inspect pc-2: сравните отказы одного клиента с отказом одного сервера.',
+    'Исправляйте адресно: lab repair pc-2 dns; lab repair web-2 service; lab repair api http; Restart-Service WebApp.',
+    'После последнего изменения выполните lab verify-fleet. Успешный запрос одного клиента к одному серверу недостаточен.',
+  ],
+  causes: [
+    'Несколько независимых неисправностей клиента и серверов',
+    'Все отказы вызваны одним общим DNS-сервером',
+    'Успех основного портала подтверждает работу всех узлов',
+  ],
+  correctCause: 0,
+  explanation:
+    'Матрица отделяет отказ одного клиента от отказа одного сервиса. После адресных исправлений проверяются все шесть пар клиент → сервер. Это ограниченная модель: у клиентов общий план подсети, у серверов независимые состояния службы и HTTP.',
+  additionalHosts: [
+    {
+      id: 'pc-2',
+      title: 'Второй клиент',
+      role: 'client',
+      address: '192.0.2.11',
+      name: 'pc2.lab.example',
+      fault: 'dns',
+    },
+    {
+      id: 'web-2',
+      title: 'Второй веб-сервер',
+      role: 'server',
+      address: '198.51.100.21',
+      name: 'web2.lab.example',
+      fault: 'service',
+    },
+    {
+      id: 'api',
+      title: 'API-сервер',
+      role: 'server',
+      address: '203.0.113.30',
+      name: 'api.lab.example',
+      fault: 'http',
+    },
+  ],
+})
 export function definitionState(id: string, seed = 0) {
   const definition = extendedLabs.find((l) => l.id === id)
   return definition ? createNetwork(seed ? variant(definition, seed) : definition) : undefined

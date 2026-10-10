@@ -9,6 +9,7 @@ import { labIds, terminalLabs, type LabId } from './catalog'
 import { checkpointSchema, type Checkpoint, type TerminalMode } from './checkpoint'
 import { undoNetworkChange, type LabDefinition, type NetworkState } from './networkModel'
 import { useWorkshopStore } from '../workshop/useWorkshopStore'
+import { reviewCommand, type CommandReview } from './review'
 export interface TerminalRecord {
   id: number
   command: string
@@ -16,6 +17,7 @@ export interface TerminalRecord {
   kind?: CommandKind
   ok: boolean
   revision: number
+  review?: CommandReview
 }
 export const useTerminalStore = defineStore('terminal-labs', () => {
   const environment = shallowRef(createEnvironment(labIds[0]))
@@ -55,6 +57,10 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
   function run(command: string) {
     if (finished.value || !command.trim()) return
     const result = executeCommand(environment.value, command)
+    const review =
+      environment.value.network && result.state.network
+        ? reviewCommand(environment.value.network, result.state.network, result.ok)
+        : undefined
     if (environment.value.network && result.state.revision > environment.value.revision)
       rollbackStates.value = [
         ...rollbackStates.value,
@@ -68,6 +74,7 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
       kind: result.kind,
       ok: result.ok,
       revision: result.state.revision,
+      review,
     }
     records.value = [...records.value, record].slice(-40)
     feedback.value = undefined

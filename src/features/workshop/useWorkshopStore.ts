@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
-import Dexie, { type Table } from 'dexie'
+import { type Table } from 'dexie'
+import { workshopDb as db } from './storage'
 import {
   emptyWorkshop,
   workshopProgressSchema,
@@ -20,9 +21,6 @@ function preference() {
     return null
   }
 }
-const db = new Dexie('it-support-workbench-workshop')
-db.version(1).stores({ settings: 'id', labs: 'id', graphs: 'id', reports: 'id,at' })
-db.version(2).stores({ courses: 'id' })
 const settings: Table<
   { id: string; value: WorkshopProgress; enabled?: boolean; revision?: number },
   string
@@ -180,7 +178,10 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
       if (merged.length > 20) throw new Error('Лимит: 20 собственных лабораторий.')
       await labs.bulkPut(valid.map((value) => ({ id: value.id, value })))
     })
-    customLabs.value = (await labs.toArray()).map((l) => topologySchema.parse(l.value))
+    customLabs.value = (await labs.toArray()).flatMap((l) => {
+      const valid = topologySchema.safeParse(l.value)
+      return valid.success ? [valid.data] : []
+    })
   }
   async function removeLab(id: string) {
     await db.transaction('rw', labs, courses, async () => {
@@ -226,7 +227,10 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
         throw new Error('Лимит: 20 сценариев.')
       await graphs.put({ id: valid.id, value: valid })
     })
-    customGraphs.value = (await graphs.toArray()).map((g) => graphSchema.parse(g.value))
+    customGraphs.value = (await graphs.toArray()).flatMap((g) => {
+      const valid = graphSchema.safeParse(g.value)
+      return valid.success ? [valid.data] : []
+    })
   }
   async function removeGraph(id: string) {
     await graphs.delete(id)
@@ -254,6 +258,14 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
     revision = saved?.revision ?? 0
     enabled.value = preference() === 'false' ? false : (saved?.enabled ?? Boolean(saved))
     error.value = ''
+    customLabs.value = (await labs.toArray()).map((l) => topologySchema.parse(l.value))
+    customGraphs.value = (await graphs.toArray()).map((g) => graphSchema.parse(g.value))
+    customCourses.value = (await courses.toArray()).map((c) => customCourseSchema.parse(c.value))
+    portfolio.value = (await reports.toArray()).map((r) => reportSchema.parse(r))
+  }
+  async function flush() {
+    await initialize()
+    await queue
   }
   async function clear() {
     await initialize()
@@ -291,5 +303,6 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
     removeReport,
     clear,
     reloadSaved,
+    flush,
   }
 })

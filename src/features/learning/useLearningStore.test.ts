@@ -6,7 +6,7 @@ import { emptyProgress, recordAnswer } from './progress'
 import { writeProgress } from './repository'
 vi.mock('./repository', () => ({
   readProgress: vi.fn(async () => undefined),
-  writeProgress: vi.fn(async () => undefined),
+  writeProgress: vi.fn(async () => 1),
   deleteProgress: vi.fn(async () => undefined),
 }))
 beforeEach(() => {
@@ -31,7 +31,7 @@ describe('learning import and opt-in', () => {
     expect(writeProgress).not.toHaveBeenCalled()
     await store.setEnabled(true)
     await store.answer('q', false)
-    expect(writeProgress).toHaveBeenLastCalledWith(true, store.state)
+    expect(writeProgress).toHaveBeenLastCalledWith(true, store.state, expect.any(Number))
     await store.setEnabled(false)
     vi.mocked(writeProgress).mockClear()
     await store.answer('q', true)
@@ -43,8 +43,8 @@ describe('learning import and opt-in', () => {
     vi.mocked(writeProgress).mockClear()
     let finishFirst!: () => void
     let finishSecond!: () => void
-    const firstWrite = new Promise<void>((resolve) => (finishFirst = resolve))
-    const secondWrite = new Promise<void>((resolve) => (finishSecond = resolve))
+    const firstWrite = new Promise<number>((resolve) => (finishFirst = () => resolve(2)))
+    const secondWrite = new Promise<number>((resolve) => (finishSecond = () => resolve(3)))
     vi.mocked(writeProgress)
       .mockImplementationOnce(() => firstWrite)
       .mockImplementationOnce(() => secondWrite)

@@ -8,6 +8,24 @@ export const labAddress = z
     'Используйте документационные IPv4-сети.',
   )
 const label = z.string().trim().min(1).max(160)
+const hostId = z.string().regex(/^[a-z][a-z0-9-]{0,29}$/)
+const additionalHostSchema = z
+  .object({
+    id: hostId,
+    title: label,
+    role: z.enum(['client', 'server']),
+    address: labAddress,
+    name: z
+      .string()
+      .regex(/^[a-z0-9.-]+\.lab\.example$/)
+      .max(120),
+    fault: z.enum(['none', 'dns', 'service', 'http', 'offline']),
+  })
+  .strict()
+  .refine(
+    (h) => (h.role === 'client' ? ['none', 'dns', 'offline'].includes(h.fault) : h.fault !== 'dns'),
+    'Неисправность должна соответствовать роли узла.',
+  )
 export const faultIds = [
   'dhcp',
   'mask',
@@ -63,9 +81,45 @@ export const topologySchema = z
     causes: z.array(label).length(3),
     correctCause: z.number().int().min(0).max(2),
     explanation: z.string().min(20).max(2000),
+    additionalHosts: z.array(additionalHostSchema).max(6).optional(),
   })
   .strict()
   .superRefine((v, ctx) => {
+    const hosts = v.additionalHosts ?? []
+    if (
+      new Set(hosts.map((h) => h.id)).size !== hosts.length ||
+      hosts.some((h) => ['client', 'server', 'dns', 'gateway'].includes(h.id)) ||
+      new Set([v.target, 'dns.lab.example', 'backend.lab.example', ...hosts.map((h) => h.name)])
+        .size !==
+        3 + hosts.length ||
+      new Set([
+        v.client,
+        v.gateway,
+        v.server,
+        v.dns,
+        '192.0.2.54',
+        '192.0.2.254',
+        ...hosts.map((h) => h.address),
+      ]).size !==
+        6 + hosts.length
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Дополнительные узлы должны иметь уникальные ID, имена и адреса.',
+      })
+    if (
+      hosts.some(
+        (h) =>
+          h.role === 'client' &&
+          (!contains(h.address, v.client, v.prefix) ||
+            h.address === calculateSubnet(v.client, v.prefix).network ||
+            h.address === calculateSubnet(v.client, v.prefix).broadcast),
+      )
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Дополнительные клиенты должны находиться в учебной подсети клиента.',
+      })
     const net = calculateSubnet(v.client, v.prefix)
     if (
       calculateSubnet(v.gateway, v.prefix).network !== net.network ||
@@ -175,6 +229,20 @@ export const networkStateSchema = z
       })
       .strict()
       .default({ repairs: 0, regressions: 0, unnecessary: 0, rollbacks: 0 }),
+    hosts: z
+      .array(
+        z
+          .object({
+            id: hostId,
+            online: z.boolean(),
+            dnsCorrect: z.boolean(),
+            service: z.boolean(),
+            httpHealthy: z.boolean(),
+          })
+          .strict(),
+      )
+      .max(6)
+      .default([]),
     timeline: z
       .array(
         z
@@ -189,6 +257,27 @@ export const networkStateSchema = z
   })
   .strict()
   .superRefine((v, ctx) => {
+    const ids = (v.definition.additionalHosts ?? []).map((h) => h.id)
+    if (
+      ids.length !== v.hosts.length ||
+      new Set(v.hosts.map((h) => h.id)).size !== v.hosts.length ||
+      v.hosts.some((h) => !ids.includes(h.id))
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Состояние дополнительных узлов не соответствует плану.',
+      })
+    if (
+      v.hosts.some((h) =>
+        v.definition.additionalHosts?.find((d) => d.id === h.id)?.role === 'server'
+          ? !h.dnsCorrect
+          : !h.service || !h.httpHealthy,
+      )
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Состояние неисправности не соответствует роли узла.',
+      })
     if (Object.values(v.changeAudit).reduce((a, b) => a + b, 0) > v.revision)
       ctx.addIssue({ code: 'custom', message: 'Аудит изменений превышает число ревизий.' })
     if (
@@ -256,6 +345,13 @@ export function createNetwork(definition: LabDefinition): NetworkState {
     verifiedRevision: null,
     revision: 0,
     changeAudit: { repairs: 0, regressions: 0, unnecessary: 0, rollbacks: 0 },
+    hosts: (d.additionalHosts ?? []).map((h) => ({
+      id: h.id,
+      online: h.fault !== 'offline',
+      dnsCorrect: h.fault !== 'dns',
+      service: h.fault !== 'service',
+      httpHealthy: h.fault !== 'http',
+    })),
     timeline: [],
   }
 }
@@ -271,7 +367,15 @@ export function routeTo(
   if (!s.wifi || !s.lease || s.addressConflict || s.client === '0.0.0.0')
     return { reachable: false, hops: [], reason: 'Интерфейс или адрес недоступен' }
   if (address === s.client) return { reachable: true, hops: [address], reason: 'Локальный адрес' }
-  const known = [d.server, d.gateway, d.dns, '192.0.2.54']
+  const known = [
+    d.server,
+    d.gateway,
+    d.dns,
+    '192.0.2.54',
+    ...(d.additionalHosts ?? [])
+      .filter((h) => s.hosts.find((state) => state.id === h.id)?.online)
+      .map((h) => h.address),
+  ]
   if (contains(address, s.client, s.prefix))
     return {
       reachable: known.includes(address),
@@ -337,6 +441,18 @@ export function networkProblems(s: NetworkState) {
   })
     .filter(([, bad]) => bad)
     .map(([id]) => id)
+    .concat(
+      s.hosts.flatMap((h) =>
+        Object.entries({
+          online: !h.online,
+          dns: !h.dnsCorrect,
+          service: !h.service,
+          http: !h.httpHealthy,
+        })
+          .filter(([, bad]) => bad)
+          .map(([key]) => `host:${h.id}:${key}`),
+      ),
+    )
 }
 export function auditNetworkChange(before: NetworkState, after: NetworkState) {
   const old = networkProblems(before),
@@ -379,7 +495,8 @@ export function resolveNetwork(
   server?: string,
 ): string | undefined {
   if (isIPv4(target)) return target
-  if (![s.definition.target, 'dns.lab.example', 'backend.lab.example'].includes(target))
+  const extra = s.definition.additionalHosts?.find((h) => h.name === target)
+  if (!extra && ![s.definition.target, 'dns.lab.example', 'backend.lab.example'].includes(target))
     return undefined
   if (
     !server &&
@@ -394,7 +511,7 @@ export function resolveNetwork(
     dns === s.definition.dns
       ? target === 'dns.lab.example'
         ? dns
-        : s.definition.server
+        : (extra?.address ?? s.definition.server)
       : undefined
   if (!server)
     s.cache = {
@@ -428,7 +545,8 @@ export function networkGoal(s: NetworkState) {
     s.smbAccess &&
     s.policy &&
     s.permission &&
-    s.ipv6
+    s.ipv6 &&
+    s.hosts.every((h) => h.online && h.dnsCorrect && h.service && h.httpHealthy)
   )
 }
 export function assessNetwork(s: NetworkState, diagnosis: number | undefined, hints: number) {

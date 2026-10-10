@@ -115,6 +115,7 @@ test('branching Git incident validates and exports a debrief; invalid links cann
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Экспорт разбора попытки' }).click()
   expect((await download).suggestedFilename()).toBe('workbench-incident-debrief.md')
+  await page.getByText('Расширенное редактирование JSON графа', { exact: true }).click()
   const input = page.getByLabel('Сценарий графа JSON', { exact: true })
   const value = JSON.parse(await input.inputValue())
   value.start = 'missing'
@@ -347,6 +348,7 @@ test('authored courses survive reload and self-check never changes built-in skil
   page,
 }) => {
   await workshop(page, 'course-editor')
+  await page.getByText('Расширенное редактирование JSON курса', { exact: true }).click()
   const input = page.getByLabel('Авторский курс JSON', { exact: true })
   const course = JSON.parse(await input.inputValue())
   course.title = 'Мой разбор DNS'

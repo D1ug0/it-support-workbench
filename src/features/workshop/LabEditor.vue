@@ -29,6 +29,22 @@ function reset() {
   consent.value = false
   error.value = ''
 }
+function addHost() {
+  const hosts = draft.value.additionalHosts ?? []
+  let index = 1
+  while (hosts.some((h) => h.id === `host-${index}`)) index++
+  draft.value.additionalHosts = [
+    ...hosts,
+    {
+      id: `host-${index}`,
+      title: `Учебный сервер ${index}`,
+      role: 'server',
+      address: `198.51.100.${20 + index}`,
+      name: `host${index}.lab.example`,
+      fault: 'service',
+    },
+  ]
+}
 function play(lab: LabDefinition) {
   terminal.start(lab.id, 'guided', topologySchema.parse(lab))
   void router.push('/terminal')
@@ -137,6 +153,50 @@ async function remove(id: string) {
         </select></label
       >
     </fieldset>
+    <details>
+      <summary>
+        Дополнительные клиенты и серверы ({{ draft.additionalHosts?.length ?? 0 }}/6)
+      </summary>
+      <p>
+        Клиенты используют общий план подсети. DNS клиента, состояние узла, служба и HTTP серверов
+        проверяются отдельно. Для итогового решения нужна lab verify-fleet.
+      </p>
+      <fieldset v-for="(h, i) in draft.additionalHosts" :key="h.id">
+        <legend>{{ h.id }}</legend>
+        <label
+          >Название узла {{ i + 1
+          }}<input v-model="h.title" class="text-input" maxlength="160" /></label
+        ><label
+          >Роль узла {{ i + 1
+          }}<select v-model="h.role" class="text-input" @change="h.fault = 'none'">
+            <option value="client">Клиент</option>
+            <option value="server">Сервер</option>
+          </select></label
+        ><label>Адрес узла {{ i + 1 }}<input v-model="h.address" class="text-input" /></label
+        ><label>Имя узла {{ i + 1 }}<input v-model="h.name" class="text-input" /></label
+        ><label
+          >Неисправность узла {{ i + 1
+          }}<select v-model="h.fault" class="text-input">
+            <option value="none">Исправен</option>
+            <option value="offline">Узел недоступен</option>
+            <option v-if="h.role === 'client'" value="dns">Неверный DNS</option>
+            <template v-else
+              ><option value="service">Остановлена служба</option>
+              <option value="http">HTTP 503</option></template
+            >
+          </select></label
+        ><button class="button ghost small" @click="draft.additionalHosts?.splice(i, 1)">
+          Удалить узел {{ i + 1 }}
+        </button>
+      </fieldset>
+      <button
+        class="button secondary small"
+        :disabled="(draft.additionalHosts?.length ?? 0) >= 6"
+        @click="addHost"
+      >
+        Добавить узел лаборатории
+      </button>
+    </details>
     <p>
       После изменения адресов обновите команды в подсказках. Разрешены документационные IPv4-сети и
       имена *.lab.example. Научную корректность авторского текста проверяет автор.

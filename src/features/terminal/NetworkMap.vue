@@ -3,7 +3,14 @@ import { computed, ref } from 'vue'
 import { routeTo, type NetworkState } from './networkModel'
 const props = defineProps<{ state: NetworkState; exam: boolean }>()
 const selected = ref('client')
-const path = computed(() => routeTo(props.state, props.state.definition.server))
+const path = computed(() =>
+  routeTo(
+    props.state,
+    props.state.definition.additionalHosts?.find(
+      (h) => h.id === selected.value && h.role === 'server',
+    )?.address ?? props.state.definition.server,
+  ),
+)
 const nodes = computed(() => [
   {
     id: 'client',
@@ -29,8 +36,14 @@ const nodes = computed(() => [
     address: props.state.definition.server,
     detail: 'Целевой портал; TCP 443, учебные TLS/HTTP',
   },
+  ...(props.state.definition.additionalHosts ?? []).map((h) => ({
+    id: h.id,
+    name: h.title,
+    address: h.address,
+    detail: `${h.role === 'client' ? 'Дополнительный клиент' : 'Дополнительный сервер'} · ${h.name}. Исследуйте lab inspect ${h.id} и lab probe.`,
+  })),
 ])
-const node = computed(() => nodes.value.find((n) => n.id === selected.value)!)
+const node = computed(() => nodes.value.find((n) => n.id === selected.value) ?? nodes.value[0]!)
 </script>
 <template>
   <section class="panel feature-section network-map" aria-label="Карта учебной сети">

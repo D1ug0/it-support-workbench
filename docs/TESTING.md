@@ -2,17 +2,26 @@
 
 ```sh
 npm ci
-npm run lint
-npm run typecheck
-npm run test:unit
-npm run test:coverage
-npm run test:companion
-npm run build
-npx playwright install chromium firefox webkit
-npm run test:e2e
-npm run test:e2e:all
-npm run format:check
+npm run check:quick
+npm run check:feature -- workshop
 ```
+
+Полный набор после каждой правки не нужен. `check:quick` проверяет lint и типизацию. `check:feature` запускает только тесты выбранной области (`terminal`, `workshop`, `parsers`, `companion`); у companion добавляется проверка HTTP/SQLite. Флаг `--browser` добавляет актуальную сборку и браузерные сценарии области только в Chromium. Например: `npm run check:feature -- terminal --browser`.
+
+Для одного файла: `npm run test:unit -- networkEngine.test.ts`; для наблюдения за изменениями: `npm run test:watch -- networkEngine.test.ts`. `npm run test:changed` выбирает тесты по Git-изменениям и статическим зависимостям. Это вспомогательный локальный фильтр: для новых файлов, динамических зависимостей и общих настроек выбирайте область явно.
+
+| Изменение                              | Локально                                                              |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| Документация                           | Prettier изменённых файлов и ссылки                                   |
+| Отдельная логика                       | Тесты функции и связанных контрактов, типизация                       |
+| Экран                                  | Быстрые проверки и соответствующие сценарии Chromium                  |
+| Сохранения/миграции/офлайн/зависимости | Браузерные проверки затронутого процесса; полный набор перед выпуском |
+
+Полный контроль: `npm run check:full` (нужны установленные Chromium/Firefox/WebKit). GitHub CI по-прежнему выполняет форматирование, lint, coverage, companion, сборку с типизацией и все браузеры. `npm run check` оставлен для совместимости. Pages требует успешный CI ровно этого коммита в main и затем только пересобирает его из lockfile — тесты второй раз не запускаются. Правки workflow сами по себе не запускают публикацию.
+
+`evolution.spec.ts` — четыре новых сценария: визуальные конструкторы; backup/CAS/поздний отказ транзакции; инцидент с несколькими узлами; перенос прежнего журнала и самостоятельные записи стенда. Отказ транзакции создаётся только тестом, после записи коллекций: проверяется сохранность прежнего содержимого, затем успешное восстановление.
+
+Команды фильтрации: [Vitest CLI](https://vitest.dev/guide/cli.html), [Playwright](https://playwright.dev/docs/running-tests). Проверка конкретного SHA: [GitHub Actions API](https://docs.github.com/en/rest/actions/workflow-runs).
 
 Тесты используют синтетические fixtures. Unit проверяет октеты, IPv6, маски, /0, /31, /32, локали, продолжения, evidence, неполный вывод, детерминизм, неизменность моделей и отсутствие ложных диагнозов. Также проверяются longest-prefix routes, корреляция времени, семантический diff CMD и новых DNS/PowerShell моделей, неоднозначные интерфейсы, целостность строк маршрутов, приватность сессионного отчёта, round-trip экспорта частями, строгий учебный импорт и прогресс. Coverage ограничен выбранной чистой логикой; минимальный общий порог 85% по строкам, statements, functions и branches.
 

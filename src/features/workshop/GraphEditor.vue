@@ -12,6 +12,7 @@ import { useRoute } from 'vue-router'
 import { incidentPresets, graphDebrief } from './incidentPresets'
 import { useWorkshopStore } from './useWorkshopStore'
 import { downloadText } from '../../infrastructure/export/exportReport'
+import GraphForm from './GraphForm.vue'
 const store = useWorkshopStore(),
   route = useRoute()
 const preset = ref(incidentPresets.find((p) => p.id === route.query.preset)?.id ?? 'WEB')
@@ -70,6 +71,8 @@ async function save() {
     return
   }
   busy.value = true
+  error.value = ''
+  notice.value = ''
   try {
     await store.saveGraph(parseGraph(text.value))
     notice.value = 'Сценарий сохранён.'
@@ -122,24 +125,28 @@ async function remove(id: string) {
   <section class="panel feature-section">
     <h2>Инциденты с развилками</h2>
     <p>
-      JSON описывает узлы и варианты действий. Проверяются ссылки, достижимость и путь к завершению.
-      Циклы разрешены с выходом; попытка ограничена 40 переходами. Встроенные линейные сценарии
-      доступны в прежнем тренажёре.
+      Конструктор описывает этапы и варианты действий. Проверяются ссылки, достижимость и путь к
+      завершению. Циклы разрешены с выходом; попытка ограничена 40 переходами. Встроенные линейные
+      сценарии доступны в прежнем тренажёре.
     </p>
     <label
       >Готовое расследование<select v-model="preset" class="text-input">
         <option v-for="p in incidentPresets" :key="p.id" :value="p.id">{{ p.graph.title }}</option>
       </select></label
     ><button class="button secondary" @click="loadPreset">Открыть учебное расследование</button>
-    <label
-      >Сценарий графа JSON<textarea
-        v-model="text"
-        class="text-input workshop-json"
-        rows="12"
-        maxlength="131072"
-        spellcheck="false"
-      />
-    </label>
+    <GraphForm v-model="text" />
+    <details>
+      <summary>Расширенное редактирование JSON графа</summary>
+      <label
+        >Сценарий графа JSON<textarea
+          v-model="text"
+          class="text-input workshop-json"
+          rows="12"
+          maxlength="131072"
+          spellcheck="false"
+        />
+      </label>
+    </details>
     <label
       >Открыть JSON графа<input type="file" accept=".json,application/json" @change="read"
     /></label>

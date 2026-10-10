@@ -11,6 +11,7 @@ export const useLearningStore = defineStore('learning', () => {
   const saving = computed(() => pendingWrites.value > 0)
   let initialization: Promise<void> | undefined
   let queue = Promise.resolve()
+  let revision = 0
   function initialize(): Promise<void> {
     return (initialization ??= (async () => {
       try {
@@ -19,6 +20,7 @@ export const useLearningStore = defineStore('learning', () => {
         if (saved) {
           state.value = saved.state
           enabled.value = saved.enabled
+          revision = saved.revision
         }
       } catch {
         error.value = 'Хранилище прогресса недоступно. Обучение продолжится в памяти вкладки.'
@@ -34,11 +36,13 @@ export const useLearningStore = defineStore('learning', () => {
     queue = queue
       .then(async () => {
         const { writeProgress } = await import('./repository')
-        await writeProgress(saveEnabled, snapshot)
+        revision = await writeProgress(saveEnabled, snapshot, revision)
       })
-      .catch(() => {
+      .catch((cause: unknown) => {
         error.value =
-          'Не удалось сохранить прогресс. Экспортируйте его; проверьте разрешения браузера.'
+          cause instanceof Error
+            ? cause.message
+            : 'Не удалось сохранить прогресс. Экспортируйте его; проверьте разрешения браузера.'
       })
       .finally(() => {
         pendingWrites.value--
@@ -80,10 +84,24 @@ export const useLearningStore = defineStore('learning', () => {
       await deleteProgress()
       state.value = emptyProgress()
       enabled.value = false
+      revision = 0
       error.value = ''
     } catch {
       error.value = 'Не удалось удалить сохранённый прогресс.'
     }
+  }
+  async function flush() {
+    await initialize()
+    await queue
+  }
+  async function reloadSaved() {
+    await flush()
+    const { readProgress } = await import('./repository')
+    const saved = await readProgress()
+    state.value = saved?.state ?? emptyProgress()
+    enabled.value = saved?.enabled ?? false
+    revision = saved?.revision ?? 0
+    error.value = ''
   }
   return {
     state,
@@ -98,5 +116,7 @@ export const useLearningStore = defineStore('learning', () => {
     replace,
     setGoal,
     clear,
+    flush,
+    reloadSaved,
   }
 })

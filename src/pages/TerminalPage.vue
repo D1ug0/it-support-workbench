@@ -41,7 +41,18 @@ const visibleLabs = computed(() =>
 )
 const commands = computed(() =>
   store.environment.network
-    ? [...commandExamples, ...networkCommands]
+    ? [
+        ...commandExamples,
+        ...networkCommands,
+        ...(store.environment.network.hosts.length
+          ? [
+              ['lab hosts', 'План всех узлов'],
+              ['lab inspect pc-2', 'Состояние второго клиента'],
+              ['lab probe client web-2', 'Проверка конкретной пары'],
+              ['lab verify-fleet', 'Все пары клиентов и серверов'],
+            ]
+          : []),
+      ]
     : [...commandExamples, ['wait 120', 'Продвинуть время и уменьшить TTL']],
 )
 const mapState = computed(
@@ -390,6 +401,18 @@ onMounted(async () => {
         <details>
           <summary>Вывод проверки {{ record.id }}</summary>
           <pre>{{ record.output }}</pre>
+        </details>
+        <details v-if="record.review && (store.mode !== 'exam' || store.finished)">
+          <summary>Разбор действия {{ record.id }}</summary>
+          <h3>{{ record.review.title }}</h3>
+          <p>{{ record.review.consequence }}</p>
+          <p><strong>Следующая проверка:</strong> {{ record.review.next }}</p>
+          <p><strong>Закрепление:</strong> {{ record.review.exercise }}</p>
+          <RouterLink
+            class="text-link"
+            :to="`/learning?view=workshop&lesson=${record.review.lesson}`"
+            >Изучить связанную тему</RouterLink
+          >
         </details>
       </li>
     </ol>

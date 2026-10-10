@@ -1,6 +1,6 @@
 {
   "name": "it-support-workbench",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "Local-first IT support workbench for Windows diagnostics, guided troubleshooting, network tools, and hands-on learning",
@@ -18,10 +18,15 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:unit": "vitest run",
+    "test:watch": "vitest watch",
+    "test:changed": "vitest run --changed",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:all": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
+    "check:quick": "npm run lint && npm run typecheck",
+    "check:feature": "node scripts/check-feature.mjs",
+    "check:full": "npm run format:check && npm run lint && npm run test:coverage && npm run test:companion && npm run build && npm run test:e2e:all",
     "companion": "node server/companion.mjs",
     "test:companion": "node --test server/companion.test.mjs",
     "screenshots": "node scripts/screenshots.mjs"

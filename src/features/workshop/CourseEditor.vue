@@ -4,6 +4,7 @@ import { useWorkshopStore } from './useWorkshopStore'
 import { workshopCourses } from './courses'
 import { customCourseSchema, parseCustomCourses, type CustomCourse } from './customCourses'
 import { downloadText } from '../../infrastructure/export/exportReport'
+import CourseForm from './CourseForm.vue'
 const store = useWorkshopStore()
 const text = ref(''),
   consent = ref(false),
@@ -36,6 +37,7 @@ const valid = computed(() => {
 async function save(values?: CustomCourse[]) {
   if (busy.value) return
   error.value = ''
+  notice.value = ''
   if (!consent.value) {
     error.value = 'Подтвердите авторский учебный материал перед сохранением.'
     return
@@ -112,15 +114,19 @@ async function remove(id: string) {
       повышает встроенную оценку навыка. Текст и источник проверяет автор; HTML не исполняется.
     </p>
     <button class="button secondary" @click="newTemplate">Новый шаблон курса</button>
-    <label
-      >Авторский курс JSON<textarea
-        v-model="text"
-        class="text-input"
-        rows="18"
-        spellcheck="false"
-        maxlength="131072"
-      />
-    </label>
+    <CourseForm v-model="text" />
+    <details>
+      <summary>Расширенное редактирование JSON курса</summary>
+      <label
+        >Авторский курс JSON<textarea
+          v-model="text"
+          class="text-input"
+          rows="18"
+          spellcheck="false"
+          maxlength="131072"
+        />
+      </label>
+    </details>
     <p v-if="!valid?.success" role="status">
       {{
         valid && !valid.success
