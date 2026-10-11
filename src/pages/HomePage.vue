@@ -41,6 +41,7 @@ const steps = [
           ><RouterLink class="button secondary" to="/terminal?lab=TERM-DNS-SERVER&mode=guided"
             ><Terminal :size="17" /> Попробовать лабораторию</RouterLink
           >
+          <RouterLink class="button ghost" to="/getting-started">Как пользоваться</RouterLink>
         </div>
         <div class="learner-hero-note">
           <ShieldCheck :size="17" /><span

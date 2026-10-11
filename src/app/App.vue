@@ -28,6 +28,7 @@ const route = useRoute()
 const light = ref(false)
 const learningNav = [
   { to: '/', label: 'Мой старт', icon: LayoutDashboard },
+  { to: '/getting-started', label: 'Как пользоваться', icon: BookOpen },
   { to: '/learning', label: 'Обучение', icon: GraduationCap },
   { to: '/learning?view=progress', label: 'Мой прогресс', icon: ChartNoAxesCombined },
   { to: '/terminal', label: 'Свободная практика', icon: Terminal },

@@ -93,6 +93,9 @@ async function selectTrack(value: string) {
           Понятная задача, короткий материал, практика и разбор. Следующий шаг учитывает ваши
           результаты.
         </p>
+        <RouterLink class="text-link" to="/getting-started"
+          >Как учиться здесь: инструкция по шагам</RouterLink
+        >
       </div>
       <label class="journey-track"
         >Моя цель<AppSelect

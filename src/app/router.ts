@@ -5,6 +5,11 @@ export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
+      path: '/getting-started',
+      component: () => import('../pages/GettingStartedPage.vue'),
+      meta: { title: 'Как пользоваться' },
+    },
+    {
       path: '/terminal',
       component: () => import('../pages/TerminalPage.vue'),
       meta: { title: 'Учебный терминал' },
@@ -67,7 +72,12 @@ export const router = createRouter({
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to, _from, savedPosition) =>
+    savedPosition ??
+    (to.path === '/getting-started' &&
+    /^#guide-(start|skills|session|progress|tools|faq)$/.test(to.hash)
+      ? { el: to.hash, top: 24 }
+      : { top: 0 }),
 })
 router.beforeEach((to) => confirmDiscardForms(to))
 router.afterEach((to) => {

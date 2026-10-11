@@ -14,6 +14,7 @@ const query = ref('')
 const index = ref(0)
 const pages = [
   ['Мой старт', '/'],
+  ['Как пользоваться · инструкция и первые шаги', '/getting-started'],
   ['Помощник диагностики', '/guide'],
   ['Анализатор', '/analyzer'],
   ['Рабочие сессии', '/sessions'],
