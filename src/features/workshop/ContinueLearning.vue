@@ -2,59 +2,95 @@
 import { computed, onMounted, ref } from 'vue'
 import { useWorkshopStore } from './useWorkshopStore'
 import { todayTask } from './learningFlow'
+import { describeLearningEvent, recentLearningEvents } from './learningHistory'
 import { professionalAttempts, professionalAttemptSchema } from './professional'
 const store = useWorkshopStore()
 const incidentId = ref<string>()
+const incidentError = ref('')
 onMounted(async () => {
   await store.initialize()
-  incidentId.value = (await professionalAttempts.toArray().catch(() => []))
-    .flatMap((v) => {
-      const parsed = professionalAttemptSchema.safeParse(v)
-      return parsed.success && parsed.data.status === 'active' ? [parsed.data] : []
-    })
-    .sort((a, b) => Date.parse(a.updatedAt ?? a.at) - Date.parse(b.updatedAt ?? b.at))
-    .at(-1)?.id
+  try {
+    incidentId.value = (await professionalAttempts.toArray())
+      .flatMap((v) => {
+        const parsed = professionalAttemptSchema.safeParse(v)
+        return parsed.success && parsed.data.status === 'active' ? [parsed.data] : []
+      })
+      .sort((a, b) => Date.parse(a.updatedAt ?? a.at) - Date.parse(b.updatedAt ?? b.at))
+      .at(-1)?.id
+  } catch {
+    incidentError.value = 'Не удалось прочитать сохранённые инциденты. Остальное обучение доступно.'
+  }
 })
-const task = computed(() => todayTask(store.state))
+const task = computed(() => (store.ready ? todayTask(store.state) : undefined))
+const history = computed(() =>
+  recentLearningEvents(store.state.events).map((event) => ({
+    ...event,
+    ...describeLearningEvent(event, {
+      labs: store.customLabs,
+      graphs: store.customGraphs,
+      courses: store.customCourses,
+    }),
+  })),
+)
+const formatDate = (at: string) =>
+  new Date(at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
 </script>
 <template>
-  <section class="panel feature-section">
-    <h2>Продолжить обучение</h2>
-    <h3>{{ task.title }}</h3>
-    <p>{{ task.reason }}</p>
-    <p>
-      Сегодня: {{ task.minutes }} мин. Предпосылки: {{ task.prerequisite }}. Результат:
-      {{ task.outcome }}.
-    </p>
-    <div class="button-row">
-      <RouterLink class="button primary" :to="task.url">Открыть сегодняшнюю задачу</RouterLink
-      ><RouterLink v-if="task.resume" class="button secondary" :to="task.resume"
-        >Вернуться к месту в курсе</RouterLink
-      ><RouterLink
-        v-if="incidentId"
-        class="button secondary"
-        :to="`/learning?view=workshop&workshop=professional&attempt=${incidentId}`"
-        >Продолжить сохранённый инцидент</RouterLink
-      >
-    </div>
-    <details>
-      <summary>Единая история обучения ({{ store.state.events.length }})</summary>
+  <section
+    class="panel feature-section"
+    aria-labelledby="continue-learning-title"
+    :aria-busy="!store.ready"
+  >
+    <h2 id="continue-learning-title">Продолжить обучение</h2>
+    <p v-if="!task" role="status">Загружаем сохранённый прогресс…</p>
+    <template v-else>
+      <p v-if="store.error" role="alert">{{ store.error }}</p>
+      <p v-if="incidentError" role="alert">{{ incidentError }}</p>
+      <h3>{{ task.title }}</h3>
+      <p>{{ task.reason }}</p>
       <p>
-        Старые результаты остаются в исходных журналах. Новые события связывают модули через ID
-        попытки. Отчёт стенда — самостоятельная запись без автоматической аттестации.
+        Сегодня: {{ task.minutes }} мин. Предпосылки: {{ task.prerequisite }}. Результат:
+        {{ task.outcome }}.
       </p>
-      <ol>
-        <li
-          v-for="e in [...store.state.events].reverse().slice(0, 30)"
-          :key="`${e.module}:${e.attemptId}`"
+      <div class="button-row">
+        <RouterLink class="button primary" :to="task.url">Открыть сегодняшнюю задачу</RouterLink
+        ><RouterLink v-if="task.resume" class="button secondary" :to="task.resume"
+          >Вернуться к месту в курсе</RouterLink
+        ><RouterLink
+          v-if="incidentId"
+          class="button secondary"
+          :to="`/learning?view=workshop&workshop=professional&attempt=${incidentId}`"
+          >Продолжить сохранённый инцидент</RouterLink
         >
-          {{ e.module }} · {{ e.taskId }} · {{ e.outcome }} · {{ e.score ?? 'самостоятельный отчёт'
-          }}<span v-if="e.skill"> · {{ e.skill }}</span>
-          <ul>
-            <li v-for="error in e.errors" :key="error">{{ error }}</li>
-          </ul>
-        </li>
-      </ol>
-    </details>
+      </div>
+      <details>
+        <summary>Единая история обучения ({{ store.state.events.length }})</summary>
+        <p>
+          Последние 30 попыток из всех разделов, сначала новые. Даты зависят от часов устройства.
+          Старые результаты остаются в исходных журналах. Отчёт стенда — самостоятельная запись без
+          автоматической аттестации.
+        </p>
+        <p v-if="!history.length">
+          Начните занятие — здесь появятся задания, даты и результаты попыток.
+        </p>
+        <ol v-else class="learning-event-list continue-learning-history">
+          <li v-for="e in history" :key="`${e.module}:${e.attemptId}`">
+            <div>
+              <strong>{{ e.title }}</strong>
+              <p>
+                {{ e.module }}<span v-if="e.skill"> · {{ e.skill }}</span>
+              </p>
+              <p>
+                {{ e.outcome }}<span v-if="e.score !== null"> · {{ e.score }} / 100</span>
+              </p>
+              <ul v-if="e.errors.length">
+                <li v-for="error in e.errors" :key="error">{{ error }}</li>
+              </ul>
+            </div>
+            <time :datetime="e.at">{{ formatDate(e.at) }}</time>
+          </li>
+        </ol>
+      </details>
+    </template>
   </section>
 </template>

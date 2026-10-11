@@ -88,6 +88,32 @@ for (const width of [1440, 1024, 768, 390, 320]) {
     })
   }
 }
+for (const theme of ['dark', 'light']) {
+  test(`long page headings fit at 320px with fallback fonts in ${theme}`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 900 })
+    await page.goto('/#/playbooks')
+    if (theme === 'light') await page.getByRole('button', { name: 'Включить светлую тему' }).click()
+    for (const font of ['Arial', 'Verdana']) {
+      const style = await page.addStyleTag({
+        content: `:root { font-family: ${font}, sans-serif; }`,
+      })
+      const heading = page.locator('main h1')
+      await expect(heading).toContainText('Последовательность')
+      await expect
+        .poll(() =>
+          heading.evaluate((e) => ({
+            pageWidth: document.documentElement.scrollWidth,
+            textFits: e.scrollWidth <= e.clientWidth + 1,
+            blockFits: e.getBoundingClientRect().right <= innerWidth,
+          })),
+        )
+        .toEqual({ pageWidth: 320, textFits: true, blockFits: true })
+      await style.evaluate((e) => {
+        e.parentNode?.removeChild(e)
+      })
+    }
+  })
+}
 test('terminal map is vertical, all nodes fit, keyboard select preserves mode and focus', async ({
   page,
 }, info) => {

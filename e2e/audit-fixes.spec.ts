@@ -2,6 +2,85 @@ import { chooseOption } from './helpers/select'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 const dbName = 'it-support-workbench-workshop'
+test('learning continuation renders persisted history by date with readable titles', async ({
+  page,
+}) => {
+  await page.goto('/#/learning')
+  const panel = page.getByRole('region', { name: 'Продолжить обучение', exact: true })
+  await expect(panel.getByRole('link', { name: 'Открыть сегодняшнюю задачу' })).toBeVisible()
+  await page.evaluate(async (name) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const r = indexedDB.open(name)
+      r.onsuccess = () => resolve(r.result)
+      r.onerror = () => reject(r.error)
+    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('settings', 'readwrite')
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => reject(tx.error)
+        tx.onabort = () => reject(tx.error)
+        tx.objectStore('settings').put({
+          id: 'progress',
+          enabled: true,
+          revision: 1,
+          value: {
+            schemaVersion: 1,
+            track: 'linux',
+            currentLesson: 'LINUX',
+            attempts: [],
+            read: [],
+            assessment: {},
+            theoryChecks: [],
+            events: [
+              {
+                attemptId: '00000000-0000-4000-8000-000000000002',
+                module: 'stand',
+                taskId: 'dns',
+                skill: 'dns',
+                at: '2026-10-11T11:00:00Z',
+                score: null,
+                outcome: 'self-reported',
+                errors: [],
+              },
+              {
+                attemptId: '00000000-0000-4000-8000-000000000001',
+                module: 'terminal',
+                taskId: 'TERM-DNS-CACHE',
+                skill: 'dns',
+                at: '2026-10-11T10:00:00Z',
+                score: 0,
+                outcome: 'failed',
+                errors: ['Сравните ответ DNS с кэшем.'],
+              },
+            ],
+          },
+        })
+      })
+    } finally {
+      db.close()
+    }
+  }, dbName)
+  await page.reload()
+  await expect(panel).toHaveAttribute('aria-busy', 'false')
+  await expect(panel.getByRole('link', { name: 'Вернуться к месту в курсе' })).toHaveAttribute(
+    'href',
+    '#/learning?view=workshop&lesson=LINUX',
+  )
+  await panel.getByText('Единая история обучения (2)', { exact: true }).click()
+  const entries = panel.locator('.learning-event-list > li')
+  await expect(entries).toHaveCount(2)
+  await expect(entries.nth(0)).toContainText('Windows: клиентский DNS и кэш')
+  await expect(entries.nth(0)).toContainText('Самостоятельный отчёт')
+  await expect(entries.nth(1)).toContainText('Устаревший DNS-кэш')
+  await expect(entries.nth(1)).toContainText('Нужна повторная попытка · 0 / 100')
+  await expect(entries.nth(1)).not.toContainText('TERM-DNS-CACHE')
+  await expect(entries.nth(1).locator('time')).toHaveAttribute('datetime', '2026-10-11T10:00:00Z')
+  await page.setViewportSize({ width: 320, height: 900 })
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(320)
+})
 async function rows(page: Page, table: string) {
   return page.evaluate(
     async ({ name, table }) => {

@@ -827,11 +827,15 @@ svg {
   gap: 16px;
   margin: 7px 0 30px;
 }
+.page-heading > div {
+  min-width: 0;
+}
 .page-heading h1 {
   font-size: 34px;
   line-height: 1.15;
   margin-top: 13px;
   letter-spacing: -0.05em;
+  overflow-wrap: anywhere;
 }
 .page-heading p {
   color: var(--muted);
