@@ -15,6 +15,18 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 describe('learning import and opt-in', () => {
+  it.each([
+    ['Q-2-2', 'dns-response'],
+    ['Q-2-3', 'dns-context'],
+  ])('records a targeted error for %s and preserves the old explanation', async (id, errorId) => {
+    const store = useLearningStore()
+    await store.answer(id, false)
+    const event = useWorkshopStore().state.events.at(-1)!
+    expect(event).toMatchObject({ taskId: id, outcome: 'failed', errorIds: [errorId] })
+    expect(event.errors).toEqual(['Повторите объяснение вопроса и вернитесь к проверке.'])
+    await store.answer(id, true)
+    expect(useWorkshopStore().state.events.at(-1)?.errorIds).toEqual([])
+  })
   it('imports a reactive preview as independent plain data without writing by default', async () => {
     const store = useLearningStore()
     const preview = reactive(

@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { learningPackages, packageChecks, packageFinals, type PackageCheck } from './packages'
 import { useWorkshopStore } from './useWorkshopStore'
 import { skills } from './skills'
+import { taskErrorIds } from './learningErrors'
 const workshop = useWorkshopStore(),
   route = useRoute(),
   router = useRouter()
@@ -65,6 +66,7 @@ async function check(item: PackageCheck, answer: number) {
       score: correct ? 100 : 0,
       outcome: correct ? 'completed' : 'failed',
       errors: correct ? [] : [item.prompt],
+      errorIds: correct ? [] : taskErrorIds('course', id),
     })
     notice.value =
       saved.status === 'saved'

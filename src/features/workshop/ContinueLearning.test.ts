@@ -14,6 +14,40 @@ const mountPanel = () =>
     global: { stubs: { RouterLink: RouterLinkStub } },
   })
 describe('continue learning after storage loads', () => {
+  it('recommends a newly recorded DNS error immediately without waiting for the minute timer', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-10-11T10:00:00Z'))
+      const store = useWorkshopStore()
+      store.ready = true
+      vi.spyOn(store, 'initialize').mockResolvedValue()
+      vi.spyOn(professionalAttempts, 'toArray').mockResolvedValue([])
+      const wrapper = mountPanel()
+      await flushPromises()
+      vi.setSystemTime(new Date('2026-10-11T10:00:01Z'))
+      store.state = {
+        ...store.state,
+        events: [
+          learningEventSchema.parse({
+            attemptId: crypto.randomUUID(),
+            module: 'course',
+            taskId: 'DNS',
+            skill: 'dns',
+            at: new Date().toISOString(),
+            score: 0,
+            outcome: 'failed',
+          }),
+        ],
+      }
+      await flushPromises()
+      expect(wrapper.findAllComponents(RouterLinkStub).map((link) => link.props('to'))).toContain(
+        '/learning?view=workshop&workshop=error-practice&error=dns-cache',
+      )
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
   it('does not offer a task from empty progress while saved progress is still loading', async () => {
     const store = useWorkshopStore()
     let finish!: () => void

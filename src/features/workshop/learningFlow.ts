@@ -3,17 +3,37 @@ import { recommendSkill, skillStatus, skills, type WorkshopProgress } from './sk
 import { extendedLabs } from '../terminal/labDefinitions'
 import { packageForSkill, packageFinals } from './packages'
 import { standTasks } from './stand'
-export function todayTask(progress: WorkshopProgress) {
-  const recommendation = recommendSkill(progress),
+import { nextRemediation, remediationRecommendations, eventErrorIds } from './remediation'
+import { describeLearningEvent } from './learningHistory'
+export function todayTask(progress: WorkshopProgress, now = Date.now()) {
+  const errorPractice = nextRemediation(progress, now)
+  if (errorPractice)
+    return {
+      title: errorPractice.lesson.title,
+      reason: `Назначено после ошибки в задании «${describeLearningEvent(errorPractice.source).title}». ${errorPractice.state === 'review' ? 'Подошёл срок проверки после перерыва.' : 'Проверим это затруднение на другой ситуации.'}`,
+      prerequisite: 'Основы DNS; краткий разбор включён в занятие',
+      minutes: '5–10',
+      outcome: 'Различить наблюдение и вывод, выбрать проверку конкретной гипотезы',
+      url: `/learning?view=workshop&workshop=error-practice&error=${errorPractice.lesson.id}`,
+      repeat: true,
+      resume: progress.currentLesson
+        ? `/learning?view=workshop&lesson=${progress.currentLesson}`
+        : undefined,
+    }
+  const closedSources = remediationRecommendations(progress, now)
+    .filter((r) => r.state === 'waiting' || r.state === 'verified')
+    .map((r) => r.source.attemptId)
+  const recommendation = recommendSkill(progress, now),
     skill = recommendation.skill
   const course = workshopCourses.find((c) => c.skill === skill.id)!
-  const status = skillStatus(progress, skill.id)
+  const status = skillStatus(progress, skill.id, now)
   const failed = [...progress.events]
     .reverse()
     .find(
       (e) =>
         e.skill === skill.id &&
         e.outcome === 'failed' &&
+        !(eventErrorIds(e).length && closedSources.includes(e.attemptId)) &&
         (!status.last || Date.parse(e.at) >= Date.parse(status.last.at)),
     )
   const read = progress.read.includes(`LESSON-${course.id}`)

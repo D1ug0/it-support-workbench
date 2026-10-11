@@ -9,7 +9,12 @@ const features = {
   },
   workshop: {
     unit: ['src/features/workshop', 'src/features/learning'],
-    browser: ['e2e/evolution.spec.ts', 'e2e/audit.spec.ts', 'e2e/audit-fixes.spec.ts'],
+    browser: [
+      'e2e/evolution.spec.ts',
+      'e2e/audit.spec.ts',
+      'e2e/audit-fixes.spec.ts',
+      'e2e/remediation.spec.ts',
+    ],
   },
   parsers: {
     unit: ['src/infrastructure/parser', 'src/domain/rules'],

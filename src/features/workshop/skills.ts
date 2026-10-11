@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { learningErrorIds } from './learningErrors'
+import { remediationAttemptsSchema } from './remediationSchema'
 export const skillIds = [
   'addressing',
   'routing',
@@ -69,6 +71,7 @@ export const learningEventSchema = z
     score: z.number().int().min(0).max(100).nullable(),
     outcome: z.enum(['completed', 'failed', 'self-reported', 'limit-reached', 'abandoned']),
     errors: z.array(z.string().max(180)).max(10).default([]),
+    errorIds: z.array(z.enum(learningErrorIds)).max(3).optional(),
   })
   .strict()
 export type LearningEvent = z.infer<typeof learningEventSchema>
@@ -86,6 +89,7 @@ export const workshopProgressSchema = z
     schemaVersion: z.literal(1),
     events: z.array(learningEventSchema).max(500).default([]),
     theoryChecks: z.array(theoryCheckSchema).max(300).default([]),
+    remediationAttempts: remediationAttemptsSchema.default([]),
     attempts: z.array(attemptSchema).max(500),
     read: z.array(z.string().regex(/^LESSON-[A-Z0-9-]+$/)).max(100),
     assessment: z.partialRecord(z.enum(skillIds), z.boolean()),
@@ -103,6 +107,7 @@ export const emptyWorkshop = (): WorkshopProgress => ({
   attempts: [],
   events: [],
   theoryChecks: [],
+  remediationAttempts: [],
   read: [],
   assessment: {},
   track: 'L1',

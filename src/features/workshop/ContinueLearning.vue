@@ -1,13 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useWorkshopStore } from './useWorkshopStore'
 import { todayTask } from './learningFlow'
 import { describeLearningEvent, recentLearningEvents } from './learningHistory'
 import { professionalAttempts, professionalAttemptSchema } from './professional'
+import { remediationRecommendations } from './remediation'
 const store = useWorkshopStore()
 const incidentId = ref<string>()
 const incidentError = ref('')
+const now = ref(Date.now())
+watch(
+  () => store.state,
+  () => (now.value = Date.now()),
+  { flush: 'sync' },
+)
+let timer: ReturnType<typeof globalThis.setInterval> | undefined
+onBeforeUnmount(() => globalThis.clearInterval(timer))
 onMounted(async () => {
+  timer = globalThis.setInterval(() => (now.value = Date.now()), 60_000)
   await store.initialize()
   try {
     incidentId.value = (await professionalAttempts.toArray())
@@ -21,7 +31,12 @@ onMounted(async () => {
     incidentError.value = 'Не удалось прочитать сохранённые инциденты. Остальное обучение доступно.'
   }
 })
-const task = computed(() => (store.ready ? todayTask(store.state) : undefined))
+const task = computed(() => (store.ready ? todayTask(store.state, now.value) : undefined))
+const scheduled = computed(() =>
+  store.ready
+    ? remediationRecommendations(store.state, now.value).filter((r) => r.state === 'waiting')
+    : [],
+)
 const history = computed(() =>
   recentLearningEvents(store.state.events).map((event) => ({
     ...event,
@@ -63,6 +78,16 @@ const formatDate = (at: string) =>
           >Продолжить сохранённый инцидент</RouterLink
         >
       </div>
+      <p v-for="r in scheduled" :key="r.lesson.id">
+        {{ r.lesson.title }}: новая ситуация решена. Проверка после перерыва —
+        <time :datetime="new Date(r.dueAt!).toISOString()">{{
+          formatDate(new Date(r.dueAt!).toISOString())
+        }}</time
+        >.
+        <RouterLink :to="`/learning?view=workshop&workshop=error-practice&error=${r.lesson.id}`"
+          >Посмотреть разбор</RouterLink
+        >
+      </p>
       <details>
         <summary>Единая история обучения ({{ store.state.events.length }})</summary>
         <p>

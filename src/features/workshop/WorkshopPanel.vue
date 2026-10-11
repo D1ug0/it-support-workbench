@@ -29,6 +29,8 @@ import { extendedLabs } from '../terminal/labDefinitions'
 import MaterialCard from './MaterialCard.vue'
 import ContinueLearning from './ContinueLearning.vue'
 import PackagesPanel from './PackagesPanel.vue'
+import ErrorPracticePanel from './ErrorPracticePanel.vue'
+import { taskErrorIds } from './learningErrors'
 import ProfessionalPanel from './ProfessionalPanel.vue'
 import CompanionPanel from './CompanionPanel.vue'
 import TeacherPanel from './TeacherPanel.vue'
@@ -54,6 +56,7 @@ const tabs = [
   ['baseline', 'Стартовая проверка'],
   ['courses', 'Новые курсы'],
   ['packages', 'Углублённые пакеты'],
+  ['error-practice', 'Разбор ошибок'],
   ['professional', 'Профессиональные инциденты'],
   ['editor', 'Редактор лабораторий'],
   ['course-editor', 'Редактор курсов'],
@@ -160,6 +163,7 @@ async function answer(index: number) {
     score: index === course.value.correct ? 100 : 0,
     outcome: index === course.value.correct ? 'completed' : 'failed',
     errors: index === course.value.correct ? [] : [course.value.why.slice(0, 180)],
+    errorIds: index === course.value.correct ? [] : taskErrorIds('course', course.value.id),
   })
   await store.replace({
     ...store.state,
@@ -277,8 +281,8 @@ function exportTeacher() {
     >
     <p>
       По умолчанию результаты в памяти. Записываются только ID, режим, вариант, подсказки, оценка,
-      дата, знакомство с уроками и выбранный маршрут. Выключение останавливает запись; удаление —
-      отдельное действие.
+      дата, первые ответы коротких занятий, знакомство с уроками и выбранный маршрут. Выключение
+      останавливает запись; удаление — отдельное действие.
     </p>
     <details v-if="store.problems.length">
       <summary>Проблемные записи ({{ store.problems.length }})</summary>
@@ -503,6 +507,7 @@ function exportTeacher() {
         </button>
       </article>
     </template>
+    <ErrorPracticePanel v-if="tab === 'error-practice'" />
     <PackagesPanel v-if="tab === 'packages'" /><KeepAlive
       ><ProfessionalPanel v-if="tab === 'professional'"
     /></KeepAlive>

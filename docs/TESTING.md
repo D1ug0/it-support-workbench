@@ -8,6 +8,21 @@ npm run check:feature -- workshop
 
 Полный набор после каждой правки не нужен. `check:quick` проверяет lint и типизацию. `check:feature` запускает только тесты выбранной области (`terminal`, `workshop`, `parsers`, `companion`); у companion добавляется проверка HTTP/SQLite. Флаг `--browser` добавляет актуальную сборку и браузерные сценарии области только в Chromium. Например: `npm run check:feature -- terminal --browser`.
 
+## Точечный разбор DNS-ошибок
+
+`remediation.test.ts`, `remediationStore.test.ts`, `ErrorPracticePanel.test.ts` проверяют новый контекст, сутки до отложенной проверки, повторное назначение после ошибки, неизменяемость первого ответа, дублирующий клик, старые записи/backup, повреждённый или преждевременный импорт, opt-in и отказ сохранения. `ContinueLearning.test.ts` дополнительно проверяет немедленное назначение новой ошибки без ожидания минутного таймера.
+
+`e2e/remediation.spec.ts` использует настоящий IndexedDB и проверяет ошибку урока → продолжение после reload → общий backup и восстановление; переход на следующий день с тестовыми часами и скрытым разбором; работу только в памяти. Новый экран проверяется на 320 px и серьёзные/критические нарушения Axe. Файл включён в `check:feature -- workshop --browser`.
+
+```sh
+npm run check:quick
+npm run check:feature -- workshop
+npm run build
+npm exec --no -- playwright test e2e/remediation.spec.ts --project=chromium --project=webkit
+```
+
+Фактический протокол текущего этапа — [VALIDATION.md](VALIDATION.md). Windows captures и ручная проверка экранного диктора остаются отдельными проверками.
+
 Для одного файла: `npm run test:unit -- networkEngine.test.ts`; для наблюдения за изменениями: `npm run test:watch -- networkEngine.test.ts`. `npm run test:changed` выбирает тесты по Git-изменениям и статическим зависимостям. Это вспомогательный локальный фильтр: для новых файлов, динамических зависимостей и общих настроек выбирайте область явно.
 
 | Изменение                              | Локально                                                              |

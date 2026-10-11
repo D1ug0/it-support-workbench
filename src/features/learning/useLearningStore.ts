@@ -1,4 +1,5 @@
 import { taskSkill } from '../workshop/competencies'
+import { taskErrorIds } from '../workshop/learningErrors'
 import type { SaveResult } from '../../shared/persistence'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
@@ -79,6 +80,7 @@ export const useLearningStore = defineStore('learning', () => {
       score: correct ? 100 : 0,
       outcome: correct ? 'completed' : 'failed',
       errors: correct ? [] : ['Повторите объяснение вопроса и вернитесь к проверке.'],
+      errorIds: correct ? [] : taskErrorIds(id.startsWith('ADV-') ? 'academy' : 'question', id),
     })
     await baseSave
   }

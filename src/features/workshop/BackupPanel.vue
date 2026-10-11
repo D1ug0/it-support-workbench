@@ -52,6 +52,11 @@ const contents = computed(() =>
           workshop.state.attempts.length,
         ],
         [
+          'Короткие занятия ошибок',
+          pending.value.workshop.remediationAttempts.length,
+          workshop.state.remediationAttempts.length,
+        ],
+        [
           'События базового журнала',
           pending.value.learning.journal.length,
           learning.state.journal.length,

@@ -17,6 +17,8 @@ import { graphSchema, type IncidentGraph } from './graph'
 import { topologySchema, type LabDefinition } from '../terminal/networkModel'
 import { customCourseSchema, validateCourseLinks, type CustomCourse } from './customCourses'
 import { labIds } from '../terminal/catalog'
+import { beginRemediation, answerRemediation } from './remediation'
+import type { LearningErrorId } from './learningErrors'
 const preferenceKey = 'it-workbench-workshop-save'
 function preference() {
   try {
@@ -192,6 +194,20 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
     state.value = { ...state.value, theoryChecks: [...state.value.theoryChecks, check].slice(-300) }
     return persist()
   }
+  async function startErrorPractice(errorId: LearningErrorId) {
+    await initialize()
+    const result = beginRemediation(state.value, errorId)
+    state.value = result.progress
+    const saved = await persist()
+    return { id: result.attempt.id, saved }
+  }
+  async function answerErrorPractice(id: string, step: number, choice: number) {
+    await initialize()
+    // Commit the answer and final event together, before awaiting persistence.
+    const result = answerRemediation(state.value, id, step, choice)
+    state.value = result.progress
+    return persist()
+  }
   async function replace(value: unknown) {
     await initialize()
     state.value = workshopProgressSchema.parse(value)
@@ -363,6 +379,8 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
     record,
     addEvent,
     recordTheory,
+    startErrorPractice,
+    answerErrorPractice,
     replace,
     toggle,
     saveLabs,

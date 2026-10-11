@@ -9,6 +9,7 @@ import { learningPackages, packageChecks } from './packages'
 import { professionalCases } from './professional'
 import { standTasks } from './stand'
 import { skills, type LearningEvent } from './skills'
+import { remediationLessons } from './remediationCatalog'
 
 type TitledTask = { id: string; title: string }
 export type HistoryMaterials = {
@@ -45,6 +46,14 @@ const packageTitles = new Map<string, string>(
     ),
   ),
 )
+const remediationTitles = new Map<string, string>(
+  remediationLessons.flatMap((lesson) =>
+    ['practice', 'review'].map((phase) => [
+      `FIX-v1-${lesson.id}-${phase}`,
+      `${lesson.title} — ${phase === 'review' ? 'проверка после перерыва' : 'новая ситуация'}`,
+    ]),
+  ),
+)
 function taskTitle(event: LearningEvent, materials: HistoryMaterials) {
   const id = event.taskId
   switch (event.module) {
@@ -76,6 +85,7 @@ function taskTitle(event: LearningEvent, materials: HistoryMaterials) {
       )
     case 'course':
       return (
+        remediationTitles.get(id) ??
         materials.courses?.find((c) => c.id === id)?.title ??
         workshopCourses.find((c) => c.id === id)?.title ??
         packageTitles.get(id) ??
