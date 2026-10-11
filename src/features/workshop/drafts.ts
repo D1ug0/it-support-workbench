@@ -8,6 +8,7 @@ export const draftSchema = z
     kind: z.enum(['investigation', 'stand']),
     attemptId: z.uuid(),
     taskId: z.string().max(80),
+    title: z.string().min(1).max(160).optional(),
     at: z.iso.datetime(),
     notes: z
       .record(z.string().max(40), z.string().max(1800))

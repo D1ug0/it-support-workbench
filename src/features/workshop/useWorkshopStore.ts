@@ -17,8 +17,39 @@ import { graphSchema, type IncidentGraph } from './graph'
 import { topologySchema, type LabDefinition } from '../terminal/networkModel'
 import { customCourseSchema, validateCourseLinks, type CustomCourse } from './customCourses'
 import { labIds } from '../terminal/catalog'
+import {
+  saveMaterials,
+  deleteMaterial,
+  tokensFromRows,
+  type MaterialTokens,
+  type MaterialCollection,
+} from './materialsRepository'
 import { beginRemediation, answerRemediation } from './remediation'
 import type { LearningErrorId } from './learningErrors'
+import { z } from 'zod'
+import { putVersioned } from './versionedRecord'
+import type { SkillId } from './skills'
+const learningResultSchema = z
+  .object({
+    event: learningEventSchema,
+    theory: theoryCheckSchema.optional(),
+    assessment: z.boolean().optional(),
+  })
+  .strict()
+  .superRefine((result, ctx) => {
+    if (
+      result.theory &&
+      (result.theory.taskId !== result.event.taskId ||
+        result.theory.skill !== result.event.skill ||
+        result.theory.at !== result.event.at)
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Проверка и событие должны принадлежать одному заданию.',
+      })
+    if (result.assessment !== undefined && !result.event.skill)
+      ctx.addIssue({ code: 'custom', message: 'Оценка требует явного навыка.' })
+  })
 const preferenceKey = 'it-workbench-workshop-save'
 function preference() {
   try {
@@ -48,6 +79,14 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
     queue = Promise.resolve(),
     revision = 0
   const problems = shallowRef<ProblemRecord[]>([])
+  const materialTokens = shallowRef<Record<MaterialCollection, MaterialTokens>>({
+    labs: {},
+    courses: {},
+    graphs: {},
+  })
+  function tokensFor(collection: MaterialCollection, ids: readonly string[]) {
+    return Object.fromEntries(ids.map((id) => [id, materialTokens.value[collection][id] ?? null]))
+  }
   const pendingWrites = ref(0)
   const saving = computed(() => pendingWrites.value > 0)
   async function loadSaved() {
@@ -59,6 +98,12 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
       courses.toArray(),
     ])
     const [saved, l, g, r, c] = loaded
+    for (const [name, result] of [
+      ['labs', l],
+      ['graphs', g],
+      ['courses', c],
+    ] as const)
+      if (result.status === 'fulfilled') materialTokens.value[name] = tokensFromRows(result.value)
     problems.value = []
     error.value = ''
     if (saved.status === 'fulfilled') {
@@ -179,14 +224,28 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
     state.value = { ...state.value, events: [...state.value.events, event].slice(-500) }
     return persist()
   }
-  async function addEvent(value: unknown) {
+  async function recordResult(value: unknown): Promise<SaveResult> {
+    const result = learningResultSchema.parse(value)
     await initialize()
-    const event = learningEventSchema.parse(value)
+    const event = result.event
     if (
       !state.value.events.some((e) => e.attemptId === event.attemptId && e.module === event.module)
     )
-      state.value = { ...state.value, events: [...state.value.events, event].slice(-500) }
+      state.value = {
+        ...state.value,
+        events: [...state.value.events, event].slice(-500),
+        theoryChecks: result.theory
+          ? [...state.value.theoryChecks, result.theory].slice(-300)
+          : state.value.theoryChecks,
+        assessment:
+          result.assessment !== undefined && event.skill
+            ? { ...state.value.assessment, [event.skill]: result.assessment }
+            : state.value.assessment,
+      }
     return persist()
+  }
+  async function addEvent(value: unknown) {
+    return recordResult({ event: value })
   }
   async function recordTheory(value: unknown) {
     await initialize()
@@ -209,9 +268,36 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
     return persist()
   }
   async function replace(value: unknown) {
+    const snapshot = workshopProgressSchema.parse(value)
     await initialize()
-    state.value = workshopProgressSchema.parse(value)
-    await persist()
+    state.value = snapshot
+    return persist()
+  }
+  async function setAssessment(skill: SkillId, correct: boolean) {
+    await initialize()
+    state.value = workshopProgressSchema.parse({
+      ...state.value,
+      assessment: { ...state.value.assessment, [skill]: correct },
+    })
+    return persist()
+  }
+  async function markRead(id: string) {
+    await initialize()
+    state.value = workshopProgressSchema.parse({
+      ...state.value,
+      read: [...new Set([...state.value.read, `LESSON-${id}`])],
+    })
+    return persist()
+  }
+  async function selectTrack(track: string) {
+    await initialize()
+    state.value = workshopProgressSchema.parse({ ...state.value, track })
+    return persist()
+  }
+  async function selectLesson(id: string) {
+    await initialize()
+    state.value = workshopProgressSchema.parse({ ...state.value, currentLesson: id })
+    return persist()
   }
   async function toggle(value: boolean) {
     try {
@@ -242,101 +328,85 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
       await queue
     }
   }
-  async function saveLabs(values: LabDefinition[]) {
+  async function saveLabs(values: LabDefinition[], expected?: MaterialTokens) {
     await initialize()
     const valid = values.map((v) => topologySchema.parse(v))
-    if (valid.some((l) => !l.id.startsWith('USR-')))
-      throw new Error('Встроенные задания не перезаписываются.')
-    if (new Set(valid.map((l) => l.id)).size !== valid.length)
-      throw new Error('Повторяющиеся ID лабораторий.')
-    await db.transaction('rw', learningTables(), async () => {
-      const existing = await labs.toArray()
-      const merged = [
-        ...existing.filter((l) => !valid.some((v) => v.id === l.id)),
-        ...valid.map((value) => ({ id: value.id, value })),
-      ]
-      if (merged.length > 20) throw new Error('Лимит: 20 собственных лабораторий.')
-      await labs.bulkPut(valid.map((value) => ({ id: value.id, value })))
-      await assertStorageBudget()
-    })
-    customLabs.value = (await labs.toArray()).flatMap((l) => {
-      const valid = topologySchema.safeParse(l.value)
-      return valid.success ? [valid.data] : []
-    })
+    const saved = await saveMaterials(
+      'labs',
+      valid,
+      expected ??
+        tokensFor(
+          'labs',
+          valid.map((v) => v.id),
+        ),
+    )
+    materialTokens.value.labs = { ...materialTokens.value.labs, ...saved }
+    customLabs.value = loadCollection('labs', await labs.toArray(), topologySchema, true).valid
+    return saved
   }
   async function removeLab(id: string) {
-    await db.transaction('rw', labs, courses, async () => {
-      const linked = (await courses.toArray()).find((c) => {
-        const valid = customCourseSchema.safeParse(c.value)
-        return valid.success && valid.data.labs.includes(id)
-      })
-      if (linked)
-        throw new Error(
-          'Лаборатория используется авторским курсом. Сначала измените ссылки в курсе или удалите курс.',
-        )
-      await labs.delete(id)
-    })
+    await initialize()
+    await deleteMaterial('labs', id, materialTokens.value.labs[id] ?? null)
     customLabs.value = customLabs.value.filter((l) => l.id !== id)
   }
-  async function saveCourses(values: CustomCourse[]) {
+  async function saveCourses(values: CustomCourse[], expected?: MaterialTokens) {
     await initialize()
-    const valid = values.map((c) => customCourseSchema.parse(c))
-    if (!valid.length || valid.length > 20 || new Set(valid.map((c) => c.id)).size !== valid.length)
-      throw new Error('Пакет должен содержать от 1 до 20 уникальных курсов.')
-    await db.transaction('rw', learningTables(), async () => {
-      const availableLabs = [
-        ...labIds,
-        ...loadCollection('labs', await labs.toArray(), topologySchema, true).valid.map(
-          (l) => l.id,
+    const valid = values.map((v) => customCourseSchema.parse(v))
+    const saved = await saveMaterials(
+      'courses',
+      valid,
+      expected ??
+        tokensFor(
+          'courses',
+          valid.map((v) => v.id),
         ),
-      ]
-      validateCourseLinks(valid, availableLabs)
-      const existing = await courses.toArray()
-      if (existing.filter((c) => !valid.some((v) => v.id === c.id)).length + valid.length > 20)
-        throw new Error('Лимит: 20 авторских курсов.')
-      await courses.bulkPut(valid.map((value) => ({ id: value.id, value })))
-      await assertStorageBudget()
-    })
-    customCourses.value = (await courses.toArray()).flatMap((c) => {
-      const valid = customCourseSchema.safeParse(c.value)
-      return valid.success ? [valid.data] : []
-    })
+    )
+    materialTokens.value.courses = { ...materialTokens.value.courses, ...saved }
+    customCourses.value = loadCollection(
+      'courses',
+      await courses.toArray(),
+      customCourseSchema,
+      true,
+    ).valid
+    return saved
   }
   async function removeCourse(id: string) {
-    await courses.delete(id)
+    await initialize()
+    await deleteMaterial('courses', id, materialTokens.value.courses[id] ?? null)
     customCourses.value = customCourses.value.filter((c) => c.id !== id)
   }
-  async function saveGraph(value: IncidentGraph) {
-    const valid = graphSchema.parse(value)
+  async function saveGraph(value: IncidentGraph, expected?: MaterialTokens) {
     await initialize()
-    await db.transaction('rw', learningTables(), async () => {
-      if ((await graphs.count()) >= 20 && !(await graphs.get(valid.id)))
-        throw new Error('Лимит: 20 сценариев.')
-      await graphs.put({ id: valid.id, value: valid })
-      await assertStorageBudget()
-    })
-    customGraphs.value = (await graphs.toArray()).flatMap((g) => {
-      const valid = graphSchema.safeParse(g.value)
-      return valid.success ? [valid.data] : []
-    })
+    const valid = graphSchema.parse(value)
+    const saved = await saveMaterials(
+      'graphs',
+      [valid],
+      expected ?? tokensFor('graphs', [valid.id]),
+    )
+    materialTokens.value.graphs = { ...materialTokens.value.graphs, ...saved }
+    customGraphs.value = loadCollection('graphs', await graphs.toArray(), graphSchema, true).valid
+    return saved
   }
   async function removeGraph(id: string) {
-    await graphs.delete(id)
+    await initialize()
+    await deleteMaterial('graphs', id, materialTokens.value.graphs[id] ?? null)
     customGraphs.value = customGraphs.value.filter((g) => g.id !== id)
   }
   async function saveReport(value: PortfolioReport) {
     await initialize()
     const valid = reportSchema.parse(value)
-    await db.transaction('rw', learningTables(), async () => {
+    const stored = await db.transaction('rw', learningTables(), async () => {
       if ((await reports.count()) >= 50 && !(await reports.get(valid.id)))
         throw new Error('Лимит: 50 отчётов.')
       const previous = await reports.get(valid.id)
       if (previous && reportSchema.parse(previous).version >= valid.version)
         throw new Error('Отчёт изменён в другой вкладке. Перечитайте его перед редактированием.')
-      await reports.put(valid)
+      const saved = await putVersioned(reports, valid)
       await assertStorageBudget()
+      return saved
     })
-    portfolio.value = [...portfolio.value.filter((r) => r.id !== valid.id), valid]
+    portfolio.value = [...portfolio.value.filter((r) => r.id !== stored.id), stored]
+    return stored
   }
   async function removeReport(id: string) {
     await reports.delete(id)
@@ -374,10 +444,17 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
     ready,
     error,
     problems,
+    materialTokens,
+    tokensFor,
     saving,
     initialize,
     record,
     addEvent,
+    recordResult,
+    setAssessment,
+    markRead,
+    selectTrack,
+    selectLesson,
     recordTheory,
     startErrorPractice,
     answerErrorPractice,

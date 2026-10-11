@@ -62,25 +62,29 @@ export const useLearningStore = defineStore('learning', () => {
     // Reserve this snapshot immediately; the independent workshop journal may still be loading.
     const baseSave = enabled.value ? persist() : undefined
     const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
-    const skill = taskSkill(id)
-    if (skill)
-      await useWorkshopStore().recordTheory({
-        taskId: id,
+    const skill = taskSkill(id),
+      at = new Date().toISOString()
+    await useWorkshopStore().recordResult({
+      theory: skill
+        ? {
+            taskId: id,
+            skill,
+            form: 'choice',
+            correct,
+            at,
+          }
+        : undefined,
+      event: {
+        attemptId,
+        module: id.startsWith('ADV-') ? 'academy' : 'question',
         skill,
-        form: 'choice',
-        correct,
-        at: new Date().toISOString(),
-      })
-    await useWorkshopStore().addEvent({
-      attemptId,
-      module: id.startsWith('ADV-') ? 'academy' : 'question',
-      skill: taskSkill(id),
-      taskId: id,
-      at: new Date().toISOString(),
-      score: correct ? 100 : 0,
-      outcome: correct ? 'completed' : 'failed',
-      errors: correct ? [] : ['Повторите объяснение вопроса и вернитесь к проверке.'],
-      errorIds: correct ? [] : taskErrorIds(id.startsWith('ADV-') ? 'academy' : 'question', id),
+        taskId: id,
+        at,
+        score: correct ? 100 : 0,
+        outcome: correct ? 'completed' : 'failed',
+        errors: correct ? [] : ['Повторите объяснение вопроса и вернитесь к проверке.'],
+        errorIds: correct ? [] : taskErrorIds(id.startsWith('ADV-') ? 'academy' : 'question', id),
+      },
     })
     await baseSave
   }
@@ -91,27 +95,32 @@ export const useLearningStore = defineStore('learning', () => {
     const baseSave = enabled.value ? persist() : Promise.resolve<SaveResult>({ status: 'memory' })
     if (!terminalAttempt) {
       const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
-      const skill = taskSkill(id)
-      if (skill && id.startsWith('PRACTICE-subnet-'))
-        await useWorkshopStore().recordTheory({
-          taskId: id,
+      const skill = taskSkill(id),
+        at = new Date().toISOString()
+      await useWorkshopStore().recordResult({
+        theory:
+          skill && id.startsWith('PRACTICE-subnet-')
+            ? {
+                taskId: id,
+                skill,
+                form: 'calculation',
+                correct: score >= 85,
+                at,
+              }
+            : undefined,
+        event: {
+          attemptId,
+          module: id.startsWith('PRACTICE-')
+            ? 'practice'
+            : id.startsWith('LAB-')
+              ? 'academy'
+              : 'simulator',
           skill,
-          form: 'calculation',
-          correct: score >= 85,
-          at: new Date().toISOString(),
-        })
-      await useWorkshopStore().addEvent({
-        attemptId,
-        module: id.startsWith('PRACTICE-')
-          ? 'practice'
-          : id.startsWith('LAB-')
-            ? 'academy'
-            : 'simulator',
-        skill: taskSkill(id),
-        taskId: id,
-        at: new Date().toISOString(),
-        score,
-        outcome: score >= 85 ? 'completed' : 'failed',
+          taskId: id,
+          at,
+          score,
+          outcome: score >= 85 ? 'completed' : 'failed',
+        },
       })
     }
     return baseSave

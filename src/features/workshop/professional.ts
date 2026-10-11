@@ -3,6 +3,16 @@ import { workshopDb, learningTables, assertStorageBudget } from './storage'
 import { putVersioned } from './versionedRecord'
 export const professionalCases = [
   {
+    id: 'unknown',
+    title: 'Не открывается учебный портал',
+    skill: 'dns',
+    minutes: '30–45',
+    requires: ['DNS и кэш', 'Маршруты', 'HTTP/readiness'],
+    brief:
+      'Клиент не может открыть учебный портал. Причина неизвестна: сравните клиентское разрешение и прямой DNS, путь и состояние приложения. Зафиксируйте гипотезы, выполните обоснованное изменение и проверьте запрос пользователя.',
+    faults: [['cache'], ['dns'], ['route'], ['dependency']],
+  },
+  {
     id: 'portal',
     title: 'Портал недоступен части клиентов',
     skill: 'dns',
@@ -51,7 +61,7 @@ export const professionalCases = [
     ],
   },
 ] as const
-const faultIds = [
+export const faultIds = [
   'cache',
   'dns',
   'route',
@@ -60,6 +70,25 @@ const faultIds = [
   'permissions',
   'backup',
 ] as const
+export const faultTitles: Record<(typeof faultIds)[number], string> = {
+  cache: 'Клиентский кэш',
+  dns: 'Клиентский DNS',
+  route: 'Маршрут',
+  service: 'Служба',
+  dependency: 'Зависимость приложения',
+  permissions: 'Права',
+  backup: 'Копия данных',
+}
+const hypothesisSchema = z
+  .object({
+    id: z.uuid(),
+    fault: z.enum(faultIds),
+    explanation: z.string().max(600),
+    step: z.number().int().min(1).max(60).nullable(),
+    conclusion: z.enum(['confirmed', 'refuted', 'inconclusive']),
+    nextStep: z.string().max(600),
+  })
+  .strict()
 const actionIds = [
   'clarify',
   'scope',
@@ -85,9 +114,11 @@ export const professionalAttemptSchema = z
     selectedSnapshot: z.enum(['09:30', '10:02']).nullable().default(null),
     restoredSnapshot: z.enum(['09:30', '10:02']).nullable().default(null),
     hypothesisFaults: z.array(z.enum(faultIds)).max(7).default([]),
+    hypotheses: z.array(hypothesisSchema).max(12).default([]),
+    seed: z.number().int().min(0).max(4294967295).nullable().default(null),
     evidenceRefs: z.array(z.number().int().min(1).max(60)).max(60).default([]),
-    caseId: z.enum(['portal', 'api', 'smb', 'recovery']),
-    variant: z.number().int().min(0).max(2),
+    caseId: z.enum(['unknown', 'portal', 'api', 'smb', 'recovery']),
+    variant: z.number().int().min(0).max(3),
     at: z.iso.datetime(),
     updatedAt: z.iso.datetime().optional(),
     status: z.enum(['active', 'completed', 'abandoned']),
@@ -105,6 +136,12 @@ export const professionalAttemptSchema = z
             result: z.string().max(600),
             revision: z.number().int().min(0).max(100),
             evidenceRefs: z.array(z.number().int().min(1).max(60)).max(10).default([]),
+            findings: z
+              .array(
+                z.object({ fault: z.enum(faultIds), present: z.boolean().nullable() }).strict(),
+              )
+              .max(7)
+              .default([]),
           })
           .strict(),
       )
@@ -126,6 +163,19 @@ export const professionalAttemptSchema = z
   .strict()
   .superRefine((a, ctx) => {
     if (
+      (a.caseId === 'unknown' && (a.seed === null || a.variant !== a.seed % 4)) ||
+      (a.caseId !== 'unknown' && a.variant > 2)
+    )
+      ctx.addIssue({ code: 'custom', message: 'Вариант не соответствует сохранённому инциденту.' })
+    if (
+      new Set(a.hypotheses.map((h) => h.id)).size !== a.hypotheses.length ||
+      a.hypotheses.some((h) => h.step !== null && !a.steps[h.step - 1])
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Гипотеза должна ссылаться на существующую проверку.',
+      })
+    if (
       new Set(a.remaining).size !== a.remaining.length ||
       new Set(a.repaired).size !== a.repaired.length ||
       a.remaining.some((f) => a.repaired.includes(f))
@@ -142,8 +192,15 @@ export type ProfessionalAttempt = z.infer<typeof professionalAttemptSchema>
 export function startProfessional(
   caseId: ProfessionalAttempt['caseId'],
   variant = 0,
+  seed?: number,
 ): ProfessionalAttempt {
   const c = professionalCases.find((c) => c.id === caseId)!
+  const stableSeed =
+    caseId === 'unknown'
+      ? (seed ?? globalThis.crypto.getRandomValues(new Uint32Array(1))[0]!)
+      : null
+  if (stableSeed !== null) variant = stableSeed % 4
+  if (!c.faults[variant]) throw new Error('Недоступный вариант инцидента.')
   return {
     id: globalThis.crypto.randomUUID(),
     storageToken: null,
@@ -152,6 +209,8 @@ export function startProfessional(
     selectedSnapshot: null,
     restoredSnapshot: null,
     hypothesisFaults: [],
+    hypotheses: [],
+    seed: stableSeed,
     evidenceRefs: [],
     caseId,
     variant,
@@ -179,8 +238,40 @@ const evidenceFor: Record<(typeof faultIds)[number], string[]> = {
   permissions: ['permissions', 'scope'],
   backup: ['backup', 'content'],
 }
+export function hypothesisEvidence(
+  a: ProfessionalAttempt,
+  row: ProfessionalAttempt['hypotheses'][number],
+) {
+  const step = row.step === null ? undefined : a.steps[row.step - 1]
+  const finding = step?.findings.find((f) => f.fault === row.fault)
+  const conclusion =
+    finding?.present === true
+      ? 'confirmed'
+      : finding?.present === false
+        ? 'refuted'
+        : 'inconclusive'
+  return {
+    step,
+    conclusion,
+    matches: row.conclusion === conclusion,
+    stale: !!step && step.revision !== a.revision,
+  }
+}
+function supportsFault(a: ProfessionalAttempt, fault: (typeof faultIds)[number], refs: number[]) {
+  return a.hypotheses.some(
+    (row) =>
+      row.fault === fault &&
+      row.step !== null &&
+      refs.includes(row.step) &&
+      row.conclusion === 'confirmed' &&
+      hasExplanation(row.explanation) &&
+      hypothesisEvidence(a, row).matches,
+  )
+}
 export function canCompleteProfessional(a: ProfessionalAttempt): boolean {
-  const expectedFaults = professionalCases.find((c) => c.id === a.caseId)!.faults[a.variant]!
+  if (a.caseId === 'unknown' && (a.seed === null || a.variant !== a.seed % 4)) return false
+  const expectedFaults = professionalCases.find((c) => c.id === a.caseId)?.faults[a.variant]
+  if (!expectedFaults) return false
   const recordedFaults = [...a.remaining, ...a.repaired]
   if (
     recordedFaults.length !== expectedFaults.length ||
@@ -235,7 +326,10 @@ export function canCompleteProfessional(a: ProfessionalAttempt): boolean {
     Object.values(a.report).every(hasExplanation) &&
     new Set(Object.values(a.report).map((s) => s.trim().toLowerCase())).size >= 4 &&
     structure &&
-    recovery
+    recovery &&
+    (a.caseId !== 'unknown' ||
+      (a.repaired.every((f) => supportsFault(a, f, a.evidenceRefs)) &&
+        a.hypotheses.every((row) => hypothesisEvidence(a, row).matches)))
   )
 }
 // A small anti-placeholder check, not a semantic/text quality assessment.
@@ -277,11 +371,15 @@ export function actProfessional(
   a.elapsedMinutes =
     a.steps.reduce((time, s) => time + actionMinutes(s.action), 0) + actionMinutes(action)
   let result: string
+  const findings: ProfessionalAttempt['steps'][number]['findings'] = []
   if (action.startsWith('repair:')) {
     const fault = action.slice(7) as (typeof faultIds)[number]
     const justified =
       evidenceFor[fault].every((o) => evidenceRefs.some((id) => a.steps[id - 1]?.action === o)) &&
-      a.remaining.includes(fault)
+      a.remaining.includes(fault) &&
+      (a.caseId !== 'unknown' ||
+        (supportsFault(a, fault, evidenceRefs) &&
+          evidenceRefs.every((id) => a.steps[id - 1]?.revision === a.revision)))
     if (fault === 'permissions')
       result = 'Нет прав изменять каталог. Подготовьте эскалацию владельцу доступа.'
     else if (!justified)
@@ -335,13 +433,29 @@ export function actProfessional(
   } else {
     a.observations = [...new Set([...a.observations, action])]
     const has = (f: (typeof faultIds)[number]) => a.remaining.includes(f)
+    if (action === 'dns')
+      findings.push(
+        { fault: 'dns', present: has('dns') },
+        { fault: 'cache', present: has('dns') ? null : has('cache') },
+      )
+    if (action === 'path') findings.push({ fault: 'route', present: has('route') })
+    if (action === 'journal')
+      findings.push(
+        { fault: 'dependency', present: has('dependency') },
+        { fault: 'service', present: has('dependency') ? null : has('service') },
+      )
+    if (action === 'permissions')
+      findings.push({ fault: 'permissions', present: has('permissions') })
+    if (action === 'backup') findings.push({ fault: 'backup', present: has('backup') })
     const outputs: Record<string, string> = {
       clarify:
         'Симптом получен в 10:05; требуется операция приложения, а не просто ping. Данные и имена вымышлены.',
       scope:
-        a.caseId === 'smb'
-          ? 'Отказ у группы interns, группа readers читает тот же файл.'
-          : 'Сравнение клиентов A/B и серверов web/API: отказы независимы. Изменение одного клиента не доказывает исправность всех.',
+        a.caseId === 'unknown'
+          ? 'Клиент A не открывает портал по имени. DNS и путь исследуются с клиента; журнал и HTTP/readiness доступны на учебном сервере независимо от клиентского подключения.'
+          : a.caseId === 'smb'
+            ? 'Отказ у группы interns, группа readers читает тот же файл.'
+            : 'Сравнение клиентов A/B и серверов web/API: отказы независимы. Изменение одного клиента не доказывает исправность всех.',
       dns: has('dns')
         ? 'Клиент A использует DNS без нужной записи; прямой запрос к учебному DNS успешен.'
         : has('cache')
@@ -376,7 +490,14 @@ export function actProfessional(
     }
     result = outputs[action] ?? 'Наблюдение записано.'
   }
-  a.steps.push({ action, reason: reason.trim(), result, revision: a.revision, evidenceRefs })
+  a.steps.push({
+    action,
+    reason: reason.trim(),
+    result,
+    revision: a.revision,
+    evidenceRefs,
+    findings,
+  })
   if (a.caseId === 'recovery') a.recoveryMinutes = a.elapsedMinutes
   return a
 }
@@ -410,7 +531,12 @@ export async function saveProfessional(value: ProfessionalAttempt) {
 export function professionalMarkdown(a: ProfessionalAttempt) {
   return [
     `# ${professionalCases.find((c) => c.id === a.caseId)!.title}`,
-    `Синтетический учебный инцидент; вариант ${a.variant + 1}. Попытка ${a.id}. Статус ${a.status}, оценка процесса ${a.score ?? 'в процессе'}. Рубрика ${a.gradingVersion || 'legacy'}. Содержание обоснований ожидает разбора человеком. ${a.escalated ? 'Восстановление доступа ожидает владельца.' : ''}`,
+    `Синтетический учебный инцидент; ${a.caseId === 'unknown' && a.status !== 'completed' ? 'причина и вариант скрыты до завершения' : `вариант ${a.variant + 1}`}. Попытка ${a.id}. Статус ${a.status}, оценка процесса ${a.score ?? 'в процессе'}. Рубрика ${a.gradingVersion || 'legacy'}. Содержание обоснований ожидает разбора человеком. ${a.escalated ? 'Восстановление доступа ожидает владельца.' : ''}`,
+    '## Таблица гипотез',
+    ...a.hypotheses.map((row) => {
+      const evidence = hypothesisEvidence(a, row)
+      return `${faultTitles[row.fault]}: ${row.explanation}\nПроверка ${row.step === null ? 'не выбрана' : '#' + row.step}: ${evidence.step?.result ?? 'нет данных'}\nВывод: ${row.conclusion}; ${evidence.matches ? 'согласован с наблюдением' : 'противоречит наблюдению'}; ${evidence.stale ? 'исторические данные, нужна свежая проверка текущего состояния' : 'текущая ревизия'}. Следующий шаг: ${row.nextStep}`
+    }),
     ...a.steps.map(
       (s, i) =>
         `${i + 1}. ${s.action} · ревизия ${s.revision}\nГипотеза: ${s.reason}\nНаблюдение: ${s.result}`,

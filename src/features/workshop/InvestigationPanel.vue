@@ -22,6 +22,10 @@ const symptom = ref(''),
   notice = ref(''),
   busy = ref(false)
 const reportId = ref<string>(globalThis.crypto.randomUUID()),
+  reportToken = ref<string | null>(null),
+  reportTitle = ref(terminal.lab.title),
+  reportLabId = ref(terminal.lab.id),
+  reportAt = ref(new Date().toISOString()),
   reportVersion = ref(1),
   draftToken = ref<string | null>(null),
   reportAttemptId = ref(terminal.attemptId),
@@ -55,6 +59,10 @@ watch(
     reportId.value = globalThis.crypto.randomUUID()
     reportAttemptId.value = terminal.attemptId
     reportVersion.value = 1
+    reportToken.value = null
+    reportTitle.value = terminal.lab.title
+    reportLabId.value = terminal.lab.id
+    reportAt.value = new Date().toISOString()
     draftToken.value = null
     status.value = 'draft'
     selected.value = []
@@ -71,6 +79,7 @@ watch(
 )
 const report = computed(() => ({
   id: reportId.value,
+  storageToken: reportToken.value,
   version: reportVersion.value,
   status: status.value,
   attemptId: reportAttemptId.value,
@@ -87,9 +96,9 @@ const report = computed(() => ({
           : 'Команда отклонена.',
       })),
   ].slice(-40),
-  title: terminal.lab.title,
-  at: new Date().toISOString(),
-  labId: terminal.lab.id,
+  title: reportTitle.value,
+  at: reportAt.value,
+  labId: reportLabId.value,
   symptom: symptom.value,
   hypothesis: hypothesis.value,
   evidence: evidence.value,
@@ -116,8 +125,9 @@ async function save() {
   const before = noteSnapshot(),
     id = reportId.value
   try {
-    await workshop.saveReport(reportSchema.parse(report.value))
+    const stored = await workshop.saveReport(reportSchema.parse(report.value))
     if (id === reportId.value) {
+      reportToken.value = stored.storageToken
       reportVersion.value++
       markSaved(before)
     }
@@ -140,7 +150,8 @@ async function saveNotes() {
       storageToken: draftToken.value,
       kind: 'investigation',
       attemptId: reportAttemptId.value,
-      taskId: terminal.lab.id,
+      taskId: reportLabId.value,
+      title: reportTitle.value,
       at: new Date().toISOString(),
       notes: {
         symptom: symptom.value,
@@ -175,6 +186,10 @@ async function resumeDraft(id: string) {
   inheritedRefs.value = []
   inheritedScore.value = null
   reportVersion.value = (workshop.portfolio.find((r) => r.id === d.id)?.version ?? 0) + 1
+  reportToken.value = workshop.portfolio.find((r) => r.id === d.id)?.storageToken ?? null
+  reportLabId.value = d.taskId
+  reportTitle.value = d.title ?? workshop.portfolio.find((r) => r.id === d.id)?.title ?? d.taskId
+  reportAt.value = d.at
   reportId.value = d.id
   draftToken.value = d.storageToken
   reportAttemptId.value = d.attemptId
@@ -198,6 +213,10 @@ function editReport(id: string) {
   inheritedScore.value = r.score
   reportAttemptId.value = r.attemptId ?? terminal.attemptId
   reportId.value = r.id
+  reportToken.value = r.storageToken
+  reportTitle.value = r.title
+  reportLabId.value = r.labId
+  reportAt.value = r.at
   draftToken.value = savedDrafts.value.find((d) => d.id === id)?.storageToken ?? null
   reportVersion.value = r.version + 1
   status.value = r.status
@@ -215,6 +234,7 @@ function editReport(id: string) {
 <template>
   <section class="panel feature-section">
     <h2>Оформить расследование</h2>
+    <p>{{ reportTitle }} · {{ reportLabId }}</p>
     <p>
       Запишите свои выводы. Заметки остаются в памяти до явного сохранения. Свободный текст
       автоматически не обезличивается; перед экспортом проверьте содержимое.

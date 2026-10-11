@@ -64,10 +64,24 @@ export async function restoreLearningBackup(value: LearningBackup, token: string
       ...(valid.schemaVersion === 2 ? ['scenarios', 'drafts', 'professionalAttempts'] : []),
     ])
       await db.table(name).clear()
-    await db.table('labs').bulkPut(valid.labs.map((value) => ({ id: value.id, value })))
-    await db.table('courses').bulkPut(valid.courses.map((value) => ({ id: value.id, value })))
-    await db.table('graphs').bulkPut(valid.graphs.map((value) => ({ id: value.id, value })))
-    await db.table('reports').bulkPut(valid.portfolio)
+    await db
+      .table('labs')
+      .bulkPut(
+        valid.labs.map((value) => ({ id: value.id, value, storageToken: crypto.randomUUID() })),
+      )
+    await db
+      .table('courses')
+      .bulkPut(
+        valid.courses.map((value) => ({ id: value.id, value, storageToken: crypto.randomUUID() })),
+      )
+    await db
+      .table('graphs')
+      .bulkPut(
+        valid.graphs.map((value) => ({ id: value.id, value, storageToken: crypto.randomUUID() })),
+      )
+    await db
+      .table('reports')
+      .bulkPut(valid.portfolio.map((r) => ({ ...r, storageToken: globalThis.crypto.randomUUID() })))
     await standAttempts.bulkPut(
       valid.standAttempts.map((a) => ({ ...a, storageToken: crypto.randomUUID() })),
     )

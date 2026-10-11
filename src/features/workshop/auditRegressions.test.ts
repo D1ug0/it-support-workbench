@@ -187,8 +187,8 @@ describe('professional incident goals', () => {
   })
   it('all variants have complete evidence-based paths; recovery needs RTO/RPO and SMB explicit escalation', () => {
     for (const c of professionalCases)
-      for (let variant = 0; variant < 3; variant++) {
-        let a = startProfessional(c.id, variant)
+      for (let variant = 0; variant < c.faults.length; variant++) {
+        let a = startProfessional(c.id, variant, variant)
         for (const action of [
           'clarify',
           'scope',
@@ -203,6 +203,19 @@ describe('professional incident goals', () => {
         ])
           a = act(a, action)
         a.selectedSnapshot = '10:02'
+        if (c.id === 'unknown') {
+          const fault = a.remaining[0]!
+          const step =
+            a.steps.findIndex((s) => s.findings.some((f) => f.fault === fault && f.present)) + 1
+          a.hypotheses.push({
+            id: crypto.randomUUID(),
+            fault,
+            explanation: reason,
+            step,
+            conclusion: 'confirmed',
+            nextStep: 'Минимальное изменение и повторная проверка.',
+          })
+        }
         for (const fault of [...a.remaining])
           a = act(a, fault === 'permissions' ? 'escalate' : `repair:${fault}`)
         if (c.id === 'recovery') a = act(a, 'content')

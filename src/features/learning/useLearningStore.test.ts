@@ -87,7 +87,7 @@ describe('learning import and opt-in', () => {
           finishWrite = () => resolve(2)
         }),
     )
-    vi.spyOn(useWorkshopStore(), 'addEvent').mockImplementationOnce(
+    vi.spyOn(useWorkshopStore(), 'recordResult').mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           finishWorkshop = () => resolve({ status: 'memory' })

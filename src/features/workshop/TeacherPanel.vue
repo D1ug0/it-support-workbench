@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
-import { parseWorkshopProgress, skillStatus, skills, type WorkshopProgress } from './skills'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { parseWorkshopProgress, buildSkillStatuses, skills, type WorkshopProgress } from './skills'
 import { downloadText } from '../../infrastructure/export/exportReport'
 const learners = ref<Array<{ alias: string; state: WorkshopProgress }>>([]),
   error = ref(''),
   busy = ref(false)
+const statuses = computed(() => learners.value.map((l) => buildSkillStatuses(l.state)))
 let generation = 0
 onBeforeUnmount(() => generation++)
 async function read(event: Event) {
@@ -43,8 +44,8 @@ function exportOverview() {
       '# Учебная группа',
       'Данные представлены учениками и не подтверждают независимую аттестацию.',
       ...learners.value.map(
-        (l) =>
-          `## ${l.alias}\n${skills.map((s) => `- ${s.title}: ${skillStatus(l.state, s.id).level}; попыток ${skillStatus(l.state, s.id).attempts}; ${skillStatus(l.state, s.id).needsReview ? 'назначить повторение' : 'без назначенного повторения'}`).join('\n')}`,
+        (l, i) =>
+          `## ${l.alias}\n${skills.map((s) => `- ${s.title}: ${statuses.value[i]![s.id].level}; попыток ${statuses.value[i]![s.id].attempts}; ${statuses.value[i]![s.id].needsReview ? 'назначить повторение' : 'без назначенного повторения'}`).join('\n')}`,
       ),
     ].join('\n\n'),
     'workbench-group-overview.md',
@@ -82,8 +83,8 @@ function exportOverview() {
       /></label>
       <ul>
         <li v-for="skill in skills" :key="skill.id">
-          {{ skill.title }}: {{ skillStatus(learner.state, skill.id).level }} ·
-          {{ skillStatus(learner.state, skill.id).needsReview ? 'повторить' : 'плановая практика' }}
+          {{ skill.title }}: {{ statuses[i]![skill.id].level }} ·
+          {{ statuses[i]![skill.id].needsReview ? 'повторить' : 'плановая практика' }}
         </li>
       </ul>
       <button class="button ghost" @click="learners.splice(i, 1)">

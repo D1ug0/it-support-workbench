@@ -48,32 +48,37 @@ async function check(item: PackageCheck, answer: number) {
   if (busy.value || result(item) || !Number.isFinite(answer)) return
   busy.value = true
   const id = taskId(item),
-    correct = answer === item.answer
+    correct = answer === item.answer,
+    packetId = selected.value,
+    at = new Date().toISOString()
   try {
-    const saved = await workshop.recordTheory({
-      taskId: id,
-      skill: item.skill,
-      form: item.form,
-      correct,
-      at: new Date().toISOString(),
+    const saved = await workshop.recordResult({
+      theory: {
+        taskId: id,
+        skill: item.skill,
+        form: item.form,
+        correct,
+        at,
+      },
+      event: {
+        attemptId: globalThis.crypto.randomUUID(),
+        module: 'course',
+        taskId: id,
+        skill: item.skill,
+        at,
+        score: correct ? 100 : 0,
+        outcome: correct ? 'completed' : 'failed',
+        errors: correct ? [] : [item.prompt],
+        errorIds: correct ? [] : taskErrorIds('course', id),
+      },
     })
-    await workshop.addEvent({
-      attemptId: globalThis.crypto.randomUUID(),
-      module: 'course',
-      taskId: id,
-      skill: item.skill,
-      at: new Date().toISOString(),
-      score: correct ? 100 : 0,
-      outcome: correct ? 'completed' : 'failed',
-      errors: correct ? [] : [item.prompt],
-      errorIds: correct ? [] : taskErrorIds('course', id),
-    })
-    notice.value =
-      saved.status === 'saved'
-        ? 'Первый ответ сохранён.'
-        : saved.status === 'failed'
-          ? saved.error
-          : 'Первый ответ в памяти; включите сохранение прогресса для продолжения после перезагрузки.'
+    if (selected.value === packetId)
+      notice.value =
+        saved.status === 'saved'
+          ? 'Первый ответ сохранён.'
+          : saved.status === 'failed'
+            ? saved.error
+            : 'Первый ответ в памяти; включите сохранение прогресса для продолжения после перезагрузки.'
   } finally {
     busy.value = false
   }

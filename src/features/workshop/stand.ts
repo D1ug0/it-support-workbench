@@ -2,6 +2,61 @@ import { z } from 'zod'
 import type { SkillId } from './skills'
 export const standTasks = [
   {
+    id: 'windows',
+    title: 'Windows: служба и причина отказа',
+    skill: 'windows',
+    platform: 'Windows',
+    objective:
+      'Различить остановленную службу и отказ её запуска из-за зависимости или конфигурации.',
+    commands: ['Get-Service ИМЯ_УЧЕБНОЙ_СЛУЖБЫ', 'Get-WinEvent -LogName System -MaxEvents 30'],
+    steps: [
+      'Подготовьте отдельную учебную службу и снимок VM; запишите ожидаемое поведение.',
+      'Сравните остановленную службу и отказ запуска: снимите status и относящиеся к ней события.',
+      'Исправьте только подтверждённую причину в учебной среде, сохранив условия отката.',
+      'Проверьте запуск, новые события и пользовательскую операцию.',
+    ],
+    question: 'Почему повторный Start-Service не исправляет отсутствующую зависимость?',
+  },
+  {
+    id: 'ipv6',
+    title: 'IPv6: компонент, адрес и маршрут',
+    skill: 'ipv6',
+    platform: 'Windows / собственная IPv6-сеть',
+    objective: 'Отделить отключённый IPv6-компонент от отсутствующего адреса или маршрута.',
+    commands: [
+      'Get-NetAdapterBinding -ComponentID ms_tcpip6',
+      'Get-NetIPAddress -AddressFamily IPv6',
+      'Get-NetRoute -AddressFamily IPv6',
+    ],
+    steps: [
+      'Запишите разрешённую IPv6-цель и рабочий план своего изолированного стенда.',
+      'Снимите binding, адреса и маршруты; сравните с рабочим снимком.',
+      'Исправьте подтверждённое условие своего стенда и объясните границу каждой проверки.',
+      'Проверьте IPv6-сервис отдельно от IPv4; сохраните доказательства и условия отката.',
+    ],
+    question: 'Почему включённый IPv6 binding ещё не подтверждает маршрут к сервису?',
+  },
+  {
+    id: 'wifi',
+    title: 'Wi-Fi: ассоциация и сеть',
+    skill: 'wifi',
+    platform: 'Windows / собственная учебная точка доступа',
+    objective:
+      'Различить отсутствие подключения к точке и сетевой отказ после успешной ассоциации.',
+    commands: [
+      'netsh wlan show interfaces',
+      'ipconfig /all',
+      'Test-NetConnection ИМЯ_СВОЕГО_СТЕНДА -Port 443',
+    ],
+    steps: [
+      'Используйте свою точку и разрешённый клиент; запишите рабочий SSID, адресацию и сервис.',
+      'Сравните отсутствие ассоциации с сетевым отказом подключённого клиента.',
+      'Измените только найденную настройку учебного стенда; не сбрасывайте всю сеть.',
+      'Подтвердите ассоциацию, корректную адресацию и пользовательскую операцию.',
+    ],
+    question: 'Почему подключение к SSID ещё не подтверждает доступность приложения?',
+  },
+  {
     id: 'dns',
     title: 'Windows: клиентский DNS и кэш',
     skill: 'dns',
@@ -127,7 +182,17 @@ export const standAttemptSchema = z
     id: z.uuid(),
     attemptId: z.uuid().optional(),
     storageToken: z.uuid().nullable().default(null),
-    taskId: z.enum(['dns', 'routes', 'linux', 'https', 'git', 'recovery']),
+    taskId: z.enum([
+      'dns',
+      'routes',
+      'linux',
+      'https',
+      'git',
+      'recovery',
+      'windows',
+      'ipv6',
+      'wifi',
+    ]),
     at: z.iso.datetime(),
     platform: z.string().trim().min(1).max(160),
     completedSteps: z.array(z.number().int().min(0).max(3)).max(4),

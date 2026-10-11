@@ -23,3 +23,13 @@
 5. `npm run test:fixtures:real` проверит схему, пару minimal/problematic для каждой команды/ОС/build/PowerShell/локали, sha256, явные утечки и точные результаты. Проверка утечек лишь дополнительная: ручной просмотр остаётся обязательным.
 
 Матрица подтверждается только для перечисленных captures и их формата. Наличие настоящего fixture не утверждает поддержку всех сборок Windows, локалей, полного AccessCheck или произвольного CIM JSON. Личные данные пользователя не попадают в учебные материалы автоматически.
+
+## Помощник подготовки записи manifest
+
+После ручного просмотра обезличенного входа и подготовки независимого expected JSON сохраните метаданные одной записи в `metadata.json`. Они должны явно содержать `reviewed: true`, `ownEnvironment: true`, `provenance: real-redacted` и остальные поля схемы из шага 3. Имя файла, имя эталона и sha256 помощник вычисляет сам:
+
+```sh
+node scripts/prepare-real-fixture-entry.mjs /path/to/metadata.json /path/to/ping-en-redacted.txt /path/to/ping-en-expected.json
+```
+
+Команда выводит запись JSON для ручного добавления в manifest, не меняет исходники и не добавляет provenance/согласие автоматически. Она проверяет форму эталона, но не формирует expected из ответа парсера и не доказывает реальность captures. После добавления пары minimal/problematic выполните `npm run test:fixtures:real`. Сам помощник проверен на unit-данных; Windows captures этим не получены.

@@ -2,6 +2,7 @@ import { z } from 'zod'
 export const reportSchema = z
   .object({
     id: z.uuid(),
+    storageToken: z.uuid().nullable().default(null),
     status: z.enum(['draft', 'completed']).default('draft'),
     version: z.number().int().min(1).max(10000).default(1),
     attemptId: z.uuid().optional(),

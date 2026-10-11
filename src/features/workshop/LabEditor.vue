@@ -2,7 +2,9 @@
 import AppSelect from '../../shared/components/AppSelect.vue'
 import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, isNavigationFailure } from 'vue-router'
+import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChanges'
+import type { MaterialTokens } from './materialsRepository'
 import { extendedLabs } from '../terminal/labDefinitions'
 import { topologySchema, parseLabPackage, type LabDefinition } from '../terminal/networkModel'
 import { useWorkshopStore } from './useWorkshopStore'
@@ -21,15 +23,31 @@ const consent = ref(false),
   busy = ref(false),
   pending = ref<LabDefinition[]>()
 const template = ref(extendedLabs[0]!.id)
+const snapshot = () => JSON.stringify(draft.value)
+const { markSaved } = useUnsavedChanges(snapshot)
+const expected = ref<MaterialTokens>({ [draft.value.id]: null }),
+  pendingTokens = ref<MaterialTokens>({})
 const valid = computed(() => topologySchema.safeParse(draft.value))
-function reset() {
-  const source = extendedLabs.find((l) => l.id === template.value)!
+function reset(id: string) {
+  if (busy.value || !confirmDiscardForms()) return
+  template.value = id
+  const source = extendedLabs.find((l) => l.id === id)!
   draft.value = {
     ...globalThis.structuredClone(source),
     id: `USR-${globalThis.crypto.randomUUID()}`,
   }
   consent.value = false
   error.value = ''
+  expected.value = { [draft.value.id]: null }
+  markSaved()
+}
+function edit(lab: LabDefinition) {
+  if (busy.value || !confirmDiscardForms()) return
+  draft.value = topologySchema.parse(lab)
+  expected.value = store.tokensFor('labs', [lab.id])
+  consent.value = false
+  notice.value = ''
+  markSaved()
 }
 function addHost() {
   const hosts = draft.value.additionalHosts ?? []
@@ -47,9 +65,11 @@ function addHost() {
     },
   ]
 }
-function play(lab: LabDefinition) {
-  terminal.start(lab.id, 'guided', topologySchema.parse(lab))
-  void router.push('/terminal')
+async function play(lab: LabDefinition) {
+  const snapshot = topologySchema.parse(lab)
+  const navigation = await router.push('/terminal')
+  if (isNavigationFailure(navigation)) return
+  terminal.start(snapshot.id, 'guided', snapshot)
 }
 function exportLab(lab = draft.value) {
   downloadText(
@@ -59,13 +79,22 @@ function exportLab(lab = draft.value) {
   )
 }
 async function save(values: LabDefinition[]) {
+  if (busy.value) return
   if (!consent.value) {
     error.value = 'Подтвердите, что пакет содержит только учебные данные.'
     return
   }
   busy.value = true
+  const before = snapshot(),
+    id = draft.value.id
   try {
-    await store.saveLabs(values)
+    const valid = values.map((v) => topologySchema.parse(v)),
+      tokens = values === pending.value ? pendingTokens.value : expected.value
+    const stored = await store.saveLabs(valid, tokens)
+    if (draft.value.id === id && valid.some((value) => JSON.stringify(value) === before)) {
+      expected.value = { ...expected.value, ...stored }
+      markSaved(before)
+    }
     pending.value = undefined
     notice.value = 'Лаборатории сохранены.'
   } catch (e) {
@@ -84,7 +113,13 @@ async function read(event: Event) {
   try {
     if (file.size > 262144) throw new Error('Лимит: 256 KiB.')
     const values = parseLabPackage(await file.text())
-    if (read === version) pending.value = values
+    if (read === version) {
+      pending.value = values
+      pendingTokens.value = store.tokensFor(
+        'labs',
+        values.map((v) => v.id),
+      )
+    }
   } catch (e) {
     if (read === version) error.value = e instanceof Error ? e.message : 'Ошибка пакета.'
   } finally {
@@ -92,6 +127,7 @@ async function read(event: Event) {
   }
 }
 async function remove(id: string) {
+  if (busy.value || !window.confirm('Удалить выбранную авторскую лабораторию?')) return
   try {
     await store.removeLab(id)
   } catch (e) {
@@ -108,7 +144,7 @@ async function remove(id: string) {
       выполняется.
     </p>
     <label
-      >Шаблон<AppSelect v-model="template" class="text-input" @change="reset">
+      >Шаблон<AppSelect :model-value="template" class="text-input" :disabled="busy" @change="reset">
         <AppSelectOption v-for="lab in extendedLabs" :key="lab.id" :value="lab.id">{{
           lab.title
         }}</AppSelectOption>
@@ -240,8 +276,7 @@ async function remove(id: string) {
       <strong>{{ lab.title }}</strong>
       <div class="button-row">
         <button class="button secondary" @click="play(lab)">Пройти</button
-        ><button class="button ghost" @click="draft = topologySchema.parse(lab)">
-          Редактировать</button
+        ><button class="button ghost" @click="edit(lab)">Редактировать</button
         ><button class="button ghost" @click="exportLab(lab)">Экспорт</button
         ><button class="button ghost" @click="remove(lab.id)">Удалить лабораторию</button>
       </div>

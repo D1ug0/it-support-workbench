@@ -1,11 +1,15 @@
 import { workshopCourses } from './courses'
-import { recommendSkill, skillStatus, skills, type WorkshopProgress } from './skills'
+import { recommendSkill, buildSkillStatuses, skills, type WorkshopProgress } from './skills'
 import { extendedLabs } from '../terminal/labDefinitions'
 import { packageForSkill, packageFinals } from './packages'
 import { standTasks } from './stand'
 import { nextRemediation, remediationRecommendations, eventErrorIds } from './remediation'
 import { describeLearningEvent } from './learningHistory'
-export function todayTask(progress: WorkshopProgress, now = Date.now()) {
+export function todayTask(
+  progress: WorkshopProgress,
+  now = Date.now(),
+  statuses = buildSkillStatuses(progress, now),
+) {
   const errorPractice = nextRemediation(progress, now)
   if (errorPractice)
     return {
@@ -23,10 +27,10 @@ export function todayTask(progress: WorkshopProgress, now = Date.now()) {
   const closedSources = remediationRecommendations(progress, now)
     .filter((r) => r.state === 'waiting' || r.state === 'verified')
     .map((r) => r.source.attemptId)
-  const recommendation = recommendSkill(progress, now),
+  const recommendation = recommendSkill(progress, now, statuses),
     skill = recommendation.skill
   const course = workshopCourses.find((c) => c.skill === skill.id)!
-  const status = skillStatus(progress, skill.id, now)
+  const status = statuses[skill.id]
   const failed = [...progress.events]
     .reverse()
     .find(

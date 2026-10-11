@@ -16,14 +16,19 @@ import { incidentPresets, graphDebrief } from './incidentPresets'
 import { useWorkshopStore } from './useWorkshopStore'
 import { downloadText } from '../../infrastructure/export/exportReport'
 import GraphForm from './GraphForm.vue'
+import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChanges'
+import type { MaterialTokens } from './materialsRepository'
 const store = useWorkshopStore(),
   route = useRoute()
 const attemptId = ref<string>(globalThis.crypto.randomUUID())
 const preset = ref(incidentPresets.find((p) => p.id === route.query.preset)?.id ?? 'WEB')
 function loadPreset() {
+  if (busy.value || !confirmDiscardForms()) return
   const source = incidentPresets.find((p) => p.id === preset.value)!.graph
   text.value = JSON.stringify({ ...source, id: `GRAPH-${globalThis.crypto.randomUUID()}` }, null, 2)
   preview()
+  expected.value = {}
+  markSaved()
 }
 function exportAttempt() {
   if (graph.value && attempt.value)
@@ -40,6 +45,8 @@ const text = ref(
   error = ref(''),
   notice = ref(''),
   busy = ref(false)
+const expected = ref<MaterialTokens>({})
+const { markSaved } = useUnsavedChanges(() => text.value)
 const graph = ref<IncidentGraph>(),
   attempt = ref<GraphAttempt>(),
   feedback = ref('')
@@ -64,8 +71,12 @@ function restartAttempt() {
   feedback.value = ''
 }
 function openStored(value: IncidentGraph) {
+  if (busy.value || !confirmDiscardForms()) return
   text.value = JSON.stringify(value, null, 2)
+  expected.value = store.tokensFor('graphs', [value.id])
+  consent.value = false
   preview()
+  markSaved()
 }
 function choose(index: number) {
   if (!graph.value || !attempt.value) return
@@ -96,6 +107,7 @@ function abandon() {
   }
 }
 async function save() {
+  if (busy.value) return
   if (!consent.value) {
     error.value = 'Подтвердите учебные данные.'
     return
@@ -103,8 +115,12 @@ async function save() {
   busy.value = true
   error.value = ''
   notice.value = ''
+  const before = text.value
   try {
-    await store.saveGraph(parseGraph(text.value))
+    const graph = parseGraph(before)
+    const stored = await store.saveGraph(graph, expected.value)
+    expected.value = { ...expected.value, ...stored }
+    markSaved(before)
     notice.value = 'Сценарий сохранён.'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Ошибка сохранения.'
@@ -129,12 +145,18 @@ async function read(event: Event) {
   const input = event.target as HTMLInputElement,
     file = input.files?.[0]
   if (!file) return
+  if (busy.value || !confirmDiscardForms()) {
+    input.value = ''
+    return
+  }
   const ticket = ++version
   try {
     if (file.size > 131072) throw new Error('Лимит 128 KiB.')
     const value = parseGraph(await file.text())
     if (ticket === version) {
       text.value = JSON.stringify(value, null, 2)
+      expected.value = store.tokensFor('graphs', [value.id])
+      consent.value = false
       preview()
     }
   } catch (e) {

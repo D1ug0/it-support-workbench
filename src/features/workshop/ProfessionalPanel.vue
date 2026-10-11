@@ -7,6 +7,7 @@ import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChan
 import { downloadText } from '../../infrastructure/export/exportReport'
 import { loadCollection } from './collectionLoader'
 import { useWorkshopStore } from './useWorkshopStore'
+import HypothesisTable from './HypothesisTable.vue'
 import {
   professionalCases,
   startProfessional,
@@ -17,6 +18,7 @@ import {
   saveProfessional,
   professionalMarkdown,
   type ProfessionalAttempt,
+  faultTitles,
 } from './professional'
 const workshop = useWorkshopStore(),
   route = useRoute(),
@@ -26,6 +28,9 @@ const caseId = ref<ProfessionalAttempt['caseId']>(initialCase),
   variant = ref([0, 1, 2].includes(Number(route.query.variant)) ? Number(route.query.variant) : 0),
   attempt = ref(startProfessional(initialCase, variant.value))
 const current = computed(() => professionalCases.find((c) => c.id === attempt.value.caseId)!)
+const confirmedCauses = computed(() =>
+  attempt.value.hypothesisFaults.map((f) => faultTitles[f]).join(', '),
+)
 const reason = ref(''),
   actionRefs = ref<number[]>([]),
   action = ref('clarify'),
@@ -171,6 +176,8 @@ function run() {
   }
 }
 async function finish() {
+  if (busy.value) return
+  busy.value = true
   try {
     attempt.value = finishProfessional(attempt.value)
     const result = await workshop.addEvent({
@@ -191,6 +198,8 @@ async function finish() {
     error.value = ''
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Цели ещё не достигнуты.'
+  } finally {
+    busy.value = false
   }
 }
 async function save() {
@@ -260,13 +269,19 @@ async function remove(id: string) {
         }}</AppSelectOption>
       </AppSelect></label
     >
-    <label
+    <label v-if="caseId !== 'unknown'"
       >Незнакомый вариант<AppSelect v-model="variant" class="text-input">
         <AppSelectOption v-for="i in 3" :key="i" :value="i - 1">{{ i }}</AppSelectOption>
       </AppSelect></label
-    ><button class="button secondary" @click="start">Начать профессиональный инцидент</button>
+    ><button class="button secondary" :disabled="busy" @click="start">
+      Начать профессиональный инцидент
+    </button>
     <h4>{{ current.title }}</h4>
     <p>{{ current.brief }}</p>
+    <p v-if="attempt.caseId === 'unknown'">
+      Причина выбирается при старте и сохраняется с попыткой. Для изменения сначала подтвердите
+      гипотезу наблюдением в таблице и выберите проверки, обосновывающие действие.
+    </p>
     <p>
       Время: {{ current.minutes }} мин · предпосылки: {{ current.requires.join(', ') }} · попытка
       {{ attempt.id }}
@@ -289,7 +304,9 @@ async function remove(id: string) {
           class="text-input"
           maxlength="600"
         /></label
-      ><button class="button primary" @click="run">Выполнить учебное действие</button></template
+      ><button class="button primary" :disabled="busy" @click="run">
+        Выполнить учебное действие
+      </button></template
     >
     <fieldset v-if="attempt.status === 'active' && attempt.steps.length">
       <legend>Проверки, обосновывающие следующее изменение или эскалацию (до 10)</legend>
@@ -316,7 +333,8 @@ async function remove(id: string) {
         <p>{{ s.result }}</p>
       </li>
     </ol>
-    <fieldset :disabled="attempt.status !== 'active'">
+    <HypothesisTable v-model="attempt" :disabled="busy" />
+    <fieldset :disabled="busy || attempt.status !== 'active'">
       <legend>Отчёт расследования</legend>
       <fieldset>
         <legend>Подтверждённые причины</legend>
@@ -333,7 +351,7 @@ async function remove(id: string) {
           :key="fault"
           class="checkbox-label"
           ><input v-model="attempt.hypothesisFaults" type="checkbox" :value="fault" />{{
-            fault
+            faultTitles[fault]
           }}</label
         >
       </fieldset>
@@ -367,7 +385,7 @@ async function remove(id: string) {
         </p>
       </template>
     </fieldset>
-    <button class="button primary" :disabled="attempt.status !== 'active'" @click="finish">
+    <button class="button primary" :disabled="busy || attempt.status !== 'active'" @click="finish">
       Завершить инцидент по целям
     </button>
     <p role="status">
@@ -377,6 +395,11 @@ async function remove(id: string) {
       >
         · восстановление доступа ожидает владельца</span
       >
+    </p>
+    <p v-if="attempt.status === 'completed'">
+      Подтверждённые причины: {{ confirmedCauses }}. Проверка пользовательского запроса относится к
+      ревизии {{ attempt.verifiedRevision }}.
+      <span v-if="attempt.caseId === 'unknown'">Завершён вариант {{ attempt.variant + 1 }}.</span>
     </p>
     <label class="checkbox-label"
       ><input v-model="consent" type="checkbox" />Проверил заметки: только учебные данные</label
@@ -398,7 +421,13 @@ async function remove(id: string) {
     </button>
     <p v-if="notice" role="status">{{ notice }}</p>
     <article v-for="a in saved" :key="a.id" class="workshop-item">
-      {{ a.caseId }} · вариант {{ a.variant + 1 }} · {{ a.status
+      {{ a.caseId }} ·
+      {{
+        a.caseId === 'unknown' && a.status !== 'completed'
+          ? 'неизвестная причина'
+          : `вариант ${a.variant + 1}`
+      }}
+      · {{ a.status
       }}<button class="button secondary" @click="resume(a.id)">
         Продолжить попытку {{ a.caseId }}</button
       ><button class="button ghost" @click="remove(a.id)">Удалить попытку {{ a.caseId }}</button>
