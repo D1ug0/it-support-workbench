@@ -1,0 +1,963 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-11T19:52:41.464691+00:00",
+  "auditDate": "2026-10-11",
+  "project": {
+    "name": "it-support-workbench",
+    "version": "0.6.2",
+    "packageJsonSha256": "6d84cc2730c25efff308dc99df4555f30775c52478557fcfd32a860251959b6a",
+    "packageLockSha256": "d83edac10392e5020144fec36a09ade1c7d6b1b1a3d6effecee0c28c43f6648a"
+  },
+  "scope": {
+    "directDependencies": "All package.json dependencies and devDependencies; public npm latest metadata",
+    "sourceLinks": "Extracted primary reference URLs in src/features and src/domain, including academy helper expansion; not every repository hyperlink",
+    "semanticReview": "Selected key claims and platform scope; not an item-by-item expert review",
+    "applicationTestsRun": false,
+    "browserReviewRun": false,
+    "realWindowsReviewRun": false,
+    "dependenciesUpdated": false
+  },
+  "summary": {
+    "directDependencies": 29,
+    "latestMatches": 22,
+    "availableUpdates": 7,
+    "sourceLinksChecked": 44,
+    "sourceLinksHttp200": 44,
+    "knownNpmAdvisories": 0
+  },
+  "registryAudit": {
+    "checkedAt": "2026-10-11T19:38:38.453305+00:00",
+    "packages": [
+      {
+        "package": "@lucide/vue",
+        "pinned": "1.54.0",
+        "latest": "1.55.0",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40lucide%2Fvue/latest"
+      },
+      {
+        "package": "@xterm/addon-fit",
+        "pinned": "0.11.0",
+        "latest": "0.11.0",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40xterm%2Faddon-fit/latest"
+      },
+      {
+        "package": "@xterm/xterm",
+        "pinned": "6.0.0",
+        "latest": "6.0.0",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40xterm%2Fxterm/latest"
+      },
+      {
+        "package": "dexie",
+        "pinned": "4.4.6",
+        "latest": "4.4.6",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/dexie/latest"
+      },
+      {
+        "package": "pinia",
+        "pinned": "4.0.3",
+        "latest": "4.0.3",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/pinia/latest"
+      },
+      {
+        "package": "reka-ui",
+        "pinned": "2.11.0",
+        "latest": "2.11.0",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/reka-ui/latest"
+      },
+      {
+        "package": "vue",
+        "pinned": "3.5.43",
+        "latest": "3.5.43",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/vue/latest"
+      },
+      {
+        "package": "vue-router",
+        "pinned": "5.4.0",
+        "latest": "5.4.0",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/vue-router/latest"
+      },
+      {
+        "package": "zod",
+        "pinned": "4.6.5",
+        "latest": "4.6.6",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/zod/latest"
+      },
+      {
+        "package": "@axe-core/playwright",
+        "pinned": "4.13.0",
+        "latest": "4.13.0",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40axe-core%2Fplaywright/latest"
+      },
+      {
+        "package": "@eslint/js",
+        "pinned": "10.0.1",
+        "latest": "10.0.1",
+        "engines": {
+          "node": "^20.19.0 || ^22.13.0 || >=24"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40eslint%2Fjs/latest"
+      },
+      {
+        "package": "@playwright/test",
+        "pinned": "1.64.0",
+        "latest": "1.64.0",
+        "engines": {
+          "node": ">=20"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40playwright%2Ftest/latest"
+      },
+      {
+        "package": "@tailwindcss/vite",
+        "pinned": "4.3.3",
+        "latest": "4.3.3",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40tailwindcss%2Fvite/latest"
+      },
+      {
+        "package": "@types/node",
+        "pinned": "26.6.4",
+        "latest": "26.6.5",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40types%2Fnode/latest"
+      },
+      {
+        "package": "@vitejs/plugin-vue",
+        "pinned": "6.0.9",
+        "latest": "6.0.10",
+        "engines": {
+          "node": "^20.19.0 || >=22.12.0"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40vitejs%2Fplugin-vue/latest"
+      },
+      {
+        "package": "@vitest/coverage-v8",
+        "pinned": "5.0.3",
+        "latest": "5.0.3",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40vitest%2Fcoverage-v8/latest"
+      },
+      {
+        "package": "@vue/test-utils",
+        "pinned": "2.5.1",
+        "latest": "2.5.1",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/%40vue%2Ftest-utils/latest"
+      },
+      {
+        "package": "eslint",
+        "pinned": "10.12.0",
+        "latest": "10.12.0",
+        "engines": {
+          "node": "^20.19.0 || ^22.13.0 || >=24"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/eslint/latest"
+      },
+      {
+        "package": "eslint-config-prettier",
+        "pinned": "10.1.8",
+        "latest": "10.1.8",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/eslint-config-prettier/latest"
+      },
+      {
+        "package": "eslint-plugin-vue",
+        "pinned": "10.11.1",
+        "latest": "10.11.1",
+        "engines": {
+          "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/eslint-plugin-vue/latest"
+      },
+      {
+        "package": "jsdom",
+        "pinned": "30.1.2",
+        "latest": "30.1.2",
+        "engines": {
+          "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/jsdom/latest"
+      },
+      {
+        "package": "prettier",
+        "pinned": "3.9.9",
+        "latest": "3.9.10",
+        "engines": {
+          "node": ">=14"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/prettier/latest"
+      },
+      {
+        "package": "tailwindcss",
+        "pinned": "4.3.3",
+        "latest": "4.3.3",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/tailwindcss/latest"
+      },
+      {
+        "package": "typescript",
+        "pinned": "6.0.3",
+        "latest": "7.0.2",
+        "engines": {
+          "node": ">=16.20.0"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/typescript/latest"
+      },
+      {
+        "package": "typescript-eslint",
+        "pinned": "8.71.1",
+        "latest": "8.71.1",
+        "engines": {
+          "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/typescript-eslint/latest"
+      },
+      {
+        "package": "vite",
+        "pinned": "8.3.4",
+        "latest": "8.3.4",
+        "engines": {
+          "node": "^20.19.0 || >=22.12.0"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/vite/latest"
+      },
+      {
+        "package": "vitest",
+        "pinned": "5.0.3",
+        "latest": "5.0.3",
+        "engines": {
+          "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/vitest/latest"
+      },
+      {
+        "package": "vue-eslint-parser",
+        "pinned": "10.4.1",
+        "latest": "10.4.1",
+        "engines": {
+          "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+        },
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/vue-eslint-parser/latest"
+      },
+      {
+        "package": "vue-tsc",
+        "pinned": "3.3.12",
+        "latest": "3.3.13",
+        "engines": null,
+        "deprecated": null,
+        "url": "https://registry.npmjs.org/vue-tsc/latest"
+      }
+    ]
+  },
+  "sourceLinkAudit": {
+    "checkedAt": "2026-10-11T19:39:54.263039+00:00",
+    "sources": [
+      {
+        "url": "https://learn.microsoft.com/en-us/powershell/module/nettcpip/test-netconnection",
+        "locations": [
+          {
+            "path": "src/features/workshop/incidentPresets.ts",
+            "line": 27
+          },
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 122
+          },
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 129
+          },
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 102
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/powershell/module/nettcpip/test-netconnection?view=windowsserver2025-ps",
+        "title": "Test-NetConnection (NetTCPIP) | Microsoft Learn",
+        "sourceDate": "2016-12-20T00:00:00Z"
+      },
+      {
+        "url": "https://git-scm.com/docs/git-merge",
+        "locations": [
+          {
+            "path": "src/features/workshop/incidentPresets.ts",
+            "line": 31
+          },
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 313
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://git-scm.com/docs/git-merge",
+        "title": "Git - git-merge Documentation",
+        "sourceDate": null
+      },
+      {
+        "url": "https://docs.docker.com/compose/how-tos/networking/",
+        "locations": [
+          {
+            "path": "src/features/workshop/incidentPresets.ts",
+            "line": 58
+          },
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 341
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://docs.docker.com/compose/how-tos/networking/",
+        "title": "Networking in Compose | Docker Docs",
+        "sourceDate": null
+      },
+      {
+        "url": "https://docs.docker.com/engine/storage/volumes/",
+        "locations": [
+          {
+            "path": "src/features/workshop/incidentPresets.ts",
+            "line": 85
+          },
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 379
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://docs.docker.com/engine/storage/volumes/",
+        "title": "Volumes | Docker Docs",
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/gpresult",
+        "locations": [
+          {
+            "path": "src/features/workshop/incidentPresets.ts",
+            "line": 113
+          },
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 204
+          },
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 409
+          },
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 540
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/gpresult",
+        "title": "gpresult | Microsoft Learn",
+        "sourceDate": "2023-09-28T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 44
+          },
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 35
+          },
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 870
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig",
+        "title": "ipconfig | Microsoft Learn",
+        "sourceDate": "2017-10-16T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/route_ws2008",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 70
+          },
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 110
+          },
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 758
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/route_ws2008",
+        "title": "route | Microsoft Learn",
+        "sourceDate": "2022-10-05T00:00:00Z"
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc2308",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 94
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/info/rfc2308/",
+        "title": "RFC 2308: Negative Caching of DNS Queries (DNS NCACHE) | RFC Editor",
+        "sourceDate": null
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc5280",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 146
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/info/rfc5280/",
+        "title": "RFC 5280: Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile | RFC Editor",
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-service",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 175
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-service?view=powershell-7.6",
+        "title": "Get-Service (Microsoft.PowerShell.Management) - PowerShell | Microsoft Learn",
+        "sourceDate": "2026-02-04T00:00:00Z"
+      },
+      {
+        "url": "https://www.gnu.org/software/coreutils/manual/html_node/File-permissions.html",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 232
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.gnu.org/software/coreutils/manual/html_node/File-permissions.html",
+        "title": "File permissions (GNU Coreutils 9.12)",
+        "sourceDate": null
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc8200",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 260
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/info/rfc8200/",
+        "title": "RFC 8200: Internet Protocol, Version 6 (IPv6) Specification | RFC Editor",
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-wlan",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 285
+          },
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 869
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-wlan",
+        "title": "netsh wlan | Microsoft Learn",
+        "sourceDate": "2025-10-08T00:00:00Z"
+      },
+      {
+        "url": "https://www.rfc-editor.org/info/rfc4120/",
+        "locations": [
+          {
+            "path": "src/features/workshop/courses.ts",
+            "line": 437
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/info/rfc4120/",
+        "title": "RFC 4120: The Kerberos Network Authentication Service (V5) | RFC Editor",
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/networking/dns/troubleshoot/troubleshoot-dns-client",
+        "locations": [
+          {
+            "path": "src/features/workshop/remediationCatalog.ts",
+            "line": 34
+          },
+          {
+            "path": "src/features/workshop/remediationCatalog.ts",
+            "line": 240
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/networking/dns/troubleshoot/troubleshoot-dns-client",
+        "title": "Troubleshooting DNS clients | Microsoft Learn",
+        "sourceDate": "2019-08-08T00:00:00Z"
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc9520.html",
+        "locations": [
+          {
+            "path": "src/features/workshop/remediationCatalog.ts",
+            "line": 137
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/rfc/rfc9520.html",
+        "title": "RFC 9520: Negative Caching of DNS Resolution Failures",
+        "sourceDate": null
+      },
+      {
+        "url": "https://curl.se/docs/sslcerts.html",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 101
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://curl.se/docs/sslcerts.html",
+        "title": "curl - SSL CA Certificates",
+        "sourceDate": null
+      },
+      {
+        "url": "https://curl.se/docs/manpage.html#-I",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 103
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://curl.se/docs/manpage.html#-I",
+        "title": "curl - How To Use",
+        "sourceDate": null
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc4861",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 648
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/info/rfc4861/",
+        "title": "RFC 4861: Neighbor Discovery for IP version 6 (IPv6) | RFC Editor",
+        "sourceDate": null
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc1191",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 760
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/info/rfc1191/",
+        "title": "RFC 1191: Path MTU discovery | RFC Editor",
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/nslookup",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 54
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/nslookup",
+        "title": "nslookup | Microsoft Learn",
+        "sourceDate": "2023-09-08T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ping",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 72
+          },
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 759
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ping",
+        "title": "ping | Microsoft Learn",
+        "sourceDate": "2023-09-15T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/tracert",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 91
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/tracert",
+        "title": "tracert | Microsoft Learn",
+        "sourceDate": "2023-09-27T00:00:00Z"
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc3021",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 144
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/info/rfc3021/",
+        "title": "RFC 3021: Using 31-Bit Prefixes on IPv4 Point-to-Point Links | RFC Editor",
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/powershell/module/printmanagement/get-printer",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 161
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/powershell/module/printmanagement/get-printer?view=windowsserver2025-ps",
+        "title": "Get-Printer (PrintManagement) | Microsoft Learn",
+        "sourceDate": "2021-09-20T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows/deployment/update/windows-update-troubleshooting",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 179
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/troubleshoot/windows-client/installing-updates-features-roles/windows-update-issues-troubleshooting?toc=%2Fwindows%2Fdeployment%2Ftoc.json&bc=%2Fwindows%2Fdeployment%2Fbreadcrumb%2Ftoc.json",
+        "title": "Windows Update issues troubleshooting - Windows Client | Microsoft Learn",
+        "sourceDate": "2026-02-12T00:00:00Z"
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc3927",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 195
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/info/rfc3927/",
+        "title": "RFC 3927: Dynamic Configuration of IPv4 Link-Local Addresses | RFC Editor",
+        "sourceDate": null
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc2782.html",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 228
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/rfc/rfc2782.html",
+        "title": null,
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/networking/dns/manage-resource-records",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 249
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/networking/dns/manage-resource-records",
+        "title": "Manage DNS resource records using DNS server on Windows Server | Microsoft Learn",
+        "sourceDate": "2023-06-14T00:00:00Z"
+      },
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc1191.html",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 271
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://www.rfc-editor.org/rfc/rfc1191.html",
+        "title": null,
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/powershell/module/nettcpip/test-netconnection",
+        "locations": [
+          {
+            "path": "src/features/knowledge/catalog.ts",
+            "line": 294
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/powershell/module/nettcpip/test-netconnection?view=windowsserver2025-ps",
+        "title": "Test-NetConnection (NetTCPIP) | Microsoft Learn",
+        "sourceDate": "2016-12-20T00:00:00Z"
+      },
+      {
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers",
+        "locations": [
+          {
+            "path": "src/features/offline/OfflineControls.vue",
+            "line": 158
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers",
+        "title": "Using Service Workers - Web APIs | MDN",
+        "sourceDate": null
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/powershell/module/dnsclient/resolve-dnsname",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 211
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/powershell/module/dnsclient/resolve-dnsname?view=windowsserver2025-ps",
+        "title": "Resolve-DnsName (DnsClient) | Microsoft Learn",
+        "sourceDate": "2019-05-20T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/vpn/vpn-name-resolution",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 212
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/vpn/vpn-name-resolution",
+        "title": "VPN name resolution | Microsoft Learn",
+        "sourceDate": "2025-01-27T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/verify-srv-dns-records-have-been-created",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 216
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/verify-srv-dns-records-have-been-created",
+        "title": "Verify that SRV Domain Name System (DNS) records have been created - Windows Server | Microsoft Learn",
+        "sourceDate": "2026-02-12T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/troubleshoot/windows-server/windows-security/kerberos-authentication-troubleshooting-guidance",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 319
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/troubleshoot/windows-server/windows-security/kerberos-authentication-troubleshooting-guidance",
+        "title": "Kerberos Authentication Troubleshooting Guidance - Windows Server | Microsoft Learn",
+        "sourceDate": "2026-02-12T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/klist",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 323
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/klist",
+        "title": "klist | Microsoft Learn",
+        "sourceDate": "2017-10-16T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-time-service-tools-and-settings",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 324
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-time-service-tools-and-settings",
+        "title": "Windows Time Service Tools and Settings | Microsoft Learn",
+        "sourceDate": "2025-09-18T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/troubleshoot-smb-guidance",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 431
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/troubleshoot-smb-guidance",
+        "title": "Guidance for troubleshooting SMB - Windows Server | Microsoft Learn",
+        "sourceDate": "2026-02-12T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/powershell/module/smbshare/get-smbconnection",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 435
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/powershell/module/smbshare/get-smbconnection?view=windowsserver2025-ps",
+        "title": "Get-SmbConnection (SmbShare) | Microsoft Learn",
+        "sourceDate": "2016-12-20T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 436
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls",
+        "title": "icacls | Microsoft Learn",
+        "sourceDate": "2025-06-06T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/group-policy/group-policy-processing",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 541
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/group-policy/group-policy-processing",
+        "title": "Group Policy processing for Windows | Microsoft Learn",
+        "sourceDate": "2025-06-16T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/configure-ipv6-in-windows",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 647
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/configure-ipv6-in-windows",
+        "title": "Configure IPv6 for advanced users - Windows Server | Microsoft Learn",
+        "sourceDate": "2026-02-12T00:00:00Z"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/powershell/module/nettcpip/get-netroute",
+        "locations": [
+          {
+            "path": "src/features/academy/catalog.ts",
+            "line": 649
+          }
+        ],
+        "status": 200,
+        "finalUrl": "https://learn.microsoft.com/en-us/powershell/module/nettcpip/get-netroute?view=windowsserver2025-ps",
+        "title": "Get-NetRoute (NetTCPIP) | Microsoft Learn",
+        "sourceDate": "2021-06-23T00:00:00Z"
+      }
+    ]
+  },
+  "securityAudit": {
+    "checkedOn": "2026-10-11",
+    "command": "npm audit --json",
+    "exitCode": 0,
+    "result": {
+      "auditReportVersion": 2,
+      "vulnerabilities": {},
+      "metadata": {
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "dependencies": {
+          "prod": 100,
+          "dev": 249,
+          "optional": 50,
+          "peer": 0,
+          "peerOptional": 0,
+          "total": 348
+        }
+      }
+    }
+  },
+  "interpretationNotes": [
+    "HTTP 200 confirms link availability, not teaching claim correctness.",
+    "Source page metadata dates are not content review dates.",
+    "Latest npm version does not establish toolchain compatibility.",
+    "Zero npm advisories does not prove application security."
+  ]
+}

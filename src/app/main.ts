@@ -5,5 +5,6 @@ import { router } from './router'
 import '../shared/styles/tokens.css'
 import '../shared/styles/workspace.css'
 import '../shared/styles/select.css'
+import '../shared/styles/learning.css'
 
 createApp(App).use(createPinia()).use(router).mount('#app')

@@ -13,7 +13,7 @@ const filtered = computed(() => {
   const terms = search.value.toLowerCase().trim().split(/\s+/).filter(Boolean)
   return props.commands.filter((command) => {
     const haystack =
-      `${command.example} ${command.description} ${command.platform} ${targetLabels[command.target]}`.toLowerCase()
+      `${command.example} ${command.description} ${command.platform} ${command.profile ?? ''} ${targetLabels[command.target]}`.toLowerCase()
     return (
       terms.every((term) => haystack.includes(term)) &&
       (effect.value === 'all' || command.effect === effect.value) &&
@@ -67,7 +67,7 @@ const filtered = computed(() => {
         </button>
         <p>
           <span class="tag">{{ command.effect === 'change' ? 'Изменяет модель' : 'Чтение' }}</span>
-          {{ command.platform }} · {{ targetLabels[command.target] }} ·
+          {{ command.profile ?? command.platform }} · {{ targetLabels[command.target] }} ·
           {{
             command.rights === 'administrator'
               ? 'в ОС нужны права на изменение'

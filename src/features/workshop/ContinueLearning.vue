@@ -5,6 +5,7 @@ import { todayTask } from './learningFlow'
 import { describeLearningEvent, recentLearningEvents } from './learningHistory'
 import { professionalAttempts, professionalAttemptSchema } from './professional'
 import { remediationRecommendations } from './remediation'
+defineProps<{ compact?: boolean }>()
 const store = useWorkshopStore()
 const incidentId = ref<string>()
 const incidentError = ref('')
@@ -52,16 +53,17 @@ const formatDate = (at: string) =>
 </script>
 <template>
   <section
-    class="panel feature-section"
+    class="panel feature-section continue-learning-card"
     aria-labelledby="continue-learning-title"
     :aria-busy="!store.ready"
   >
+    <span class="eyebrow">ОДИН ПОНЯТНЫЙ СЛЕДУЮЩИЙ ШАГ</span>
     <h2 id="continue-learning-title">Продолжить обучение</h2>
     <p v-if="!task" role="status">Загружаем сохранённый прогресс…</p>
     <template v-else>
       <p v-if="store.error" role="alert">{{ store.error }}</p>
       <p v-if="incidentError" role="alert">{{ incidentError }}</p>
-      <h3>{{ task.title }}</h3>
+      <h3 class="continue-task-title">{{ task.title }}</h3>
       <p>{{ task.reason }}</p>
       <p>
         Сегодня: {{ task.minutes }} мин. Предпосылки: {{ task.prerequisite }}. Результат:
@@ -88,7 +90,7 @@ const formatDate = (at: string) =>
           >Посмотреть разбор</RouterLink
         >
       </p>
-      <details>
+      <details v-if="!compact">
         <summary>Единая история обучения ({{ store.state.events.length }})</summary>
         <p>
           Последние 30 попыток из всех разделов, сначала новые. Даты зависят от часов устройства.

@@ -1,6 +1,7 @@
 import { prefixToMask, isIPv4, calculateSubnet } from '../../domain/network'
 import type { CommandKind } from '../../domain/types/diagnostic'
-import { commandHelp, unsupportedCommand } from './commandRegistry'
+import { parseCommandTokens } from './commandSyntax'
+import { commandMetadata, commandHelp, unsupportedCommand } from './commandRegistry'
 import { fleetProbe, fleetMatrix } from './fleet'
 import {
   evidence,
@@ -19,8 +20,8 @@ export function executeNetwork(
 ): { state: NetworkState; output: string; kind?: CommandKind; ok: boolean; clear?: boolean } {
   const s = structuredClone(original),
     d = s.definition
-  const [cmd = '', ...args] = tokens.map((t) => t.toLowerCase())
-  const form = [cmd, ...args].join(' ')
+  const { cmd, args, matches } = parseCommandTokens(tokens)
+  const metadata = commandMetadata(cmd, args)
   const out = (output: string, kind?: CommandKind) => ({ state: s, output, kind, ok: true })
   const fail = () => ({
     state: original,
@@ -57,6 +58,8 @@ export function executeNetwork(
     trace(s, 'verify', message)
   }
   const change = (message: string) => {
+    if (metadata?.effect !== 'change')
+      throw new Error('Command contract does not allow configuration changes.')
     mutate(s, message)
     auditNetworkChange(original, s)
   }
@@ -78,7 +81,7 @@ export function executeNetwork(
           ok: false,
         }
   }
-  if (form === 'lab hosts' && s.hosts.length) {
+  if (matches('lab hosts') && s.hosts.length) {
     read('config', 'План дополнительных узлов')
     read('service', 'Состояние распределённого приложения')
     return out(
@@ -123,7 +126,7 @@ export function executeNetwork(
       `Изменён только узел ${host.id}. Повторите проверки затронутых клиентов и lab verify-fleet.`,
     )
   }
-  if (form === 'lab verify-fleet' && s.hosts.length) {
+  if (matches('lab verify-fleet') && s.hosts.length) {
     const rows = fleetMatrix(s),
       success = rows.every((p) => p.https)
     verify(
@@ -147,14 +150,14 @@ export function executeNetwork(
     trace(s, 'inspect', `Время +${args[0]} с`)
     return out(`Время лаборатории: ${s.clock} с. Кэш с истёкшим TTL удалён.`)
   }
-  if (cmd === 'ipconfig' && (!args.length || form === 'ipconfig /all')) {
+  if (cmd === 'ipconfig' && (!args.length || matches('ipconfig /all'))) {
     read('config', 'Конфигурация интерфейса')
     return out(
       `Windows IP Configuration\n\n   Host Name . . . . . . . . . . . : TRAINING-PC\n\nEthernet adapter Ethernet:\n\n   DHCP Enabled . . . . . . . . . : ${s.dhcp ? 'Yes' : 'No'}\n   IPv4 Address . . . . . . . . . : ${s.client}(${s.addressConflict ? 'Duplicate' : 'Preferred'})\n   Subnet Mask . . . . . . . . . : ${prefixToMask(s.prefix)}\n   Default Gateway . . . . . . . : ${s.gateway}\n   DNS Servers . . . . . . . . . : ${s.dns}\n`,
       'ipconfig',
     )
   }
-  if (form === 'get-netipconfiguration') {
+  if (matches('get-netipconfiguration')) {
     read('config', 'Настройки адаптера')
     return json(
       [
@@ -170,7 +173,7 @@ export function executeNetwork(
       'powershell',
     )
   }
-  if (form === 'ipconfig /displaydns') {
+  if (matches('ipconfig /displaydns')) {
     read('dns', 'Клиентский DNS-кэш')
     const cache = s.cache && s.cache.expires > s.clock ? s.cache : null
     return out(
@@ -179,18 +182,18 @@ export function executeNetwork(
         : 'DNS Resolver Cache is empty.',
     )
   }
-  if (form === 'ipconfig /flushdns') {
+  if (matches('ipconfig /flushdns')) {
     s.cache = null
     change('Очищен DNS-кэш')
     return out('Successfully flushed the DNS Resolver Cache.')
   }
-  if (form === 'ipconfig /release') {
+  if (matches('ipconfig /release')) {
     s.lease = false
     s.client = '0.0.0.0'
     change('Аренда освобождена')
     return out('Учебная DHCP-аренда освобождена.')
   }
-  if (form === 'ipconfig /renew') {
+  if (matches('ipconfig /renew')) {
     s.lease = true
     s.client = d.client
     s.prefix = d.prefix
@@ -240,7 +243,7 @@ export function executeNetwork(
       `Шлюз: ${s.gateway}. Учебная операция; реальный шлюз изменяют через настройки интерфейса или маршруты.`,
     )
   }
-  if (form === 'route print') {
+  if (matches('route print')) {
     read('routes', 'Таблица маршрутов')
     return out(
       `IPv4 Route Table\n===========================================================================\nActive Routes:\nNetwork Destination        Netmask          Gateway       Interface  Metric\n${s.routes
@@ -277,13 +280,13 @@ export function executeNetwork(
     change('Изменена метрика')
     return out(`Метрика: ${match.metric}.`)
   }
-  if (form === 'rasdial vpn /disconnect') {
+  if (matches('rasdial vpn /disconnect')) {
     s.vpn = false
     change('VPN отключён')
     return out('Виртуальный VPN отключён; его маршруты не участвуют в выборе.')
   }
   if (cmd === 'nslookup' && args.length >= 1 && args.length <= 2) {
-    const target = args[0]!.replace(/\.$/, ''),
+    const target = args[0]!.toLowerCase().replace(/\.$/, ''),
       server = args[1] ?? s.dns
     if (![d.dns, '192.0.2.54'].includes(server)) return fail()
     read('dns', 'Прямой запрос DNS')
@@ -295,7 +298,7 @@ export function executeNetwork(
     )
   }
   if (cmd === 'resolve-dnsname' && args[0]) {
-    const target = args[0].replace(/\.$/, ''),
+    const target = args[0].toLowerCase().replace(/\.$/, ''),
       typeIndex = args.indexOf('-type'),
       serverIndex = args.indexOf('-server')
     if (args.length !== 1 + (typeIndex >= 0 ? 2 : 0) + (serverIndex >= 0 ? 2 : 0)) return fail()
@@ -358,7 +361,7 @@ export function executeNetwork(
     verify(
       success,
       `TCP ${port}: ${success ? 'доступен' : 'отказ'}`,
-      target === d.target && port === 443 ? 'network' : 'observe',
+      target.toLowerCase().replace(/\.$/, '') === d.target && port === 443 ? 'network' : 'observe',
     )
     if (!address)
       return out(`WARNING: Name resolution of ${target} failed\nTcpTestSucceeded: False`)
@@ -374,7 +377,7 @@ export function executeNetwork(
       'powershell',
     )
   }
-  if (form === 'get-netipinterface') {
+  if (matches('get-netipinterface')) {
     read('config', 'MTU виртуального интерфейса')
     return out(
       `InterfaceIndex 12 · Ethernet · NlMtuBytes ${s.mtu} · учебный предел пути ${s.pathMtu}`,
@@ -424,7 +427,7 @@ export function executeNetwork(
     verify(
       success,
       `ICMP${ipv6 ? 'v6' : ''}: ${success ? 'ответ' : 'отказ'}`,
-      ipv6 && target === d.target ? 'ipv6' : 'observe',
+      ipv6 && target.toLowerCase().replace(/\.$/, '') === d.target ? 'ipv6' : 'observe',
     )
     if (ipv6)
       return out(
@@ -449,15 +452,15 @@ export function executeNetwork(
     )
   }
   if (
-    cmd === 'curl' &&
+    (cmd === 'curl' || cmd === 'curl.exe') &&
     args.length === 2 &&
-    args[0] === '-i' &&
+    args[0] === '-I' &&
     [
       d.target,
       ...(d.additionalHosts ?? []).filter((h) => h.role === 'server').map((h) => h.name),
-    ].some((name) => args[1] === `https://${name}`)
+    ].some((name) => args[1]?.toLowerCase() === `https://${name}`)
   ) {
-    const target = args[1]!.slice(8),
+    const target = args[1]!.slice(8).toLowerCase(),
       extra = d.additionalHosts?.find((h) => h.name === target),
       host = extra && s.hosts.find((h) => h.id === extra.id)
     const address = resolveNetwork(s, target),
@@ -477,54 +480,54 @@ export function executeNetwork(
               : `HTTP/1.1 ${httpHealthy ? '200 OK' : '503 Service Unavailable'}\nServer: LabWeb\nX-Lab: synthetic`,
     )
   }
-  if (form === 'certutil -verify lab.cer') {
+  if (matches('certutil -verify lab.cer')) {
     read('certificate', 'Цепочка учебного сертификата')
     return out(
       `Учебный сертификат\nSAN: ${d.target}\nIssuer: Lab CA\nСрок: действителен по времени лаборатории\nЧасы клиента: ${s.clockCorrect ? 'верны' : 'расходятся'}\nДоверие: ${s.trusted ? 'есть' : 'нет'}\nИмпорт lab-ca.cer — только виртуальное хранилище.`,
     )
   }
-  if (form === 'w32tm /query /status') {
+  if (matches('w32tm /query /status')) {
     read('certificate', 'Состояние часов')
     return out(`Учебные часы: ${s.clockCorrect ? 'синхронизированы' : 'расхождение +365 дней'}`)
   }
-  if (form === 'w32tm /resync') {
+  if (matches('w32tm /resync')) {
     s.clockCorrect = true
     change('Часы синхронизированы')
     return out('Учебное время клиента синхронизировано.')
   }
   if (
-    form === 'import-certificate -filepath lab-ca.cer -certstorelocation cert:\\localmachine\\root'
+    matches('import-certificate -filepath lab-ca.cer -certstorelocation cert:\\localmachine\\root')
   ) {
     s.trusted = true
     change('Доверие учебному CA')
     return out('Lab CA добавлен в виртуальное хранилище. Настройки вашего устройства не изменены.')
   }
   if (
-    form === 'get-service' ||
-    form === 'get-service webapp' ||
-    form === 'systemctl status lab-app'
+    matches('get-service') ||
+    matches('get-service webapp') ||
+    matches('systemctl status lab-app')
   ) {
     read('service', 'Состояние службы')
-    if (form.startsWith('systemctl')) read('permission', 'Состояние Linux-службы')
+    if (cmd === 'systemctl') read('permission', 'Состояние Linux-службы')
     const good = s.service && s.permission
     verify(
       good,
       `Служба: ${good ? 'работает' : 'отказ'}`,
-      form.startsWith('systemctl') ? 'linux' : 'observe',
+      cmd === 'systemctl' ? 'linux' : 'observe',
     )
     return out(
       `WebApp / lab-app: ${good ? 'Running / active' : 'Stopped / failed'}${!s.permission ? '\nPermission denied: /etc/lab/app.conf' : ''}`,
     )
   }
-  if (form === 'start-service webapp' || form === 'restart-service webapp') {
+  if (matches('start-service webapp') || matches('restart-service webapp')) {
     s.service = true
     s.httpHealthy = true
     change('Служба WebApp запущена')
     return out('Учебная служба WebApp работает; повторите запрос к приложению.')
   }
-  if (form === 'get-winevent -logname system -maxevents 5' || form === 'journalctl -u lab-app') {
+  if (matches('get-winevent -logname system -maxevents 5') || matches('journalctl -u lab-app')) {
     read('events', 'Журнал событий')
-    read(form.startsWith('journalctl') ? 'permission' : 'service', 'Причина события')
+    read(cmd === 'journalctl' ? 'permission' : 'service', 'Причина события')
     return json([
       {
         TimeCreated: `T+${s.clock}s`,
@@ -541,59 +544,66 @@ export function executeNetwork(
       },
     ])
   }
-  if (form === 'whoami /groups' || form === 'get-smbconnection') {
+  if (matches('whoami /groups') || matches('get-smbconnection')) {
     read('identity', 'Права и группы')
     verify(
       s.smbAccess,
       'Проверка доступа к учебной папке',
-      form === 'get-smbconnection' ? 'smb' : 'observe',
+      matches('get-smbconnection') ? 'smb' : 'observe',
     )
     return out(
       `LabUser: ${s.smbAccess ? 'LabReaders / Access granted' : 'Users / Access denied'}\nShare: \\files.lab.example\\training\nПример не моделирует все правила share/NTFS ACL.`,
     )
   }
-  if (form === 'lab grant-share-access') {
+  if (matches('lab grant-share-access')) {
     s.smbAccess = true
     change('Предоставлен учебный доступ')
     return out('Учебный пользователь добавлен в LabReaders; повторите проверку доступа.')
   }
-  if (form === 'gpresult /r') {
+  if (matches('gpresult /r')) {
     read('identity', 'Результирующая политика')
     verify(s.policy, 'Версия политики', 'gpo')
     return out(
       `LabPolicy: ${s.policy ? 'версия 2, применена' : 'версия 1, устарела'}\nУчебная модель применения политики.`,
     )
   }
-  if (form === 'gpupdate /force') {
+  if (matches('gpupdate /force')) {
     s.policy = true
     change('Политика обновлена')
     return out('LabPolicy версия 2 применена в учебной среде.')
   }
-  if (form === 'ls -l /etc/lab/app.conf') {
+  if (matches('ls -l /etc/lab/app.conf')) {
     read('permission', 'Права конфигурации')
     return out(`${s.permission ? '-rw-r-----' : '----------'} labsvc labsvc /etc/lab/app.conf`)
   }
-  if (form === 'chmod 640 /etc/lab/app.conf') {
+  if (matches('chmod 640 /etc/lab/app.conf')) {
     s.permission = true
     change('Права файла исправлены')
     return out('Учебный файл: 640; владелец labsvc. Проверьте systemctl status lab-app.')
   }
-  if (form === 'netsh wlan show interfaces') {
+  if (matches('netsh wlan show interfaces')) {
     read('config', 'Состояние Wi-Fi')
     return out(
       `State: ${s.wifi ? 'connected' : 'disconnected'}\nSSID: LabWiFi\nSignal: ${s.wifi ? '80%' : '0%'}\nСигнал и радиосреда не моделируются.`,
     )
   }
-  if (form === 'netsh wlan connect name=labwifi') {
+  if (
+    cmd === 'netsh' &&
+    args.length === 3 &&
+    args[0]?.toLowerCase() === 'wlan' &&
+    args[1]?.toLowerCase() === 'connect' &&
+    args[2]?.slice(0, 5).toLowerCase() === 'name=' &&
+    args[2].slice(5) === 'LabWiFi'
+  ) {
     s.wifi = true
     change('Подключение Wi-Fi')
     return out('Подключено к виртуальной LabWiFi.')
   }
-  if (form === 'get-netadapterbinding') {
+  if (matches('get-netadapterbinding')) {
     read('config', 'Компоненты адаптера')
     return out(`Ethernet ms_tcpip6 Enabled: ${s.ipv6}`)
   }
-  if (form === 'enable-netadapterbinding -name ethernet -componentid ms_tcpip6') {
+  if (matches('enable-netadapterbinding -name ethernet -componentid ms_tcpip6')) {
     s.ipv6 = true
     change('IPv6 включён')
     return out('IPv6-компонент включён в учебной модели; ND/SLAAC не реализованы.')

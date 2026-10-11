@@ -5,16 +5,17 @@ import { saveNotice } from '../../shared/persistence'
 import { useRouter } from 'vue-router'
 import AppSelect from '../../shared/components/AppSelect.vue'
 import AppSelectOption from '../../shared/components/AppSelectOption.vue'
-import { skills, buildSkillStatuses, recommendSkill, type SkillId } from './skills'
+import { skills, buildSkillStatuses, type SkillId } from './skills'
 import { workshopCourses, tracks } from './courses'
 import { todayTask } from './learningFlow'
 import { standTasks } from './stand'
+import { useLearningClock } from '../learning/useLearningClock'
 const store = useWorkshopStore()
 const notice = ref('')
 const router = useRouter()
-const statuses = computed(() => buildSkillStatuses(store.state))
-const recommendation = computed(() => recommendSkill(store.state, Date.now(), statuses.value))
-const task = computed(() => todayTask(store.state, Date.now(), statuses.value))
+const now = useLearningClock()
+const statuses = computed(() => buildSkillStatuses(store.state, now.value))
+const task = computed(() => todayTask(store.state, now.value, statuses.value))
 const standLinks: Partial<Record<SkillId, string>> = Object.fromEntries(
   standTasks.map((t) => [t.skill, `/learning?view=workshop&workshop=stand&task=${t.id}`]),
 )
@@ -27,7 +28,7 @@ async function track(value: string) {
 function openCourse(id: string) {
   void router.push({
     path: '/learning',
-    query: { view: 'workshop', workshop: 'courses', lesson: id },
+    query: { lesson: id },
   })
 }
 </script>
@@ -42,8 +43,8 @@ function openCourse(id: string) {
       </AppSelect></label
     >
     <p>
-      <strong>Рекомендуется: {{ recommendation.skill.title }}</strong
-      >. {{ recommendation.reason }}
+      <strong>Рекомендуется: {{ task.title }}</strong
+      >. {{ task.reason }}
     </p>
     <RouterLink class="button primary" :to="task.url">Открыть следующий шаг</RouterLink>
     <p>

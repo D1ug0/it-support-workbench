@@ -28,6 +28,8 @@ import { beginRemediation, answerRemediation } from './remediation'
 import type { LearningErrorId } from './learningErrors'
 import { z } from 'zod'
 import { putVersioned } from './versionedRecord'
+import { appendReportRevision } from './reportHistory'
+import { explanationContentKey } from './explanationReview'
 import type { SkillId } from './skills'
 const learningResultSchema = z
   .object({
@@ -401,7 +403,24 @@ export const useWorkshopStore = defineStore('learning-workshop', () => {
       const previous = await reports.get(valid.id)
       if (previous && reportSchema.parse(previous).version >= valid.version)
         throw new Error('Отчёт изменён в другой вкладке. Перечитайте его перед редактированием.')
-      const saved = await putVersioned(reports, valid)
+      const previousReport = previous ? reportSchema.parse(previous) : undefined
+      const changed =
+        previousReport &&
+        (explanationContentKey(previousReport) !== explanationContentKey(valid) ||
+          JSON.stringify(previousReport.explanationReview) !==
+            JSON.stringify(valid.explanationReview))
+      const candidate = {
+        ...valid,
+        reportHistory: changed
+          ? appendReportRevision(previousReport.reportHistory, {
+              version: previousReport.version,
+              at: previousReport.at,
+              report: previousReport,
+              review: previousReport.explanationReview,
+            })
+          : (previousReport?.reportHistory ?? valid.reportHistory),
+      }
+      const saved = await putVersioned(reports, reportSchema.parse(candidate))
       await assertStorageBudget()
       return saved
     })

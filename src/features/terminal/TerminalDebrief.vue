@@ -4,6 +4,8 @@ import type { TerminalAssessment } from './assessment'
 import type { LabState } from './engine'
 import type { TerminalMode } from './checkpoint'
 import { terminalLearningDebrief } from './learningDebrief'
+import { useWorkshopStore } from '../workshop/useWorkshopStore'
+import { useLearningClock } from '../learning/useLearningClock'
 const props = defineProps<{
   assessment: TerminalAssessment
   state: LabState
@@ -12,8 +14,17 @@ const props = defineProps<{
   finished: boolean
 }>()
 const emit = defineEmits<{ focusRecords: []; repeat: [mode: TerminalMode] }>()
+const workshop = useWorkshopStore()
+const now = useLearningClock()
 const debrief = computed(() =>
-  terminalLearningDebrief(props.assessment, props.state, props.mode, props.hints),
+  terminalLearningDebrief(
+    props.assessment,
+    props.state,
+    props.mode,
+    props.hints,
+    workshop.state,
+    now.value,
+  ),
 )
 // Deliberately local: a short process exercise is separate from the lab grade and journals.
 const selected = ref<number>()
@@ -113,14 +124,7 @@ function submit() {
     <div v-if="finished && debrief.next" class="terminal-next-step">
       <h4>Следующий шаг</h4>
       <p>{{ debrief.next.reason }}</p>
-      <button
-        v-if="debrief.next.type === 'retry'"
-        class="button primary"
-        @click="emit('repeat', 'practice')"
-      >
-        {{ debrief.next.title }}
-      </button>
-      <RouterLink v-else class="button primary" :to="debrief.next.url">{{
+      <RouterLink class="button primary" :to="debrief.next.url">{{
         debrief.next.title
       }}</RouterLink>
     </div>

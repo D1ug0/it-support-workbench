@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { contentProvenance } from '../learning/contentProvenance'
 const props = defineProps<{
   id: string
   source: string
   authored?: boolean
   prerequisites?: string
 }>()
-const platform = computed(() =>
-  ['LINUX', 'SERVICES', 'RECOVERY', 'GIT'].includes(props.id)
-    ? 'Linux / macOS / учебный контейнер; версия фиксируется в отчёте стенда'
-    : 'Windows / Windows PowerShell; версии и локали RU/EN проверены только синтетически',
-)
+const provenance = computed(() => contentProvenance(props.id, props.source, props.authored))
 </script>
 <template>
   <details class="workshop-item">
@@ -19,9 +16,19 @@ const platform = computed(() =>
       Тип:
       {{
         authored ? 'авторский материал, проверка автора' : 'теория и подготовленная учебная модель'
-      }}. Проверка содержания кода: 10.10.2026; это не дата подтверждения на реальной ОС.
+      }}. Версия материала: {{ provenance.version }}.
     </p>
-    <p>{{ platform }}.</p>
+    <p>{{ provenance.platform }}.</p>
+    <p>
+      <strong>{{
+        provenance.review.status === 'reviewed'
+          ? `Сверено с источниками ${provenance.review.at}`
+          : provenance.review.status === 'author'
+            ? 'Проверка автора'
+            : 'Ожидает содержательной проверки'
+      }}</strong
+      >. {{ provenance.review.scope }}
+    </p>
     <p>
       Предпосылки:
       {{
@@ -33,9 +40,12 @@ const platform = computed(() =>
       получены. IPv6, AD/SMB/GPO, TLS и права модели имеют ограниченную семантику; детали
       проверяются на собственной VM.
     </p>
-    <a :href="source" target="_blank" rel="noopener noreferrer"
-      >Первичный источник, указанный в материале</a
-    ><RouterLink class="text-link" to="/knowledge?formats=1"
+    <ul>
+      <li v-for="reference in provenance.sources" :key="reference.url">
+        <a :href="reference.url" target="_blank" rel="noopener noreferrer">{{ reference.title }}</a>
+      </li>
+    </ul>
+    <RouterLink class="text-link" to="/knowledge?formats=1"
       >Матрица поддерживаемых форматов</RouterLink
     >
   </details>

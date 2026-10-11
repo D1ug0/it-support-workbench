@@ -1,3 +1,4 @@
+import { tokenizeCommand, parseCommandTokens } from './commandSyntax'
 import { commandHelp, unsupportedCommand } from './commandRegistry'
 import { isIPv4 } from '../../domain/network'
 import type { CommandKind } from '../../domain/types/diagnostic'
@@ -55,33 +56,6 @@ export function createEnvironment(labId: LabId, definition?: LabDefinition, seed
     ...(network ? { network, dns: network.dns } : {}),
   }
 }
-function tokenize(command: string): string[] | undefined {
-  if (
-    !command.trim() ||
-    command.length > 512 ||
-    /[;|&<>`$]/.test(command) ||
-    [...command].some(
-      (c) => c.charCodeAt(0) < 32 || (c.charCodeAt(0) >= 127 && c.charCodeAt(0) <= 159),
-    )
-  )
-    return
-  const tokens: string[] = []
-  let current = '',
-    quote = ''
-  for (const c of command.trim()) {
-    if (quote) {
-      if (c === quote) quote = ''
-      else current += c
-    } else if (c === '"' || c === "'") quote = c
-    else if (/\s/.test(c)) {
-      if (current) tokens.push(current)
-      current = ''
-    } else current += c
-  }
-  if (quote) return
-  if (current) tokens.push(current)
-  return tokens
-}
 const normalizedTarget = (value: string) => value.toLowerCase().replace(/\.$/, '')
 function addEvent(state: LabState, event: LabEvent) {
   if (!state.events.includes(event)) state.events.push(event)
@@ -132,7 +106,7 @@ export function executeCommand(original: LabState, command: string): CommandResu
     output: output ?? unsupportedCommand(tokens ?? []),
     ok: false,
   })
-  const tokens = tokenize(command)
+  const tokens = tokenizeCommand(command)
   if (!tokens?.length)
     return fail(
       'Введите одну команду до 512 символов. Скрипты, конвейеры, перенаправления и управляющие символы не поддерживаются.',
@@ -155,9 +129,7 @@ export function executeCommand(original: LabState, command: string): CommandResu
         : original,
     }
   }
-  const [name = '', ...raw] = tokens,
-    cmd = name.toLowerCase(),
-    args = raw.map((t) => t.toLowerCase())
+  const { cmd, args } = parseCommandTokens(tokens)
   const result = (output: string, kind?: CommandKind): CommandResult => ({
     state,
     output,
@@ -191,7 +163,7 @@ export function executeCommand(original: LabState, command: string): CommandResu
       ? result(
           `Учебные формы команды ${args[0]}:\n${text}\nСправка показывает синтаксис модели, а не выбранное исправление.`,
         )
-      : fail(`Для «${raw[0]}» нет учебной справки. Введите help для списка команд.`)
+      : fail(`Для «${args[0]}» нет учебной справки. Введите help для списка команд.`)
   }
   if (cmd === 'cls' && !args.length)
     return { ...result('Экран очищен. Состояние среды и проверки сохранены.'), clear: true }
@@ -269,7 +241,7 @@ export function executeCommand(original: LabState, command: string): CommandResu
     const values = params(args.slice(1), ['-server', '-type'])
     if (
       !values ||
-      (values['-type'] && values['-type'] !== 'a') ||
+      (values['-type'] && values['-type'].toUpperCase() !== 'A') ||
       (values['-server'] && ![DNS, '192.0.2.54'].includes(values['-server']))
     )
       return fail()

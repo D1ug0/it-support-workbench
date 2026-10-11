@@ -1,9 +1,9 @@
 import type { TerminalAssessment, TerminalCheckId } from './assessment'
 import type { LabState } from './engine'
 import type { TerminalMode } from './checkpoint'
-import { terminalLabs } from './catalog'
 import { workshopCourses } from '../workshop/courses'
-import { skills } from '../workshop/skills'
+import { emptyWorkshop, type WorkshopProgress } from '../workshop/skills'
+import { recommendNextTask } from '../workshop/recommendations'
 
 export type ProcessDrillId =
   'evidence' | 'baseline' | 'verification' | 'diagnosis' | 'minimal-change'
@@ -141,18 +141,13 @@ const guidance: Record<TerminalCheckId, { action: string; drill: ProcessDrillId 
 function skillFor(state: LabState) {
   return state.network?.definition.skill ?? (state.labId === 'TERM-ICMP-TCP' ? 'transport' : 'dns')
 }
-function causeFor(id: string) {
-  if (id === 'TERM-DNS-SERVER') return 'dns'
-  if (id === 'TERM-DNS-CACHE') return 'client-cache'
-  const lab = terminalLabs.find((value) => value.id === id)
-  return lab && 'fault' in lab ? lab.fault : id
-}
-
 export function terminalLearningDebrief(
   assessment: TerminalAssessment,
   state: LabState,
-  mode: TerminalMode,
-  hints: number,
+  _mode: TerminalMode,
+  _hints: number,
+  progress: WorkshopProgress = emptyWorkshop(),
+  now = Date.now(),
 ) {
   const skill = skillFor(state)
   const course = workshopCourses.find((value) => value.skill === skill)
@@ -165,17 +160,7 @@ export function terminalLearningDebrief(
         check.id === 'preserve' || (check.id === 'baseline' && state.revision > 0),
     }))
   const audit = state.network?.changeAudit
-  const needsIndependentPractice = mode === 'guided' || hints > 0 || assessment.score < 85
-  const currentCause = state.network?.definition.fault ?? causeFor(state.labId)
-  const otherLab = terminalLabs.find(
-    (lab) =>
-      lab.id !== state.labId &&
-      (('skill' in lab && lab.skill === skill) ||
-        (skill === 'dns' && lab.id.startsWith('TERM-DNS-'))) &&
-      causeFor(lab.id) !== currentCause,
-  )
-  const nextSkill = skills.find((value) => value.requires.some((id) => id === skill))
-  const nextCourse = workshopCourses.find((value) => value.skill === nextSkill?.id)
+  const next = recommendNextTask(progress, now)
   return {
     gaps,
     drill:
@@ -183,9 +168,7 @@ export function terminalLearningDebrief(
         gaps[0]?.drill ??
           (audit && (audit.regressions || audit.unnecessary) ? 'minimal-change' : 'diagnosis')
       ],
-    course: course
-      ? { title: course.title, url: `/learning?view=workshop&lesson=${course.id}` }
-      : undefined,
+    course: course ? { title: course.title, url: `/learning?lesson=${course.id}` } : undefined,
     processCost: audit
       ? {
           regressions: audit.regressions,
@@ -193,35 +176,8 @@ export function terminalLearningDebrief(
           rollbacks: audit.rollbacks,
         }
       : undefined,
-    next: !assessment.complete
-      ? undefined
-      : needsIndependentPractice
-        ? {
-            type: 'retry' as const,
-            title: 'Повторить эту лабораторию без подсказок',
-            reason:
-              'Закрепите ход решения без подсказок и лишних изменений. Повтор той же причины помогает тренироваться, но не добавляет новое семейство причин.',
-          }
-        : otherLab
-          ? {
-              type: 'link' as const,
-              title: otherLab.title,
-              reason:
-                'Следующая лаборатория по этому навыку использует другую причину. Сначала соберите новые доказательства.',
-              url: `/terminal?lab=${otherLab.id}&mode=practice`,
-            }
-          : nextCourse
-            ? {
-                type: 'link' as const,
-                title: nextCourse.title,
-                reason: 'Перейдите к следующей связанной теме и изучите её проверки и ограничения.',
-                url: `/learning?view=workshop&lesson=${nextCourse.id}`,
-              }
-            : {
-                type: 'link' as const,
-                title: 'Расследование с неизвестной причиной',
-                reason: 'Потренируйте выбор гипотез и доказательств в профессиональном инциденте.',
-                url: '/learning?view=workshop&workshop=professional&incident=unknown',
-              },
+    next: assessment.complete
+      ? { type: 'link' as const, title: next.title, reason: next.reason, url: next.url }
+      : undefined,
   }
 }

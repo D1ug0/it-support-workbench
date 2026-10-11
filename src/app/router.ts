@@ -22,7 +22,7 @@ export const router = createRouter({
     {
       path: '/learning',
       component: () => import('../pages/LearningPage.vue'),
-      meta: { title: 'Учебный центр' },
+      meta: { title: 'Обучение' },
     },
     {
       path: '/playbooks',
@@ -34,7 +34,7 @@ export const router = createRouter({
       component: () => import('../pages/SettingsPage.vue'),
       meta: { title: 'Настройки' },
     },
-    { path: '/', component: () => import('../pages/HomePage.vue'), meta: { title: 'Обзор' } },
+    { path: '/', component: () => import('../pages/HomePage.vue'), meta: { title: 'Мой старт' } },
     {
       path: '/analyzer',
       component: () => import('../pages/AnalyzerPage.vue'),
@@ -71,5 +71,8 @@ export const router = createRouter({
 })
 router.beforeEach((to) => confirmDiscardForms(to))
 router.afterEach((to) => {
+  if (to.path === '/learning' && to.query.view === 'progress') to.meta.title = 'Мой прогресс'
+  else if (to.path === '/learning')
+    to.meta.title = to.query.mode === 'author' ? 'Авторская мастерская' : 'Обучение'
   document.title = `${String(to.meta.title)} · IT Support Workbench`
 })

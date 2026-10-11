@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Terminal,
@@ -26,21 +26,44 @@ import { version } from '../../package.json'
 
 const route = useRoute()
 const light = ref(false)
-const nav = [
-  { to: '/', label: 'Обзор', icon: LayoutDashboard },
+const learningNav = [
+  { to: '/', label: 'Мой старт', icon: LayoutDashboard },
+  { to: '/learning', label: 'Обучение', icon: GraduationCap },
+  { to: '/learning?view=progress', label: 'Мой прогресс', icon: ChartNoAxesCombined },
+  { to: '/terminal', label: 'Свободная практика', icon: Terminal },
+]
+const toolsNav = [
   { to: '/guide', label: 'Помощник диагностики', icon: Compass },
-  { to: '/analyzer', label: 'Анализатор', icon: ScanLine },
+  { to: '/analyzer', label: 'Анализатор вывода', icon: ScanLine },
   { to: '/sessions', label: 'Рабочие сессии', icon: Layers },
-  { to: '/toolkit', label: 'Инструменты', icon: Calculator },
+  { to: '/toolkit', label: 'Расчёты и команды', icon: Calculator },
   { to: '/knowledge', label: 'Справочник', icon: BookOpen },
   { to: '/playbooks', label: 'Чек-листы', icon: ListChecks },
-  { to: '/simulator', label: 'Тренажёр', icon: GraduationCap },
-  { to: '/terminal', label: 'Учебный терминал', icon: Terminal },
-  { to: '/learning', label: 'Учебный центр', icon: ChartNoAxesCombined },
+  { to: '/simulator', label: 'Пошаговые инциденты', icon: FolderOpen },
   { to: '/cases', label: 'Локальные кейсы', icon: FolderOpen },
-  { to: '/settings', label: 'Настройки', icon: Settings },
-  { to: '/about', label: 'О проекте', icon: Info },
 ]
+const authorPanels = ['editor', 'course-editor', 'graphs', 'traces', 'exchange']
+const navigationGroup = computed(() =>
+  toolsNav.some((item) => item.to === route.path)
+    ? 'Инструменты диагностики'
+    : route.query.mode === 'author' || authorPanels.includes(String(route.query.workshop))
+      ? 'Авторская мастерская'
+      : ['/settings', '/about'].includes(route.path)
+        ? 'О приложении и данных'
+        : 'Мой учебный путь',
+)
+function isActive(to: string) {
+  if (to === '/learning?view=progress')
+    return route.path === '/learning' && route.query.view === 'progress'
+  if (to === '/learning')
+    return (
+      route.path === '/learning' &&
+      route.query.view !== 'progress' &&
+      route.query.mode !== 'author' &&
+      !authorPanels.includes(String(route.query.workshop))
+    )
+  return route.path === to
+}
 function toggleTheme() {
   light.value = !light.value
   document.documentElement.dataset.theme = light.value ? 'light' : 'dark'
@@ -60,25 +83,45 @@ function focusMain() {
           >IT SUPPORT<strong>Workbench<span class="brand-dot">.</span></strong></span
         ></RouterLink
       >
-      <span class="nav-caption">РАБОЧАЯ СРЕДА</span>
+      <span class="nav-caption">УЧЕБНАЯ СРЕДА</span>
       <nav aria-label="Основная навигация">
-        <template v-for="item in nav" :key="item.to">
-          <span
-            v-if="item.to === '/' || item.to === '/simulator' || item.to === '/cases'"
-            class="nav-group"
-            >{{
-              item.to === '/'
-                ? 'Решить задачу'
-                : item.to === '/simulator'
-                  ? 'Развивать навыки'
-                  : 'Мои данные и настройки'
-            }}</span
+        <span class="nav-group">Мой учебный путь</span>
+        <RouterLink
+          v-for="item in learningNav"
+          :key="item.to"
+          :to="item.to"
+          class="nav-item"
+          :class="{ active: isActive(item.to) }"
+          ><component :is="item.icon" :size="19" /><span>{{ item.label }}</span
+          ><ChevronRight v-if="isActive(item.to)" :size="14" class="nav-chevron"
+        /></RouterLink>
+        <details class="nav-tools" :open="toolsNav.some((item) => isActive(item.to))">
+          <summary class="nav-group">Инструменты диагностики <ChevronRight :size="14" /></summary>
+          <RouterLink
+            v-for="item in toolsNav"
+            :key="item.to"
+            :to="item.to"
+            class="nav-item"
+            :class="{ active: isActive(item.to) }"
+            ><component :is="item.icon" :size="19" /><span>{{ item.label }}</span></RouterLink
           >
-          <RouterLink :to="item.to" class="nav-item" :class="{ active: route.path === item.to }"
-            ><component :is="item.icon" :size="19" /><span>{{ item.label }}</span
-            ><ChevronRight v-if="route.path === item.to" :size="14" class="nav-chevron"
-          /></RouterLink>
-        </template>
+        </details>
+        <span class="nav-group">Дополнительные возможности</span>
+        <RouterLink
+          class="nav-item"
+          :class="{
+            active:
+              route.query.mode === 'author' || authorPanels.includes(String(route.query.workshop)),
+          }"
+          to="/learning?view=workshop&workshop=editor&mode=author"
+          ><BookOpen :size="19" /><span>Авторская мастерская</span></RouterLink
+        >
+        <RouterLink class="nav-item" :class="{ active: route.path === '/settings' }" to="/settings"
+          ><Settings :size="19" /><span>Данные и настройки</span></RouterLink
+        >
+        <RouterLink class="nav-item" :class="{ active: route.path === '/about' }" to="/about"
+          ><Info :size="19" /><span>О проекте</span></RouterLink
+        >
       </nav>
       <div class="sidebar-bottom">
         <div class="local-card">
@@ -94,9 +137,8 @@ function focusMain() {
     <div class="workspace">
       <header class="app-header">
         <div class="breadcrumb">
-          <span>Рабочая среда</span><ChevronRight :size="14" /><strong>{{
-            route.meta.title
-          }}</strong>
+          <span>{{ navigationGroup }}</span
+          ><ChevronRight :size="14" /><strong>{{ route.meta.title }}</strong>
         </div>
         <div class="header-actions">
           <CommandPalette />
@@ -112,7 +154,7 @@ function focusMain() {
       </header>
       <main id="main-content" class="main-content" tabindex="-1"><RouterView /></main>
       <footer class="app-footer">
-        <span>IT Support Workbench <span class="muted">/ инженерный инструмент</span></span
+        <span>IT Support Workbench <span class="muted">/ практика IT-поддержки</span></span
         ><span>Сначала факты. Затем выводы.</span>
       </footer>
     </div>

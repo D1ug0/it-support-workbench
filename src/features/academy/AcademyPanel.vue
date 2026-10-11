@@ -81,7 +81,11 @@ async function open(id: string) {
       tabindex="-1"
       :aria-label="`Урок: ${selected.title}`"
     >
-      <span class="eyebrow">ОБЪЯСНЕНИЕ · ПРОВЕРЕНО {{ selected.reviewedAt }}</span>
+      <span class="eyebrow">ОБЪЯСНЕНИЕ · РЕДАКЦИОННАЯ ОТМЕТКА {{ selected.reviewedAt }}</span>
+      <p class="muted">
+        Материал учебный. Дата относится к редакционной отметке каталога; повторная содержательная
+        проверка и выполнение на реальной ОС пока не подтверждены.
+      </p>
       <h2>{{ selected.title }}</h2>
       <p>{{ selected.summary }}</p>
       <h3>После модуля вы сможете</h3>

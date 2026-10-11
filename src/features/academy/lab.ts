@@ -77,6 +77,6 @@ export function exportLab(course: AcademyCourse, attempt: LabAttempt): string {
     '## Источники',
     ...course.sources.map((s) => `- [${s.title}](${s.url})`),
     '',
-    `Материалы проверены: ${course.reviewedAt}. Баллы описывают эту попытку, а не профессиональную квалификацию.`,
+    `Редакционная отметка каталога: ${course.reviewedAt}. Выполнение на реальной ОС не подтверждено. Баллы описывают эту попытку, а не профессиональную квалификацию.`,
   ].join('\n')
 }

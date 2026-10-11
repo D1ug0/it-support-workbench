@@ -46,7 +46,12 @@ async function submit() {
   if (!result.value.valid) return
   busy.value = true
   try {
-    await store.complete(`PRACTICE-${task.value.id}`, result.value.correct ? 100 : 0)
+    await store.complete(
+      `PRACTICE-${task.value.id}`,
+      result.value.correct ? 100 : 0,
+      undefined,
+      task.value.format === 'number' || task.value.format === 'ipv4' ? 'calculation' : 'choice',
+    )
   } catch {
     error.value = 'Не удалось обновить прогресс. Решение остаётся доступно.'
   } finally {
@@ -100,6 +105,9 @@ function exportAttempt() {
       <span class="tag">{{ task.topic }}</span>
       <h3>{{ task.title }}</h3>
       <p>{{ task.prompt }}</p>
+      <a v-if="task.source" :href="task.source.url" target="_blank" rel="noopener noreferrer">{{
+        task.source.title
+      }}</a>
       <ol v-if="task.steps">
         <li v-for="step in task.steps" :key="step">{{ step }}</li>
       </ol>

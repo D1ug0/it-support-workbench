@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { reportHistorySchema } from './reportHistory'
 import {
   explanationContentKey,
   explanationReviewMarkdown,
@@ -37,6 +38,7 @@ export const reportSchema = z
     verification: z.string().max(1200),
     limits: z.string().max(1200).default(''),
     explanationReview: explanationReviewSchema.nullable().default(null),
+    reportHistory: reportHistorySchema.optional(),
     score: z.number().int().min(0).max(100).nullable(),
   })
   .strict()
@@ -64,6 +66,7 @@ export function reportMarkdown(report: z.input<typeof reportSchema>) {
     `## Изменение\n${r.change}`,
     `## Повторная проверка\n${r.verification}`,
     `## Ограничения, откат и эскалация\n${r.limits || 'Не описаны.'}`,
+    `Предыдущих сохранённых редакций: ${r.reportHistory?.length ?? 0} (до трёх, доступны в портфолио).`,
     `## Ручной разбор объяснения\n${explanationReviewMarkdown(r.explanationReview, explanationContentKey(r))}`,
   ].join('\n\n')
 }

@@ -183,6 +183,7 @@ function exportResult() {
     store.environment,
     store.mode,
     store.hints,
+    workshop.state,
   )
   downloadText(
     [

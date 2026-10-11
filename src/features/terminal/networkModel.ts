@@ -496,6 +496,7 @@ export function resolveNetwork(
   server?: string,
 ): string | undefined {
   if (isIPv4(target)) return target
+  target = target.toLowerCase().replace(/\.$/, '')
   const extra = s.definition.additionalHosts?.find((h) => h.name === target)
   if (!extra && ![s.definition.target, 'dns.lab.example', 'backend.lab.example'].includes(target))
     return undefined

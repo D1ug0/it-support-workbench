@@ -9,6 +9,8 @@ import { assessLab, createEnvironment, executeCommand } from './engine'
 import { labIds, terminalLabs, type LabId } from './catalog'
 import { checkpointSchema, type Checkpoint, type TerminalMode } from './checkpoint'
 import { undoNetworkChange, type LabDefinition, type NetworkState } from './networkModel'
+import { learningPolicy } from '../workshop/learningPolicy'
+import { causeForLab } from './labIdentity'
 import { useWorkshopStore } from '../workshop/useWorkshopStore'
 import { reviewCommand, type CommandReview } from './review'
 export interface TerminalRecord {
@@ -134,10 +136,11 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
       complete: result.complete,
       at: new Date().toISOString(),
       seed: variantSeed.value,
-      causeFamily: definition?.fault ?? environment.value.labId,
+      causeFamily: causeForLab(environment.value.labId, definition?.fault),
+      policyVersion: learningPolicy.version,
       competencies: result.checks
         .filter((c) => c.met)
-        .map((c) => c.label.slice(0, 80))
+        .map((c) => c.id)
         .slice(0, 10),
       errors: result.checks
         .filter((c) => !c.met)

@@ -13,7 +13,7 @@ const input = ref<HTMLInputElement>()
 const query = ref('')
 const index = ref(0)
 const pages = [
-  ['Обзор', '/'],
+  ['Мой старт', '/'],
   ['Помощник диагностики', '/guide'],
   ['Анализатор', '/analyzer'],
   ['Рабочие сессии', '/sessions'],
@@ -22,7 +22,9 @@ const pages = [
   ['Чек-листы', '/playbooks'],
   ['Тренажёр', '/simulator'],
   ['Учебный терминал', '/terminal'],
-  ['Учебный центр', '/learning'],
+  ['Обучение · мой маршрут', '/learning'],
+  ['Мой прогресс', '/learning?view=progress'],
+  ['Авторская мастерская', '/learning?view=workshop&workshop=editor&mode=author'],
   ['Самостоятельная практика', '/learning?view=practice'],
   ['Практикум развития', '/learning?view=workshop'],
   ['Журнал обучения', '/learning?view=journal'],
@@ -76,7 +78,7 @@ async function open() {
   extraEntries.value = [
     ...[...workshopCourses, ...workshop.customCourses].map((c) => ({
       label: `Курс: ${c.title}`,
-      path: `/learning?view=workshop&lesson=${c.id}`,
+      path: `/learning?lesson=${c.id}`,
       kind: 'Материал практикума',
     })),
     ...workshop.customLabs.map((l) => ({

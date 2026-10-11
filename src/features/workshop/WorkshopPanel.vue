@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useRoute } from 'vue-router'
 import { confirmDiscardForms } from '../../shared/unsavedChanges'
 import '../terminal/terminal.css'
@@ -21,6 +22,9 @@ const TraceWorkshop = defineAsyncComponent(() => import('./TraceWorkshop.vue'))
 const PortfolioPanel = defineAsyncComponent(() => import('./PortfolioPanel.vue'))
 const StandResourcesPanel = defineAsyncComponent(() => import('./StandResourcesPanel.vue'))
 const ExchangePanel = defineAsyncComponent(() => import('./ExchangePanel.vue'))
+const router = useRouter()
+const authorTabIds = ['editor', 'course-editor', 'graphs', 'traces', 'exchange']
+const authorMode = computed(() => route.query.mode === 'author' || authorTabIds.includes(tab.value))
 const tabs = [
   ['path', 'Карта навыков'],
   ['baseline', 'Стартовая проверка'],
@@ -37,8 +41,17 @@ const tabs = [
   ['exchange', 'Обмен и преподаватель'],
 ]
 
+const visibleTabs = computed(() =>
+  tabs.filter(([id]) => authorMode.value === authorTabIds.includes(id!)),
+)
 function selectTab(id: string) {
-  if (confirmDiscardForms(route)) tab.value = id
+  if (confirmDiscardForms(route)) {
+    tab.value = id
+    void router.replace({
+      path: '/learning',
+      query: { ...route.query, workshop: id, mode: authorMode.value ? 'author' : undefined },
+    })
+  }
 }
 watch(
   () => [route.query.workshop, route.query.lesson] as const,
@@ -52,15 +65,21 @@ onMounted(() => store.initialize())
 </script>
 <template>
   <div class="workshop-root">
-    <ContinueLearning />
-    <h2>Практикум развития</h2>
+    <ContinueLearning v-if="!authorMode" />
+    <div class="workshop-mode-heading">
+      <h2>{{ authorMode ? 'Авторская мастерская' : 'Углублённая практика' }}</h2>
+      <RouterLink class="button ghost" to="/learning">Вернуться к учебному пути</RouterLink>
+    </div>
     <p>
-      Пять учебных траекторий, самостоятельные лаборатории и понятная карта навыков. Выберите
-      направление и переходите от материала к проверяемому результату.
+      {{
+        authorMode
+          ? 'Создавайте и обменивайтесь учебными материалами. Авторский контент требует отдельной предметной проверки.'
+          : 'Выберите нужный формат практики. Основной маршрут и рекомендуемая задача остаются в учебном пути.'
+      }}
     </p>
     <nav class="learning-mode-nav" aria-label="Разделы практикума">
       <button
-        v-for="[id, title] in tabs"
+        v-for="[id, title] in visibleTabs"
         :key="id"
         :class="['button', tab === id ? 'primary' : 'secondary']"
         :aria-pressed="tab === id"

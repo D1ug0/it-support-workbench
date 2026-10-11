@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { isIndependentAttempt, learningPolicy } from './learningPolicy'
+import { causeForLab } from '../terminal/labIdentity'
 import { learningErrorIds } from './learningErrors'
 import { remediationAttemptsSchema } from './remediationSchema'
 export const skillIds = [
@@ -45,6 +47,7 @@ export const attemptSchema = z
     at: z.iso.datetime(),
     attemptId: z.uuid().optional(),
     causeFamily: z.string().max(80).optional(),
+    policyVersion: z.literal(1).optional(),
     competencies: z.array(z.string().max(80)).max(10).optional(),
     errors: z.array(z.string().max(180)).max(10).optional(),
     variantKey: z.string().max(200).optional(),
@@ -113,7 +116,7 @@ export const emptyWorkshop = (): WorkshopProgress => ({
   track: 'L1',
 })
 export const trackSkills: Record<WorkshopProgress['track'], readonly SkillId[]> = {
-  L1: ['addressing', 'routing', 'dns', 'transport', 'wifi', 'git'],
+  L1: ['addressing', 'dns', 'routing', 'transport', 'tls'],
   L2: [
     'addressing',
     'routing',
@@ -150,10 +153,12 @@ export const modelStandLessons: Partial<Record<SkillId, string>> = {
 export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.now()) {
   const attempts = progress.attempts
     .filter((a) => a.skill === id && Date.parse(a.at) <= now)
+    .map((a) => ({
+      ...a,
+      causeFamily: a.causeFamily ? causeForLab(a.id, a.causeFamily) : undefined,
+    }))
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
-  const independent = attempts.filter(
-    (a) => a.complete && a.score >= 85 && a.hints === 0 && a.mode !== 'guided',
-  )
+  const independent = attempts.filter(isIndependentAttempt)
   const variations = new Set(independent.flatMap((a) => (a.causeFamily ? [a.causeFamily] : [])))
   const confirmed = [...new Set(independent.flatMap((a) => a.competencies ?? []))]
   const last = attempts.at(-1)
@@ -173,7 +178,7 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
     if (
       !seenCauses.has(attempt.causeFamily) &&
       firstCauseAt !== undefined &&
-      at - firstCauseAt >= 7 * 86400000
+      at - firstCauseAt >= learningPolicy.reviewAfterMs
     )
       newCauseRetention = true
     firstCauseAt ??= at
@@ -183,14 +188,19 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
   // Once all causes have been seen, a delayed session on two distinct causes remains possible.
   // Changing only the seed/address never supplies a second cause.
   const delayed = foundation
-    ? independent.filter((a) => Date.parse(a.at) - Date.parse(foundation.at) >= 7 * 86400000)
+    ? independent.filter(
+        (a) => Date.parse(a.at) - Date.parse(foundation.at) >= learningPolicy.reviewAfterMs,
+      )
     : []
   let retention = newCauseRetention,
     start = 0
   const windowCauses = new Map<string, number>()
   for (let end = 0; end < delayed.length && !retention; end++) {
     const current = delayed[end]!
-    while (Date.parse(current.at) - Date.parse(delayed[start]!.at) > 86400000) {
+    while (
+      Date.parse(current.at) - Date.parse(delayed[start]!.at) >
+      learningPolicy.reviewWindowMs
+    ) {
       const cause = delayed[start++]!.causeFamily
       if (cause) {
         const count = (windowCauses.get(cause) ?? 0) - 1
@@ -211,19 +221,19 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
     theoryForms >= 2 &&
     progress.read.includes(`LESSON-${modelLesson}`) &&
     !!last?.complete &&
-    last.score >= 85
+    last.score >= learningPolicy.independentScore
   const readyForStand =
     modelComplete ||
     (!!standLessonIds[id] &&
       progress.assessment[id] === true &&
       progress.read.includes(`LESSON-${standLessonIds[id]}`))
   const needsReview =
-    (!!successful && now - Date.parse(successful.at) >= 7 * 86400000) ||
+    (!!successful && now - Date.parse(successful.at) >= learningPolicy.reviewAfterMs) ||
     (readyToAdvance &&
       !retention &&
       !!foundation &&
-      now - Date.parse(foundation.at) >= 7 * 86400000) ||
-    (!!last && (!last.complete || last.score < 85))
+      now - Date.parse(foundation.at) >= learningPolicy.reviewAfterMs) ||
+    (!!last && (!last.complete || last.score < learningPolicy.independentScore))
   const level = mastered
     ? 'Самостоятельные решения с отложенной проверкой'
     : readyToAdvance
@@ -251,7 +261,9 @@ export function skillStatus(progress: WorkshopProgress, id: SkillId, now = Date.
         : progress.assessment[id] === true
           ? 'Один вопрос основ; требуется расширенная проверка'
           : 'Ещё не проверена',
-    standReports: progress.events.filter((e) => e.skill === id && e.module === 'stand').length,
+    standReports: progress.events.filter(
+      (e) => e.skill === id && e.module === 'stand' && Date.parse(e.at) <= now,
+    ).length,
     reviewErrors: last?.errors ?? [],
     mastered,
     readyToAdvance,
@@ -274,7 +286,7 @@ export function recommendSkill(
   now = Date.now(),
   statuses = buildSkillStatuses(progress, now),
 ) {
-  const selected = skills.filter((s) => trackSkills[progress.track].includes(s.id))
+  const selected = trackSkills[progress.track].map((id) => skills.find((skill) => skill.id === id)!)
   const repeat = selected.find((s) => statuses[s.id].needsReview)
   if (repeat)
     return {

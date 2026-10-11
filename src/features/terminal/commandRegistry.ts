@@ -34,6 +34,10 @@ export const networkCommands = [
   ['rasdial VPN /disconnect', 'Отключить виртуальный VPN'],
   ['wait 120', 'Продвинуть время лаборатории на 120 секунд'],
   ['curl -I https://portal.lab.example', 'Проверить учебные TLS и HTTP'],
+  [
+    'curl.exe -I https://portal.lab.example',
+    'Явно вызвать native curl в Windows, без alias PowerShell 5.1',
+  ],
   ['certutil -verify lab.cer', 'Посмотреть учебную цепочку сертификата'],
   ['w32tm /query /status', 'Посмотреть состояние часов'],
   ['w32tm /resync', 'Синхронизировать учебные часы'],
@@ -69,38 +73,114 @@ export interface CommandDefinition {
   target: 'client' | 'server' | 'model'
   rights: 'user' | 'administrator'
   parameters: string
+  profile?: string
+}
+type CommandMetadata = Pick<
+  CommandDefinition,
+  'platform' | 'effect' | 'target' | 'rights' | 'profile'
+>
+const windowsRead = {
+  platform: 'Windows',
+  effect: 'read',
+  target: 'client',
+  rights: 'user',
+  profile: 'Windows CMD',
+} as const
+const windowsChange = { ...windowsRead, effect: 'change', rights: 'administrator' } as const
+const powershellRead = {
+  ...windowsRead,
+  platform: 'Windows PowerShell',
+  profile: 'Windows PowerShell 5.1 / PowerShell 7 на Windows; доступные модули',
+} as const
+const powershellChange = { ...powershellRead, effect: 'change', rights: 'administrator' } as const
+const serverRead = { ...powershellRead, target: 'server' } as const
+const serverChange = { ...powershellChange, target: 'server' } as const
+const linuxRead = {
+  ...windowsRead,
+  platform: 'Linux',
+  target: 'server',
+  profile: 'Учебный Linux / systemd; ограниченные формы',
+} as const
+const modelRead = {
+  ...windowsRead,
+  platform: 'Модель',
+  target: 'model',
+  profile: 'Учебная команда',
+} as const
+const specs: Record<string, CommandMetadata> = {
+  ipconfig: windowsRead,
+  nslookup: windowsRead,
+  ping: windowsRead,
+  tracert: windowsRead,
+  route: windowsRead,
+  rasdial: windowsChange,
+  certutil: windowsRead,
+  w32tm: windowsRead,
+  whoami: windowsRead,
+  gpresult: windowsRead,
+  gpupdate: windowsChange,
+  netsh: windowsRead,
+  'resolve-dnsname': powershellRead,
+  'test-netconnection': powershellRead,
+  'get-netipconfiguration': powershellRead,
+  'get-netipinterface': powershellRead,
+  'set-dnsclientserveraddress': powershellChange,
+  'set-netipaddress': powershellChange,
+  'set-netroute': powershellChange,
+  'set-netipinterface': powershellChange,
+  'get-netadapterbinding': powershellRead,
+  'enable-netadapterbinding': powershellChange,
+  'import-certificate': powershellChange,
+  'get-service': serverRead,
+  'start-service': serverChange,
+  'restart-service': serverChange,
+  'get-winevent': serverRead,
+  'get-smbconnection': powershellRead,
+  curl: {
+    ...windowsRead,
+    platform: 'PowerShell 7',
+    profile: 'Native curl; -I означает HEAD. В Windows PowerShell 5.1 используйте curl.exe',
+  },
+  'curl.exe': {
+    ...windowsRead,
+    profile: 'Windows native curl.exe, включая Windows PowerShell 5.1',
+  },
+  ls: linuxRead,
+  chmod: { ...linuxRead, effect: 'change', rights: 'administrator' },
+  systemctl: linuxRead,
+  journalctl: linuxRead,
+  help: modelRead,
+  cls: modelRead,
+  wait: { ...modelRead, effect: 'change' },
+  lab: modelRead,
+}
+export function normalizeCommandName(name: string) {
+  const lower = name.toLowerCase()
+  return specs[lower]?.platform === 'Linux' ? name : lower
+}
+export function commandMetadata(
+  name: string,
+  args: readonly string[] = [],
+): CommandMetadata | undefined {
+  const base = specs[normalizeCommandName(name)]
+  if (!base) return undefined
+  const first = args[0]?.toLowerCase()
+  const changes =
+    (name === 'ipconfig' && ['/renew', '/release', '/flushdns'].includes(first ?? '')) ||
+    (name === 'route' && first === 'delete') ||
+    (name === 'w32tm' && first === '/resync') ||
+    (name === 'netsh' && args[1]?.toLowerCase() === 'connect') ||
+    (name === 'lab' && ['repair', 'set-gateway', 'grant-share-access'].includes(first ?? ''))
+  return changes
+    ? { ...base, effect: 'change', rights: base.platform === 'Модель' ? 'user' : 'administrator' }
+    : base
 }
 function defineCommand([example, description]: readonly [string, string]): CommandDefinition {
-  const name = example.split(' ')[0]!.toLowerCase()
-  const platform = ['lab', 'wait', 'help', 'cls'].includes(name)
-    ? 'Модель'
-    : ['ls', 'chmod', 'systemctl', 'journalctl'].includes(name)
-      ? 'Linux'
-      : name === 'curl'
-        ? 'PowerShell 7'
-        : name.includes('-')
-          ? 'Windows PowerShell'
-          : 'Windows'
-  const change =
-    /^(set-|start-|restart-|import-|enable-|chmod|gpupdate|rasdial|wait)|flushdns|\/renew|\/release|route delete|lab repair|lab set-|lab grant-|w32tm \/resync|wlan connect/i.test(
-      example,
-    )
-  return {
-    example,
-    description,
-    platform,
-    effect: change ? 'change' : 'read',
-    target:
-      platform === 'Модель'
-        ? 'model'
-        : /^(get-service|start-service|restart-service|get-winevent|ls|chmod|systemctl|journalctl)$/.test(
-              name,
-            )
-          ? 'server'
-          : 'client',
-    rights: change && platform !== 'Модель' ? 'administrator' : 'user',
-    parameters: example.split(' ').slice(1).join(' ') || 'Без параметров',
-  }
+  const [rawName = '', ...args] = example.split(' ')
+  const name = normalizeCommandName(rawName)
+  const metadata = commandMetadata(name, args)
+  if (!metadata) throw new Error(`Missing command contract: ${name}`)
+  return { example, description, ...metadata, parameters: args.join(' ') || 'Без параметров' }
 }
 export function supportedCommands(state?: NetworkState): CommandDefinition[] {
   const base = [
@@ -157,7 +237,7 @@ export function commandHelp(state?: NetworkState, commandName?: string) {
     )
     .map(
       (c) =>
-        `${c.example} — ${c.description} [${c.platform}; узел модели: ${c.target}; ${c.effect === 'change' ? 'изменение' : 'чтение'}; ${c.rights === 'administrator' ? 'в реальной ОС нужны соответствующие права' : 'учебная операция в пределах доступных прав'}]`,
+        `${c.example} — ${c.description} [${c.profile ?? c.platform}; узел модели: ${c.target}; ${c.effect === 'change' ? 'изменение' : 'чтение'}; ${c.rights === 'administrator' ? 'в реальной ОС нужны соответствующие права' : 'учебная операция в пределах доступных прав'}]`,
     )
     .join('\n')
 }

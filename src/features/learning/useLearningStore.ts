@@ -88,7 +88,12 @@ export const useLearningStore = defineStore('learning', () => {
     })
     await baseSave
   }
-  async function complete(id: string, score: number, terminalAttempt?: string) {
+  async function complete(
+    id: string,
+    score: number,
+    terminalAttempt?: string,
+    theoryForm?: 'choice' | 'calculation',
+  ) {
     await initialize()
     const attemptId = terminalAttempt ?? globalThis.crypto.randomUUID()
     state.value = recordScenario(state.value, id, score, Date.now(), attemptId)
@@ -99,11 +104,11 @@ export const useLearningStore = defineStore('learning', () => {
         at = new Date().toISOString()
       await useWorkshopStore().recordResult({
         theory:
-          skill && id.startsWith('PRACTICE-subnet-')
+          skill && (theoryForm || id.startsWith('PRACTICE-subnet-'))
             ? {
                 taskId: id,
                 skill,
-                form: 'calculation',
+                form: theoryForm ?? 'calculation',
                 correct: score >= 85,
                 at,
               }

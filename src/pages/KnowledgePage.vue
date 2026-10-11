@@ -111,7 +111,10 @@ async function copy(value: string) {
       </div>
       <a :href="entry.source.url" target="_blank" rel="noopener noreferrer" class="knowledge-source"
         >{{ entry.source.title }} <ArrowUpRight :size="14" /></a
-      ><small>Проверено {{ entry.reviewedAt }} · версия 1</small>
+      ><small
+        >Редакционная отметка {{ entry.reviewedAt }} · версия 1. Подтверждения на реальной ОС
+        нет.</small
+      >
     </article>
   </div>
   <div v-if="!entries.length" class="panel search-empty">

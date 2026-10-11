@@ -1,0 +1,605 @@
+.learner-home,
+.learning-journey {
+  display: grid;
+  gap: 28px;
+}
+.learner-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+  padding: 40px 0 16px;
+}
+.learner-hero-copy {
+  display: grid;
+  gap: 24px;
+}
+.learner-hero h1 {
+  font-size: clamp(32px, 4.2vw, 64px);
+  line-height: 1.08;
+  letter-spacing: -0.055em;
+}
+.learner-hero h1 span {
+  color: var(--accent);
+}
+.learner-hero-copy > p {
+  max-width: 58ch;
+  color: var(--secondary);
+  font-size: 17px;
+  line-height: 1.7;
+}
+.learner-hero-note {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  color: var(--secondary);
+  font-size: 12px;
+}
+.learner-hero-note svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+.learner-preview {
+  position: relative;
+  display: grid;
+  gap: 19px;
+  background: linear-gradient(135deg, var(--raised), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 18px 50px #00000012;
+  overflow: hidden;
+}
+.learner-preview-top,
+.learner-preview-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 11px;
+}
+.learner-preview-top {
+  justify-content: space-between;
+}
+.learner-preview h2 {
+  font-size: 25px;
+}
+.learner-preview > p {
+  color: var(--secondary);
+  line-height: 1.65;
+}
+.learner-preview-check {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+.learner-preview-check svg {
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+.learner-preview-command {
+  display: grid;
+  gap: 9px;
+  padding: 18px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.learner-preview-command span,
+.learner-preview-command small {
+  color: var(--secondary);
+  font-size: 11px;
+}
+.learner-preview-command code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  color: var(--accent);
+}
+.learner-preview-bottom {
+  color: var(--secondary);
+}
+.learner-method-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.learner-method-grid article {
+  display: grid;
+  gap: 13px;
+  position: relative;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.learner-method-grid svg {
+  color: var(--accent);
+}
+.learner-method-grid p {
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.learner-method-index {
+  position: absolute;
+  right: 20px;
+  top: 22px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.learner-tools,
+.journey-explore {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 28px;
+}
+.learner-tools > div:first-child,
+.journey-explore > div:first-child {
+  display: grid;
+  gap: 12px;
+  max-width: 64ch;
+}
+.learner-tools p,
+.journey-explore p {
+  color: var(--secondary);
+}
+.continue-learning-card {
+  position: relative;
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: linear-gradient(115deg, var(--accent-dim), var(--surface) 60%);
+}
+.continue-learning-card .continue-task-title {
+  color: var(--accent);
+  font-size: 24px;
+}
+.journey-page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.journey-page-heading > div {
+  display: grid;
+  gap: 14px;
+  max-width: 72ch;
+}
+.journey-page-heading h1 {
+  font-size: clamp(28px, 3.4vw, 42px);
+  line-height: 1.15;
+}
+.journey-page-heading p {
+  color: var(--secondary);
+  line-height: 1.65;
+}
+.journey-track {
+  display: grid;
+  gap: 9px;
+  width: min(100%, 260px);
+  font-size: 12px;
+  color: var(--secondary);
+}
+.journey-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.journey-metrics article {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px 15px;
+  align-items: center;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.journey-metrics svg {
+  color: var(--accent);
+}
+.journey-metrics strong {
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+.journey-metrics small {
+  margin-left: 7px;
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.journey-metrics article > span {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--secondary);
+}
+.journey-storage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 22px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--secondary);
+}
+.journey-storage a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.journey-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.65fr);
+  gap: 24px;
+  align-items: start;
+}
+.journey-path {
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+}
+.journey-path h2 {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+.journey-path-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 13px 10px;
+}
+.journey-path-item:hover {
+  background: var(--hover);
+}
+.journey-path-item.active {
+  background: var(--accent-dim);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.journey-path-item strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.journey-path-item small {
+  display: block;
+  font-size: 11px;
+  color: var(--secondary);
+  margin-top: 5px;
+  line-height: 1.5;
+}
+.journey-path-number {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--raised);
+  color: var(--accent);
+  font-size: 12px;
+}
+.journey-path-item > svg {
+  color: var(--muted);
+}
+.journey-path-note {
+  display: flex;
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.journey-path-note svg {
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+.lesson-workspace {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.lesson-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+}
+.lesson-heading > div {
+  display: grid;
+  gap: 9px;
+}
+.lesson-heading h2 {
+  font-size: 28px;
+  line-height: 1.2;
+}
+.lesson-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-radius: 20px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+.lesson-stepper {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.lesson-stepper li {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.lesson-stepper li > span {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--raised);
+  color: var(--secondary);
+}
+.lesson-stepper li.done > span {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.lesson-stepper small {
+  color: var(--secondary);
+  font-size: 10px;
+}
+.lesson-section {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  padding: 26px;
+}
+.lesson-section-number {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+.lesson-section h3 {
+  font-size: 21px;
+}
+.lesson-section > p {
+  line-height: 1.75;
+  color: var(--secondary);
+}
+.lesson-details {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.lesson-details summary {
+  cursor: pointer;
+  padding: 10px 0;
+}
+.lesson-options {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.lesson-options legend {
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--secondary);
+}
+.lesson-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  line-height: 1.6;
+  font-size: 13px;
+}
+.lesson-options label.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.lesson-options input {
+  flex: 0 0 auto;
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+.lesson-feedback {
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  line-height: 1.65;
+  font-size: 13px;
+}
+.lesson-labs {
+  display: grid;
+  gap: 14px;
+}
+.lesson-labs article {
+  display: grid;
+  gap: 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--raised);
+}
+.lesson-labs h4 {
+  margin: 0;
+  font-size: 17px;
+}
+.lesson-labs p {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--secondary);
+}
+.workshop-mode-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+.nav-tools > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+.nav-tools > summary::-webkit-details-marker {
+  display: none;
+}
+.nav-tools[open] > summary svg {
+  transform: rotate(90deg);
+}
+@media (max-width: 1100px) {
+  .journey-layout {
+    grid-template-columns: 1fr;
+  }
+  .journey-path {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .journey-path > .eyebrow,
+  .journey-path > h2,
+  .journey-path-note {
+    grid-column: 1 / -1;
+  }
+  .learner-hero {
+    gap: 24px;
+  }
+}
+@media (max-width: 760px) {
+  .learner-hero {
+    grid-template-columns: 1fr;
+    padding-top: 20px;
+  }
+  .learner-method-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .journey-metrics {
+    gap: 8px;
+  }
+  .journey-metrics article {
+    padding: 14px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .journey-metrics article > span {
+    grid-column: auto;
+  }
+  .journey-metrics strong {
+    font-size: 25px;
+  }
+  .lesson-section {
+    padding: 20px;
+  }
+  .lesson-stepper {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 440px) {
+  .journey-path {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .learner-method-grid {
+    grid-template-columns: 1fr;
+  }
+  .learner-preview {
+    padding: 20px;
+  }
+  .journey-metrics {
+    grid-template-columns: 1fr;
+  }
+  .journey-metrics article {
+    grid-template-columns: 24px 1fr;
+  }
+  .journey-metrics article > span {
+    grid-column: 2;
+  }
+  .lesson-section {
+    padding: 16px;
+  }
+  .journey-storage {
+    padding: 14px;
+  }
+}
+.report-revision-history {
+  margin-top: 1rem;
+}
+.report-revision-history dl {
+  display: grid;
+  gap: 0.5rem;
+}
+.report-revision-history dt {
+  font-weight: 650;
+}
+.report-revision-history dd {
+  margin: 0 0 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .sidebar nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    padding-bottom: 14px;
+    gap: 6px;
+  }
+  .sidebar nav .nav-item {
+    min-width: 0;
+    min-height: 44px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .sidebar nav .nav-item svg {
+    flex-shrink: 0;
+  }
+  .nav-tools {
+    grid-column: 1 / -1;
+  }
+  .nav-tools > summary {
+    min-height: 44px;
+    padding: 10px;
+    color: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .nav-tools[open] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .nav-tools[open] > summary {
+    grid-column: 1 / -1;
+  }
+}

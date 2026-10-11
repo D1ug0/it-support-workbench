@@ -11,6 +11,7 @@ import { reportSchema, reportMarkdown } from './portfolio'
 import { downloadText } from '../../infrastructure/export/exportReport'
 import ExplanationReviewPanel from './ExplanationReviewPanel.vue'
 import type { ExplanationReview } from './explanationReview'
+import ReportRevisionHistory from './ReportRevisionHistory.vue'
 import type { TerminalRecord } from '../terminal/useTerminalStore'
 const route = useRoute()
 const terminal = useTerminalStore(),
@@ -440,6 +441,9 @@ function editReport(id: string, navigationConfirmed = false) {
       :report="report"
       :available="reviewAvailable"
       :show-examples="reviewAvailable"
+    />
+    <ReportRevisionHistory
+      :history="workshop.portfolio.find((value) => value.id === reportId)?.reportHistory"
     />
     <details>
       <summary>Предпросмотр учебного отчёта</summary>

@@ -8,6 +8,9 @@ import { downloadText } from '../../infrastructure/export/exportReport'
 import { loadCollection } from './collectionLoader'
 import { useWorkshopStore } from './useWorkshopStore'
 import HypothesisTable from './HypothesisTable.vue'
+import ExplanationReviewPanel from './ExplanationReviewPanel.vue'
+import ReportRevisionHistory from './ReportRevisionHistory.vue'
+import { professionalExplanationReport } from './professional/report'
 import {
   professionalCases,
   startProfessional,
@@ -28,6 +31,7 @@ const caseId = ref<ProfessionalAttempt['caseId']>(initialCase),
   variant = ref([0, 1, 2].includes(Number(route.query.variant)) ? Number(route.query.variant) : 0),
   attempt = ref(startProfessional(initialCase, variant.value))
 const current = computed(() => professionalCases.find((c) => c.id === attempt.value.caseId)!)
+const explanationReport = computed(() => professionalExplanationReport(attempt.value))
 const confirmedCauses = computed(() =>
   attempt.value.hypothesisFaults.map((f) => faultTitles[f]).join(', '),
 )
@@ -204,7 +208,12 @@ async function finish() {
 }
 async function save() {
   if (!consent.value || busy.value) return
-  const snapshot = professionalAttemptSchema.parse(attempt.value)
+  const parsed = professionalAttemptSchema.safeParse(attempt.value)
+  if (!parsed.success) {
+    error.value = parsed.error.issues[0]?.message ?? 'Уточните отчёт перед сохранением.'
+    return
+  }
+  const snapshot = parsed.data
   busy.value = true
   try {
     const stored = await saveProfessional(snapshot)
@@ -214,6 +223,8 @@ async function save() {
     if (attempt.value.id === snapshot.id) {
       attempt.value.storageToken = stored.storageToken
       attempt.value.updatedAt = stored.updatedAt
+      attempt.value.reportHistory = stored.reportHistory
+      attempt.value.reportVersion = stored.reportVersion
     }
     if (!reason.value && unchanged) markSaved()
     notice.value = 'Конкретная попытка сохранена; можно продолжить после перезагрузки.'
@@ -334,9 +345,9 @@ async function remove(id: string) {
       </li>
     </ol>
     <HypothesisTable v-model="attempt" :disabled="busy" />
-    <fieldset :disabled="busy || attempt.status !== 'active'">
-      <legend>Отчёт расследования</legend>
-      <fieldset>
+    <fieldset :disabled="busy || attempt.status === 'abandoned'">
+      <legend>Отчёт расследования · можно уточнять после завершения</legend>
+      <fieldset :disabled="attempt.status !== 'active'">
         <legend>Подтверждённые причины</legend>
         <label
           v-for="fault in [
@@ -355,7 +366,7 @@ async function remove(id: string) {
           }}</label
         >
       </fieldset>
-      <fieldset>
+      <fieldset :disabled="attempt.status !== 'active'">
         <legend>Доказательства отчёта: уточнение, масштаб, изменение и свежая проверка</legend>
         <label v-for="(s, i) in attempt.steps" :key="i" class="checkbox-label"
           ><input v-model="attempt.evidenceRefs" type="checkbox" :value="i + 1" />#{{ i + 1 }} ·
@@ -401,6 +412,23 @@ async function remove(id: string) {
       ревизии {{ attempt.verifiedRevision }}.
       <span v-if="attempt.caseId === 'unknown'">Завершён вариант {{ attempt.variant + 1 }}.</span>
     </p>
+    <label
+      >Ограничения и следующий шаг<textarea
+        v-model="attempt.reportLimits"
+        class="text-input"
+        maxlength="1200"
+        :disabled="busy"
+        placeholder="Что ещё не проверено? Когда нужен откат или передача задачи?"
+      />
+    </label>
+    <ExplanationReviewPanel
+      :model-value="attempt.explanationReview ?? null"
+      :report="explanationReport"
+      :available="attempt.status === 'completed' && !busy"
+      :show-examples="attempt.status === 'completed'"
+      @update:model-value="attempt.explanationReview = $event"
+    />
+    <ReportRevisionHistory :history="attempt.reportHistory" />
     <label class="checkbox-label"
       ><input v-model="consent" type="checkbox" />Проверил заметки: только учебные данные</label
     >

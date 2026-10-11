@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import ReportRevisionHistory from './ReportRevisionHistory.vue'
 import { useWorkshopStore } from './useWorkshopStore'
 import { reportMarkdown } from './portfolio'
 import { downloadText } from '../../infrastructure/export/exportReport'
@@ -49,6 +50,7 @@ async function removeReport(id: string) {
             : 'нужно пересмотреть после изменений'
         }}
       </p>
+      <ReportRevisionHistory :history="report.reportHistory" />
       <RouterLink class="button secondary" :to="`/terminal?lab=${report.labId}&report=${report.id}`"
         >Редактировать отчёт</RouterLink
       >

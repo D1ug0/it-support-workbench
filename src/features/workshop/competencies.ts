@@ -51,6 +51,9 @@ const practiceBindings: Record<string, SkillId> = {
   'plan-gpo': 'identity',
   'plan-dhcp': 'addressing',
   'plan-vpn': 'routing',
+  'plan-dns-context': 'dns',
+  'plan-http3': 'transport',
+  'plan-smb-policy': 'identity',
 }
 for (const [id, skill] of Object.entries(practiceBindings)) taskSkills.set(`PRACTICE-${id}`, skill)
 for (const [id, skill] of Object.entries({
