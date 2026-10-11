@@ -4,11 +4,14 @@ import AppSelectOption from '../../shared/components/AppSelectOption.vue'
 import { confirmDiscardForms, useUnsavedChanges } from '../../shared/unsavedChanges'
 import { useRoute } from 'vue-router'
 import { drafts, draftSchema, saveDraft } from './drafts'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useTerminalStore } from '../terminal/useTerminalStore'
 import { useWorkshopStore } from './useWorkshopStore'
 import { reportSchema, reportMarkdown } from './portfolio'
 import { downloadText } from '../../infrastructure/export/exportReport'
+import ExplanationReviewPanel from './ExplanationReviewPanel.vue'
+import type { ExplanationReview } from './explanationReview'
+import type { TerminalRecord } from '../terminal/useTerminalStore'
 const route = useRoute()
 const terminal = useTerminalStore(),
   workshop = useWorkshopStore()
@@ -17,6 +20,7 @@ const symptom = ref(''),
   evidence = ref(''),
   change = ref(''),
   verification = ref(''),
+  limits = ref(''),
   consent = ref(false),
   error = ref(''),
   notice = ref(''),
@@ -29,10 +33,46 @@ const reportId = ref<string>(globalThis.crypto.randomUUID()),
   reportVersion = ref(1),
   draftToken = ref<string | null>(null),
   reportAttemptId = ref(terminal.attemptId),
-  status = ref<'draft' | 'completed'>('draft'),
-  selected = ref<number[]>([])
+  status = ref<'draft' | 'completed'>('draft')
+const explanationReview = ref<ExplanationReview | null>(null)
 const inheritedRefs = ref<import('./portfolio').PortfolioReport['evidenceRefs']>([]),
-  inheritedScore = ref<number | null>(null)
+  inheritedScore = ref<number | null>(null),
+  inheritedFinished = ref(false)
+function sameReference(
+  reference: import('./portfolio').PortfolioReport['evidenceRefs'][number],
+  record: TerminalRecord,
+) {
+  if (reference.recordId || record.recordId) return reference.recordId === record.recordId
+  return (
+    reference.commandId === record.id &&
+    reference.revision === record.revision &&
+    reference.command === record.command
+  )
+}
+// Capture references when selected, so the 40-command history limit cannot erase them.
+function toggleReference(record: TerminalRecord, checked: boolean) {
+  const exists = inheritedRefs.value.some((reference) => sameReference(reference, record))
+  if (!checked) {
+    inheritedRefs.value = inheritedRefs.value.filter(
+      (reference) => !sameReference(reference, record),
+    )
+  } else if (!exists && inheritedRefs.value.length < 40) {
+    inheritedRefs.value = [
+      ...inheritedRefs.value,
+      {
+        commandId: record.id,
+        recordId: record.recordId,
+        revision: record.revision,
+        command: record.command,
+        summary: record.ok
+          ? record.changed
+            ? 'Изменение синтетической среды; сопоставьте с выводом в терминале.'
+            : 'Синтетический результат; сопоставьте с выводом в терминале.'
+          : 'Команда отклонена.',
+      },
+    ]
+  }
+}
 const noteSnapshot = () =>
   JSON.stringify([
     symptom.value,
@@ -40,22 +80,42 @@ const noteSnapshot = () =>
     evidence.value,
     change.value,
     verification.value,
-    selected.value,
+    limits.value,
+    explanationReview.value,
+    inheritedRefs.value,
     status.value,
   ])
 const { markSaved } = useUnsavedChanges(noteSnapshot)
 const savedDrafts = ref<import('./drafts').LearningDraft[]>([])
+const ready = ref(false)
+let loadGeneration = 0
+let disposed = false
+onBeforeUnmount(() => {
+  loadGeneration++
+  disposed = true
+})
 onMounted(async () => {
   await workshop.initialize()
-  if (typeof route.query.report === 'string') editReport(route.query.report)
+  if (disposed) return
   savedDrafts.value = (await drafts.toArray().catch(() => [])).flatMap((v) => {
     const p = draftSchema.safeParse(v)
     return p.success && p.data.kind === 'investigation' ? [p.data] : []
   })
+  if (disposed) return
+  ready.value = true
+  if (typeof route.query.report === 'string') editReport(route.query.report)
 })
+watch(
+  () => route.query.report,
+  (id) => {
+    if (ready.value && typeof id === 'string' && id !== reportId.value) editReport(id, true)
+  },
+  { flush: 'post' },
+)
 watch(
   () => terminal.attemptId,
   () => {
+    loadGeneration++
     reportId.value = globalThis.crypto.randomUUID()
     reportAttemptId.value = terminal.attemptId
     reportVersion.value = 1
@@ -65,14 +125,16 @@ watch(
     reportAt.value = new Date().toISOString()
     draftToken.value = null
     status.value = 'draft'
-    selected.value = []
     inheritedRefs.value = []
     inheritedScore.value = null
+    inheritedFinished.value = false
     symptom.value = ''
     hypothesis.value = ''
     evidence.value = ''
     change.value = ''
     verification.value = ''
+    limits.value = ''
+    explanationReview.value = null
     consent.value = false
     markSaved()
   },
@@ -83,19 +145,17 @@ const report = computed(() => ({
   version: reportVersion.value,
   status: status.value,
   attemptId: reportAttemptId.value,
-  evidenceRefs: [
-    ...inheritedRefs.value,
-    ...(reportAttemptId.value === terminal.attemptId ? terminal.records : [])
-      .filter((r) => selected.value.includes(r.id))
-      .map((r) => ({
-        commandId: r.id,
-        revision: r.revision,
-        command: r.command,
-        summary: r.ok
-          ? 'Поддержанная синтетическая проверка; сопоставьте с выводом в терминале.'
-          : 'Команда отклонена.',
-      })),
-  ].slice(-40),
+  attemptFinished:
+    reportAttemptId.value === terminal.attemptId
+      ? terminal.finished
+      : inheritedFinished.value ||
+        workshop.state.events.some(
+          (event) =>
+            event.module === 'terminal' &&
+            event.attemptId === reportAttemptId.value &&
+            ['completed', 'failed'].includes(event.outcome),
+        ),
+  evidenceRefs: inheritedRefs.value,
   title: reportTitle.value,
   at: reportAt.value,
   labId: reportLabId.value,
@@ -104,11 +164,14 @@ const report = computed(() => ({
   evidence: evidence.value,
   change: change.value,
   verification: verification.value,
+  limits: limits.value,
+  explanationReview: explanationReview.value,
   score:
     reportAttemptId.value === terminal.attemptId
       ? (terminal.feedback?.score ?? inheritedScore.value)
       : inheritedScore.value,
 }))
+const reviewAvailable = computed(() => report.value.attemptFinished)
 const previewText = computed(() => {
   const parsed = reportSchema.safeParse(report.value)
   return reportMarkdown(parsed.success ? parsed.data : { ...report.value, status: 'draft' })
@@ -150,6 +213,7 @@ async function saveNotes() {
       storageToken: draftToken.value,
       kind: 'investigation',
       attemptId: reportAttemptId.value,
+      attemptFinished: report.value.attemptFinished,
       taskId: reportLabId.value,
       title: reportTitle.value,
       at: new Date().toISOString(),
@@ -159,13 +223,17 @@ async function saveNotes() {
         evidence: evidence.value,
         change: change.value,
         verification: verification.value,
+        limits: limits.value,
       },
+      explanationReview: explanationReview.value,
+      evidenceRefs: report.value.evidenceRefs,
+      reportStatus: status.value,
+      score: report.value.score,
     })
     const stored = await saveDraft(value)
     if (id === reportId.value) draftToken.value = stored.storageToken
     savedDrafts.value = [...savedDrafts.value.filter((d) => d.id !== stored.id), stored]
-    if (id === reportId.value && !selected.value.length && status.value === 'draft')
-      markSaved(before)
+    if (id === reportId.value) markSaved(before)
     notice.value = 'Черновик сохранён вручную; доступен после перезагрузки.'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Черновик не сохранён.'
@@ -175,16 +243,26 @@ async function saveNotes() {
 }
 async function resumeDraft(id: string) {
   if (busy.value || !confirmDiscardForms()) return
+  const generation = ++loadGeneration,
+    before = noteSnapshot()
   const parsed = draftSchema.safeParse(await drafts.get(id).catch(() => undefined))
+  if (generation !== loadGeneration) return
+  if (busy.value || before !== noteSnapshot()) {
+    error.value =
+      'Форма изменилась во время чтения черновика. Текущие заметки остались в форме; повторите загрузку при необходимости.'
+    return
+  }
   const d = parsed.success ? parsed.data : undefined
   if (!d) {
     error.value = 'Черновик удалён или недоступен; текущие заметки можно экспортировать.'
     return
   }
   error.value = ''
-  selected.value = []
-  inheritedRefs.value = []
-  inheritedScore.value = null
+  inheritedRefs.value = d.evidenceRefs
+  inheritedScore.value = d.score
+  inheritedFinished.value = d.attemptFinished
+  explanationReview.value = d.explanationReview
+  status.value = d.reportStatus
   reportVersion.value = (workshop.portfolio.find((r) => r.id === d.id)?.version ?? 0) + 1
   reportToken.value = workshop.portfolio.find((r) => r.id === d.id)?.storageToken ?? null
   reportLabId.value = d.taskId
@@ -199,18 +277,20 @@ async function resumeDraft(id: string) {
     evidence,
     change,
     verification,
+    limits,
   }))
     target.value = d.notes[key] ?? ''
   markSaved()
   notice.value = `Продолжен черновик попытки ${d.attemptId}. Среда восстанавливается отдельно через контрольную точку.`
 }
-function editReport(id: string) {
-  if (busy.value || !confirmDiscardForms()) return
+function editReport(id: string, navigationConfirmed = false) {
+  if (busy.value || (!navigationConfirmed && !confirmDiscardForms())) return
+  loadGeneration++
   const r = workshop.portfolio.find((r) => r.id === id)
   if (!r) return
-  selected.value = []
   inheritedRefs.value = r.evidenceRefs
   inheritedScore.value = r.score
+  inheritedFinished.value = r.attemptFinished
   reportAttemptId.value = r.attemptId ?? terminal.attemptId
   reportId.value = r.id
   reportToken.value = r.storageToken
@@ -220,12 +300,14 @@ function editReport(id: string) {
   draftToken.value = savedDrafts.value.find((d) => d.id === id)?.storageToken ?? null
   reportVersion.value = r.version + 1
   status.value = r.status
+  explanationReview.value = r.explanationReview
   for (const [key, target] of Object.entries({
     symptom,
     hypothesis,
     evidence,
     change,
     verification,
+    limits,
   }))
     target.value = r[key as 'symptom']
   markSaved()
@@ -274,14 +356,59 @@ function editReport(id: string) {
     >
     <fieldset v-if="terminal.records.length && reportAttemptId === terminal.attemptId">
       <legend>Добавить ссылки на синтетические доказательства</legend>
-      <label v-for="r in terminal.records" :key="r.id" class="checkbox-label"
-        ><input v-model="selected" type="checkbox" :value="r.id" />#{{ r.id }} · ревизия
-        {{ r.revision }} · {{ r.command }}</label
-      >
+      <label v-for="r in terminal.records" :key="r.id" class="checkbox-label">
+        <input
+          type="checkbox"
+          :checked="inheritedRefs.some((reference) => sameReference(reference, r))"
+          :disabled="
+            report.evidenceRefs.length >= 40 &&
+            !inheritedRefs.some((reference) => sameReference(reference, r))
+          "
+          @change="toggleReference(r, ($event.target as HTMLInputElement).checked)"
+        />
+        #{{ r.id }} · ревизия {{ r.revision }} · {{ r.command }}
+      </label>
+      <p>
+        Выбрано {{ report.evidenceRefs.length }} из 40 ссылок. Прежние ссылки можно убрать отдельно.
+      </p>
     </fieldset>
-    <label>Симптом<textarea v-model="symptom" class="text-input" rows="2" maxlength="1200" /></label
+    <div v-if="inheritedRefs.length">
+      <h3>Проверки, связанные с отчётом</h3>
+      <p>
+        Ссылки описывают синтетические команды; исходный вывод хранится только в памяти попытки.
+      </p>
+      <ul>
+        <li
+          v-for="(reference, index) in inheritedRefs"
+          :key="reference.recordId ?? `${reference.commandId}-${index}`"
+        >
+          #{{ reference.commandId }} · состояние {{ reference.revision }} ·
+          <code>{{ reference.command }}</code
+          ><button
+            class="button ghost"
+            @click="inheritedRefs = inheritedRefs.filter((_, itemIndex) => itemIndex !== index)"
+          >
+            Убрать ссылку #{{ reference.commandId }}
+          </button>
+        </li>
+      </ul>
+    </div>
+    <label
+      >Симптом и масштаб<textarea
+        v-model="symptom"
+        class="text-input"
+        rows="2"
+        maxlength="1200"
+        placeholder="Кто затронут и какое действие не проходит?"
+      /></label
     ><label
-      >Гипотеза<textarea v-model="hypothesis" class="text-input" rows="2" maxlength="1200" /></label
+      >Гипотеза<textarea
+        v-model="hypothesis"
+        class="text-input"
+        rows="2"
+        maxlength="1200"
+        placeholder="Предполагаемая причина и альтернативное объяснение"
+      /></label
     ><label
       >Доказательства<textarea
         v-model="evidence"
@@ -299,6 +426,21 @@ function editReport(id: string) {
         maxlength="1200"
       />
     </label>
+    <label
+      >Ограничения, откат и эскалация<textarea
+        v-model="limits"
+        class="text-input"
+        rows="3"
+        maxlength="1200"
+        placeholder="Что ещё не проверено? Когда нужен откат или передача задачи?"
+      />
+    </label>
+    <ExplanationReviewPanel
+      v-model="explanationReview"
+      :report="report"
+      :available="reviewAvailable"
+      :show-examples="reviewAvailable"
+    />
     <details>
       <summary>Предпросмотр учебного отчёта</summary>
       <pre class="workshop-report-preview" tabindex="0">{{ previewText }}</pre>

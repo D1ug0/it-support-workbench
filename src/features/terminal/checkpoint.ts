@@ -36,6 +36,12 @@ export const checkpointSchema = z.union([
       schemaVersion: z.literal(2),
       attemptId: z.uuid().optional(),
       variantSeed: z.number().int().min(0).max(999999).optional(),
+      commandSequence: z
+        .number()
+        .int()
+        .min(0)
+        .max(Number.MAX_SAFE_INTEGER - 1000)
+        .optional(),
       environment: z
         .object({
           labId: z.string().max(80),

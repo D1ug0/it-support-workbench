@@ -13,11 +13,14 @@ import { useWorkshopStore } from '../workshop/useWorkshopStore'
 import { reviewCommand, type CommandReview } from './review'
 export interface TerminalRecord {
   id: number
+  recordId?: string
   command: string
   output: string
   kind?: CommandKind
   ok: boolean
   revision: number
+  changed?: boolean
+  observation?: boolean
   review?: CommandReview
 }
 export const useTerminalStore = defineStore('terminal-labs', () => {
@@ -64,6 +67,7 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
   function run(command: string) {
     if (finished.value || !command.trim()) return
     const result = executeCommand(environment.value, command)
+    const changed = result.state.revision > environment.value.revision
     const review =
       environment.value.network && result.state.network
         ? reviewCommand(environment.value.network, result.state.network, result.ok)
@@ -76,11 +80,14 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
     environment.value = result.state
     const record: TerminalRecord = {
       id: ++sequence,
+      recordId: globalThis.crypto.randomUUID(),
       command: command.slice(0, 512),
       output: result.output,
       kind: result.kind,
       ok: result.ok,
       revision: result.state.revision,
+      changed,
+      observation: result.ok && !changed && !/^(help|cls|wait)(\s|$)/i.test(command.trim()),
       review,
     }
     records.value = [...records.value, record].slice(-40)
@@ -180,6 +187,7 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
       schemaVersion: 2,
       attemptId: attemptId.value,
       variantSeed: variantSeed.value,
+      commandSequence: sequence,
       environment: environment.value,
       mode: mode.value,
       hints: hints.value,
@@ -196,6 +204,7 @@ export const useTerminalStore = defineStore('terminal-labs', () => {
       'variantSeed' in valid ? (valid.variantSeed ?? 0) : 0,
     )
     if ('attemptId' in valid && valid.attemptId) attemptId.value = valid.attemptId
+    sequence = 'commandSequence' in valid ? (valid.commandSequence ?? 0) : 0
     environment.value = valid.environment
     hints.value = valid.hints
     diagnosis.value = valid.diagnosis ?? undefined

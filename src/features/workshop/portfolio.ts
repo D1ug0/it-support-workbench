@@ -1,4 +1,23 @@
 import { z } from 'zod'
+import {
+  explanationContentKey,
+  explanationReviewMarkdown,
+  explanationReviewSchema,
+} from './explanationReview'
+export const reportEvidenceRefsSchema = z
+  .array(
+    z
+      .object({
+        commandId: z.number().int().min(1),
+        recordId: z.uuid().optional(),
+        revision: z.number().int().min(0),
+        command: z.string().max(512),
+        summary: z.string().max(300),
+      })
+      .strict(),
+  )
+  .max(40)
+  .default([])
 export const reportSchema = z
   .object({
     id: z.uuid(),
@@ -6,19 +25,8 @@ export const reportSchema = z
     status: z.enum(['draft', 'completed']).default('draft'),
     version: z.number().int().min(1).max(10000).default(1),
     attemptId: z.uuid().optional(),
-    evidenceRefs: z
-      .array(
-        z
-          .object({
-            commandId: z.number().int().min(1),
-            revision: z.number().int().min(0),
-            command: z.string().max(512),
-            summary: z.string().max(300),
-          })
-          .strict(),
-      )
-      .max(40)
-      .default([]),
+    attemptFinished: z.boolean().default(false),
+    evidenceRefs: reportEvidenceRefsSchema,
     title: z.string().min(1).max(160),
     at: z.iso.datetime(),
     labId: z.string().max(80),
@@ -27,6 +35,8 @@ export const reportSchema = z
     evidence: z.string().max(1800),
     change: z.string().max(1200),
     verification: z.string().max(1200),
+    limits: z.string().max(1200).default(''),
+    explanationReview: explanationReviewSchema.nullable().default(null),
     score: z.number().int().min(0).max(100).nullable(),
   })
   .strict()
@@ -53,5 +63,7 @@ export function reportMarkdown(report: z.input<typeof reportSchema>) {
     `## Связанные синтетические проверки\n${r.evidenceRefs.map((e) => `Команда #${e.commandId}, ревизия ${e.revision}: ${e.command} — ${e.summary}`).join('\n')}`,
     `## Изменение\n${r.change}`,
     `## Повторная проверка\n${r.verification}`,
+    `## Ограничения, откат и эскалация\n${r.limits || 'Не описаны.'}`,
+    `## Ручной разбор объяснения\n${explanationReviewMarkdown(r.explanationReview, explanationContentKey(r))}`,
   ].join('\n\n')
 }

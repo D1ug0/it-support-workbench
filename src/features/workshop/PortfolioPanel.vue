@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useWorkshopStore } from './useWorkshopStore'
 import { reportMarkdown } from './portfolio'
 import { downloadText } from '../../infrastructure/export/exportReport'
+import { explanationContentKey, explanationCriteria } from './explanationReview'
 const store = useWorkshopStore(),
   error = ref('')
 async function removeReport(id: string) {
@@ -30,8 +31,23 @@ async function removeReport(id: string) {
       <h4>{{ report.title }}</h4>
       <p>
         {{ report.status === 'completed' ? 'Законченный отчёт' : 'Черновик' }} · версия
-        {{ report.version }} · {{ new Date(report.at).toLocaleString('ru-RU') }} ·
-        {{ report.score ?? 'без оценки' }}
+        {{ report.version }} · {{ new Date(report.at).toLocaleString('ru-RU') }} · модель:
+        {{ report.score === null ? 'без оценки' : `${report.score}/100` }}
+      </p>
+      <p v-if="report.explanationReview">
+        Ручной разбор:
+        {{ report.explanationReview.source === 'self' ? 'самооценка' : 'отметки наставника' }} ·
+        {{
+          explanationCriteria.filter(
+            (criterion) =>
+              report.explanationReview!.criteria[criterion.id].verdict !== 'not-reviewed',
+          ).length
+        }}/5 критериев ·
+        {{
+          report.explanationReview.contentKey === explanationContentKey(report)
+            ? 'текущая редакция'
+            : 'нужно пересмотреть после изменений'
+        }}
       </p>
       <RouterLink class="button secondary" :to="`/terminal?lab=${report.labId}&report=${report.id}`"
         >Редактировать отчёт</RouterLink

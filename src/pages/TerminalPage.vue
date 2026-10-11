@@ -8,6 +8,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { terminalLabs, labIds } from '../features/terminal/catalog'
 import { useTerminalStore } from '../features/terminal/useTerminalStore'
 import TerminalConsole from '../features/terminal/TerminalConsole.vue'
+import CommandCatalog from '../features/terminal/CommandCatalog.vue'
+import TerminalWorkspaceGuide from '../features/terminal/TerminalWorkspaceGuide.vue'
+import TerminalRecordsPanel from '../features/terminal/TerminalRecordsPanel.vue'
 import InvestigationPanel from '../features/workshop/InvestigationPanel.vue'
 import NetworkMap from '../features/terminal/NetworkMap.vue'
 import { supportedCommands } from '../features/terminal/commandRegistry'
@@ -42,15 +45,32 @@ const visibleLabs = computed(() =>
     `${l.title} ${l.topic} ${l.brief}`.toLowerCase().includes(search.value.toLowerCase()),
   ),
 )
-const commands = computed(() =>
-  supportedCommands(store.environment.network).map(
-    (c) =>
-      [
-        c.example,
-        `${c.description} · ${c.platform} · ${c.effect === 'change' ? 'изменение' : 'чтение'}`,
-      ] as const,
-  ),
+const commands = computed(() => supportedCommands(store.environment.network))
+const platform = computed(() =>
+  store.environment.network?.definition.skill === 'linux'
+    ? ('Linux' as const)
+    : ('Windows' as const),
 )
+const knowledgeTopic = computed(() => {
+  const skill = store.environment.network?.definition.skill
+  const topics: Record<string, string> = {
+    addressing: 'DHCP',
+    routing: 'маршрут',
+    dns: 'DNS',
+    transport: 'TCP',
+    tls: 'TLS',
+    windows: 'служба',
+    identity: 'SMB',
+    linux: 'Linux',
+    ipv6: 'IPv6',
+    wifi: 'Wi-Fi',
+  }
+  return skill
+    ? (topics[skill] ?? store.lab.topic)
+    : store.lab.id === 'TERM-ICMP-TCP'
+      ? 'ICMP'
+      : 'DNS'
+})
 const mapState = computed(
   () =>
     store.environment.network ?? {
@@ -131,6 +151,16 @@ function restart(id = store.lab.id, navigationConfirmed = false) {
 function run(command: string) {
   const value = store.run(command)
   if (value) consoleView.value?.output(value.record.output, value.clear)
+}
+async function analyzeRecord(id: number) {
+  store.analyze(id)
+  await nextTick()
+  document.getElementById('terminal-analysis')?.focus()
+}
+function focusWorkspace(id: string) {
+  const element = document.getElementById(id)
+  element?.scrollIntoView({ block: 'start' })
+  element?.focus({ preventScroll: true })
 }
 function showHint() {
   if (store.hints < store.lab.hints.length) store.hints++
@@ -253,7 +283,12 @@ onMounted(async () => {
   await nextTick()
   if (store.records.length)
     consoleView.value?.output(
-      store.records.map((r) => `PS C:\\Lab> ${r.command}\n${r.output}`).join('\n'),
+      store.records
+        .map(
+          (r) =>
+            `${platform.value === 'Linux' ? 'student@lab:~$ ' : 'PS C:\\Lab> '}${r.command}\n${r.output}`,
+        )
+        .join('\n'),
     )
 })
 </script>
@@ -288,10 +323,14 @@ onMounted(async () => {
     <span class="eyebrow">УЧЕБНАЯ ЗАЯВКА</span>
     <h2>{{ store.lab.title }}</h2>
     <p>{{ store.lab.brief }}</p>
-    <p>
+    <p v-if="platform === 'Windows'">
       ПК: TRAINING-PC · Ethernet, индекс 12 · рабочий DNS:
       {{ store.environment.network?.definition.dns ?? '192.0.2.53' }} · портал: TCP 443.
       Используются только вымышленные узлы.
+    </p>
+    <p v-else>
+      Учебный Linux-узел · служба lab-app · конфигурация /etc/lab/app.conf. Права, служба и журнал
+      моделируются в браузере.
     </p>
     <div class="button-row terminal-controls">
       <label
@@ -324,16 +363,18 @@ onMounted(async () => {
       практике результат добавляется только в практикум; базовый журнал пропускается. В проверочной
       работе одна итоговая проверка, без подсказок.
     </p>
-    <label class="checkbox-label"
-      ><input
-        :checked="learning.enabled"
-        :disabled="!learning.ready"
-        type="checkbox"
-        @change="learning.setEnabled(($event.target as HTMLInputElement).checked)"
-      />Сохранять учебный прогресс на этом устройстве</label
+    <details
+      class="terminal-storage-options"
+      :open="Boolean(workshop.error || learning.error || store.finishing || store.finished)"
     >
-    <section class="panel feature-section">
-      <h2>Хранение результата</h2>
+      <summary>
+        Хранение результата ·
+        {{
+          workshop.enabled || learning.enabled
+            ? 'включено для выбранных журналов'
+            : 'результаты пока в памяти'
+        }}
+      </summary>
       <label class="checkbox-label"
         ><input
           type="checkbox"
@@ -377,44 +418,53 @@ onMounted(async () => {
           >Экспорт и выборочная очистка данных</RouterLink
         >
       </div>
-    </section>
+    </details>
     <p v-if="learning.error" role="alert">{{ learning.error }}</p>
     <p v-if="learning.saving" role="status">Сохраняем учебный результат…</p>
   </section>
-  <div class="terminal-workspace">
+  <TerminalWorkspaceGuide
+    v-if="store.mode !== 'exam' || store.finished"
+    :mode="store.mode"
+    :records="store.records"
+    :revision="store.environment.revision"
+    :verified-revision="store.environment.verifiedRevision"
+    :finished="store.finished"
+  />
+  <nav class="button-row terminal-workspace-nav" aria-label="Блоки учебного рабочего места">
+    <button class="button ghost" @click="focusWorkspace('terminal-console')">Консоль</button>
+    <button class="button ghost" @click="focusWorkspace('terminal-records')">
+      Результаты команд
+    </button>
+    <button class="button ghost" @click="focusWorkspace('terminal-finish')">
+      Проверка решения
+    </button>
+    <button class="button ghost" @click="focusWorkspace('terminal-report')">Отчёт и рубрика</button>
+  </nav>
+  <div id="terminal-console" class="terminal-workspace" tabindex="-1">
     <NetworkMap :state="mapState" :exam="store.mode === 'exam'" />
-    <TerminalConsole
-      ref="consoleView"
-      :reset-key="resetKey"
-      :disabled="store.finished"
-      :commands="commands.map((c) => c[0])"
-      @command="run"
-    />
+    <div class="terminal-tools">
+      <TerminalConsole
+        ref="consoleView"
+        :reset-key="resetKey"
+        :disabled="store.finished"
+        :commands="commands.map((c) => c.example)"
+        :history="store.records.map((record) => record.command)"
+        :platform="platform"
+        @command="run"
+      />
+      <CommandCatalog
+        v-if="store.mode !== 'exam'"
+        :commands="commands"
+        :disabled="store.finished"
+        @insert="consoleView?.focusCommand($event)"
+      />
+    </div>
   </div>
   <RouterLink class="text-link" to="/learning?view=workshop"
     >Карта навыков, новые курсы и редактор лабораторий</RouterLink
   >
   <section v-if="store.mode !== 'exam'" class="panel feature-section">
-    <h2>Команды и подсказки</h2>
-    <p>
-      Кнопка подставляет команду для редактирования. Выполнение — по Enter. Полный язык PowerShell и
-      конвейеры не поддерживаются; выбранные cmdlet выводят учебный JSON.
-    </p>
-    <details>
-      <summary>Открыть поддерживаемые команды</summary>
-      <div class="terminal-command-list">
-        <button
-          v-for="[command, description] in commands"
-          :key="command"
-          class="button secondary"
-          :disabled="store.finished"
-          @click="consoleView?.focusCommand(command)"
-        >
-          <code>{{ command }}</code
-          ><span>{{ description }}</span>
-        </button>
-      </div>
-    </details>
+    <h2>{{ store.mode === 'guided' ? 'Подсказки и материалы' : 'Материалы по теме' }}</h2>
     <template v-if="store.mode === 'guided'"
       ><button
         class="button ghost"
@@ -427,52 +477,24 @@ onMounted(async () => {
         {{ hint }}
       </p></template
     >
-    <RouterLink
-      class="text-link"
-      :to="{ path: '/knowledge', query: { q: store.lab.id === 'TERM-ICMP-TCP' ? 'ICMP' : 'DNS' } }"
+    <RouterLink class="text-link" :to="{ path: '/knowledge', query: { q: knowledgeTopic } }"
       >Изучить тему в справочнике</RouterLink
     >
   </section>
-  <InvestigationPanel />
-  <section class="panel feature-section">
-    <h2>Проверки этой лаборатории</h2>
-    <p>
-      Последние 40 команд хранятся в памяти. Разбор и сравнение выполняются существующим
-      анализатором, отдельно от ваших рабочих данных.
-    </p>
-    <p v-if="!store.records.length">Начните с help или проверки сетевых параметров.</p>
-    <ol class="terminal-records">
-      <li v-for="record in [...store.records].reverse()" :key="record.id">
-        <code>{{ record.command }}</code
-        ><span class="tag">{{ record.ok ? `Состояние ${record.revision}` : 'Синтаксис' }}</span
-        ><button
-          v-if="record.kind"
-          class="button secondary small"
-          @click="store.analyze(record.id)"
-        >
-          Разобрать проверку {{ record.id }}
-        </button>
-        <details>
-          <summary>Вывод проверки {{ record.id }}</summary>
-          <pre>{{ record.output }}</pre>
-        </details>
-        <details v-if="record.review && (store.mode !== 'exam' || store.finished)">
-          <summary>Разбор действия {{ record.id }}</summary>
-          <h3>{{ record.review.title }}</h3>
-          <p>{{ record.review.consequence }}</p>
-          <p><strong>Следующая проверка:</strong> {{ record.review.next }}</p>
-          <p><strong>Закрепление:</strong> {{ record.review.exercise }}</p>
-          <RouterLink
-            class="text-link"
-            :to="`/learning?view=workshop&lesson=${record.review.lesson}`"
-            >Изучить связанную тему</RouterLink
-          >
-        </details>
-      </li>
-    </ol>
-  </section>
-  <template v-if="store.analyzed"
-    ><p class="terminal-origin">
+  <TerminalRecordsPanel
+    :key="store.attemptId"
+    :records="store.records"
+    :revision="store.environment.revision"
+    :show-review="store.mode !== 'exam' || store.finished"
+    @analyze="analyzeRecord"
+  />
+  <section
+    v-if="store.analyzed"
+    id="terminal-analysis"
+    tabindex="-1"
+    aria-label="Разбор выбранной проверки"
+  >
+    <p class="terminal-origin">
       Учебный разбор: {{ store.analyzed.record.command }} · состояние
       {{ store.analyzed.record.revision }}
     </p>
@@ -489,7 +511,7 @@ onMounted(async () => {
     </div>
     <OutputCard v-else-if="model" :output="model" :revealed="true" @evidence="evidence = $event" />
     <EvidenceViewer :text="store.analyzed.record.output" :range="evidence" />
-  </template>
+  </section>
   <section v-if="analyzable.length >= 2" class="panel feature-section">
     <h2>Сравнить учебные проверки до и после</h2>
     <div class="form-grid">
@@ -529,7 +551,7 @@ onMounted(async () => {
       Различий в поддерживаемых структурированных полях нет.
     </p>
   </section>
-  <section class="panel feature-section">
+  <section id="terminal-finish" class="panel feature-section" tabindex="-1">
     <h2>Объяснить причину и проверить результат</h2>
     <fieldset :disabled="store.finished">
       <legend>Какой вывод обоснован полученными проверками?</legend>
@@ -570,6 +592,7 @@ onMounted(async () => {
       </button>
     </div>
   </section>
+  <div id="terminal-report" tabindex="-1"><InvestigationPanel /></div>
   <section class="panel feature-section">
     <h2>Контрольная точка учебной среды</h2>
     <p>
