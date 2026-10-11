@@ -534,3 +534,50 @@
 #terminal-report {
   scroll-margin-top: 24px;
 }
+.terminal-debrief-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.terminal-debrief-steps article,
+.terminal-next-step {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--raised);
+}
+.terminal-debrief h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.terminal-checks {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+}
+.terminal-process-drill {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.terminal-process-drill summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.terminal-process-drill fieldset {
+  border: 0;
+  padding: 0;
+  margin: 16px 0;
+  min-width: 0;
+}
+.terminal-process-drill legend {
+  font-size: 13px;
+  color: var(--secondary);
+  margin-bottom: 10px;
+}
+#terminal-comparison {
+  scroll-margin-top: 24px;
+}

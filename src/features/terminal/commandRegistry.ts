@@ -106,6 +106,7 @@ export function supportedCommands(state?: NetworkState): CommandDefinition[] {
   const base = [
     ...legacyCommands,
     ['help', 'Поддерживаемые формы и границы среды'],
+    ['help nslookup', 'Справка по одной команде; после help укажите её имя'],
     ['cls', 'Очистить экран'],
     ['wait 120', 'Продвинуть модельное время'],
   ] as Array<readonly [string, string]>
@@ -148,8 +149,12 @@ export function supportedCommands(state?: NetworkState): CommandDefinition[] {
   }
   return [...unique.values()]
 }
-export function commandHelp(state?: NetworkState) {
+export function commandHelp(state?: NetworkState, commandName?: string) {
   return supportedCommands(state)
+    .filter(
+      (command) =>
+        !commandName || command.example.split(' ')[0]!.toLowerCase() === commandName.toLowerCase(),
+    )
     .map(
       (c) =>
         `${c.example} — ${c.description} [${c.platform}; узел модели: ${c.target}; ${c.effect === 'change' ? 'изменение' : 'чтение'}; ${c.rights === 'administrator' ? 'в реальной ОС нужны соответствующие права' : 'учебная операция в пределах доступных прав'}]`,
@@ -161,6 +166,6 @@ export function unsupportedCommand(tokens: string[], state?: NetworkState) {
     (c) => c.example.split(' ')[0]!.toLowerCase() === tokens[0]?.toLowerCase(),
   )
   return forms.length
-    ? `Неподдерживаемые параметры. Формы команды:\n${forms.map((c) => c.example).join('\n')}`
+    ? `Неподдерживаемые параметры. Формы команды:\n${forms.map((c) => c.example).join('\n')}\nПодробности: help ${tokens[0]}.`
     : 'Неизвестная команда. Введите help для поддерживаемых форм.'
 }

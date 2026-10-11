@@ -66,6 +66,18 @@ export function executeNetwork(
     return out(
       `Учебная модель: ${d.title}\nСинтаксис ограничен; ОС не запускается. Windows PowerShell, PowerShell 7 и Linux показаны раздельно. curl в Windows PowerShell может быть alias; здесь моделируется форма curl из PowerShell 7/Linux.\n\n${commandHelp(s)}`,
     )
+  if (cmd === 'help' && args.length === 1) {
+    const text = commandHelp(s, args[0])
+    return text
+      ? out(
+          `Учебные формы команды ${args[0]}:\n${text}\nСправка показывает синтаксис модели, а не выбранное исправление.`,
+        )
+      : {
+          state: original,
+          output: `Для «${tokens[1]}» нет учебной справки. Введите help для списка команд.\nИзменений нет.`,
+          ok: false,
+        }
+  }
   if (form === 'lab hosts' && s.hosts.length) {
     read('config', 'План дополнительных узлов')
     read('service', 'Состояние распределённого приложения')

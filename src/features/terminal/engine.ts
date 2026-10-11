@@ -1,10 +1,11 @@
-import { commandHelp } from './commandRegistry'
+import { commandHelp, unsupportedCommand } from './commandRegistry'
 import { isIPv4 } from '../../domain/network'
 import type { CommandKind } from '../../domain/types/diagnostic'
 import { terminalLabs, type LabId } from './catalog'
 import { definitionState, variant } from './labDefinitions'
 import { createNetwork, assessNetwork, type LabDefinition, type NetworkState } from './networkModel'
 import { executeNetwork } from './networkEngine'
+import type { TerminalAssessment, TerminalCheck } from './assessment'
 
 export const HOST = 'portal.lab.example'
 export const PORTAL = '192.0.2.20'
@@ -126,9 +127,11 @@ function params(tokens: string[], allowed: string[]): Record<string, string> | u
 }
 export function executeCommand(original: LabState, command: string): CommandResult {
   const state = structuredClone(original)
-  const fail = (
-    output = 'Неподдерживаемые параметры. Введите help: доступны только описанные команды и формы синтаксиса.',
-  ) => ({ state: original, output, ok: false })
+  const fail = (output?: string) => ({
+    state: original,
+    output: output ?? unsupportedCommand(tokens ?? []),
+    ok: false,
+  })
   const tokens = tokenize(command)
   if (!tokens?.length)
     return fail(
@@ -182,6 +185,14 @@ export function executeCommand(original: LabState, command: string): CommandResu
     return result(
       `Учебная среда Windows: команды моделируются, ОС не запускается.\nЦель: ${HOST} (${PORTAL}), Ethernet / InterfaceIndex 12. Рабочий DNS: ${DNS}.\n\n${commandHelp()}\n\nhelp · cls · история: ↑/↓ · дополнение: Tab · отмена ввода: Ctrl+C\nPowerShell здесь выдаёт выбранный JSON для анализатора. Полный язык и конвейеры не поддерживаются.`,
     )
+  if (cmd === 'help' && args.length === 1) {
+    const text = commandHelp(undefined, args[0])
+    return text
+      ? result(
+          `Учебные формы команды ${args[0]}:\n${text}\nСправка показывает синтаксис модели, а не выбранное исправление.`,
+        )
+      : fail(`Для «${raw[0]}» нет учебной справки. Введите help для списка команд.`)
+  }
   if (cmd === 'cls' && !args.length)
     return { ...result('Экран очищен. Состояние среды и проверки сохранены.'), clear: true }
   if (cmd === 'ipconfig') {
@@ -366,31 +377,35 @@ export function executeCommand(original: LabState, command: string): CommandResu
       'IPv4 Route Table\n===========================================================================\nActive Routes:\nNetwork Destination        Netmask          Gateway       Interface  Metric\n          0.0.0.0          0.0.0.0        192.0.2.1       192.0.2.10     25\n        192.0.2.0    255.255.255.0         On-link       192.0.2.10    281\n===========================================================================\nPersistent Routes:\n  None',
       'route',
     )
-  return fail(
-    `Команда «${name}» или эта форма синтаксиса не поддерживается. Введите help. Реальная ОС и сеть не используются.`,
-  )
+  return fail()
 }
-export function assessLab(state: LabState, diagnosis: number | undefined, hints = 0) {
+export function assessLab(
+  state: LabState,
+  diagnosis: number | undefined,
+  hints = 0,
+): TerminalAssessment {
   if (state.network) return assessNetwork(state.network, diagnosis, hints)
   const lab = terminalLabs.find((l) => l.id === state.labId)!
-  const checks: Array<{ label: string; met: boolean }> = []
+  const checks: TerminalCheck[] = []
   const event = (id: LabEvent) => state.events.includes(id)
   if (state.labId === 'TERM-DNS-SERVER')
     checks.push(
-      { label: 'Изучить настройки адаптера', met: event('settings') },
-      { label: 'Проверить ответ рабочего DNS-сервера', met: event('authority') },
-      { label: 'Зафиксировать исходный отказ TCP по имени', met: event('tcp-failure') },
+      { id: 'configuration', label: 'Изучить настройки адаптера', met: event('settings') },
+      { id: 'authority', label: 'Проверить ответ рабочего DNS-сервера', met: event('authority') },
+      { id: 'baseline', label: 'Зафиксировать отказ TCP по имени', met: event('tcp-failure') },
       {
+        id: 'verification',
         label: 'Указать рабочий DNS и подтвердить TCP по имени после изменения',
         met: state.dns === DNS && state.revision > 0 && state.verifiedRevision === state.revision,
       },
     )
   else if (state.labId === 'TERM-DNS-CACHE')
     checks.push(
-      { label: 'Посмотреть клиентский DNS-кэш', met: event('cache') },
-      { label: 'Сравнить с прямым ответом рабочего DNS', met: event('authority') },
-      { label: 'Зафиксировать исходный отказ TCP по имени', met: event('tcp-failure') },
+      { id: 'cache', label: 'Посмотреть клиентский DNS-кэш', met: event('cache') },
+      { id: 'authority', label: 'Сравнить с прямым ответом рабочего DNS', met: event('authority') },
+      { id: 'baseline', label: 'Зафиксировать отказ TCP по имени', met: event('tcp-failure') },
       {
+        id: 'verification',
         label: 'Получить актуальный адрес и подтвердить TCP после исправления',
         met:
           state.cache === PORTAL && state.revision > 0 && state.verifiedRevision === state.revision,
@@ -398,17 +413,20 @@ export function assessLab(state: LabState, diagnosis: number | undefined, hints 
     )
   else
     checks.push(
-      { label: 'Проверить ICMP по имени портала', met: event('icmp-failure') },
+      { id: 'icmp', label: 'Проверить ICMP по имени портала', met: event('icmp-failure') },
       {
+        id: 'verification',
         label: 'Подтвердить TCP 443 по имени портала',
         met: event('tcp-success') && state.verifiedRevision === state.revision,
       },
       {
+        id: 'preserve',
         label: 'Сохранить исходную конфигурацию: изменение не требуется',
         met: state.revision === 0,
       },
     )
   checks.push({
+    id: 'diagnosis',
     label: 'Правильно объяснить причину и границу вывода',
     met: diagnosis === lab.correctCause,
   })

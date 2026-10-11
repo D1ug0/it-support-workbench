@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { calculateSubnet, ipv4ToNumber, isIPv4 } from '../../domain/network'
+import type { TerminalAssessment, TerminalCheck } from './assessment'
 
 export const labAddress = z
   .string()
@@ -549,7 +550,11 @@ export function networkGoal(s: NetworkState) {
     s.hosts.every((h) => h.online && h.dnsCorrect && h.service && h.httpHealthy)
   )
 }
-export function assessNetwork(s: NetworkState, diagnosis: number | undefined, hints: number) {
+export function assessNetwork(
+  s: NetworkState,
+  diagnosis: number | undefined,
+  hints: number,
+): TerminalAssessment {
   const fault = s.definition.fault
   const relevant = ['dns', 'negative-cache', 'multi'].includes(fault)
     ? 'dns'
@@ -564,17 +569,24 @@ export function assessNetwork(s: NetworkState, diagnosis: number | undefined, hi
             : fault === 'linux-permission'
               ? 'permission'
               : 'config'
-  const checks = [
+  const checks: TerminalCheck[] = [
     {
+      id: 'subsystem',
       label: 'Собрать данные о затронутой подсистеме',
       met: s.evidence.includes(relevant as NetworkState['evidence'][number]),
     },
-    { label: 'Зафиксировать неисправность до изменения', met: s.evidence.includes('failure') },
     {
+      id: 'baseline',
+      label: 'Зафиксировать отказ в исходном состоянии среды',
+      met: s.evidence.includes('failure'),
+    },
+    {
+      id: 'verification',
       label: 'Устранить причину и проверить целевой сервис после последнего изменения',
       met: networkGoal(s) && s.verifiedRevision === s.revision && s.evidence.includes('success'),
     },
     {
+      id: 'diagnosis',
       label: 'Объяснить причину на основании проверок',
       met: diagnosis === s.definition.correctCause,
     },

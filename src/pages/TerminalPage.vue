@@ -11,31 +11,31 @@ import TerminalConsole from '../features/terminal/TerminalConsole.vue'
 import CommandCatalog from '../features/terminal/CommandCatalog.vue'
 import TerminalWorkspaceGuide from '../features/terminal/TerminalWorkspaceGuide.vue'
 import TerminalRecordsPanel from '../features/terminal/TerminalRecordsPanel.vue'
+import TerminalComparisonPanel from '../features/terminal/TerminalComparisonPanel.vue'
+import TerminalCheckpointPanel from '../features/terminal/TerminalCheckpointPanel.vue'
+import TerminalDebrief from '../features/terminal/TerminalDebrief.vue'
+import { terminalLearningDebrief } from '../features/terminal/learningDebrief'
 import InvestigationPanel from '../features/workshop/InvestigationPanel.vue'
 import NetworkMap from '../features/terminal/NetworkMap.vue'
 import { supportedCommands } from '../features/terminal/commandRegistry'
 import { extendedLabs } from '../features/terminal/labDefinitions'
 import { useWorkshopStore } from '../features/workshop/useWorkshopStore'
 import { createNetwork } from '../features/terminal/networkModel'
-import {
-  parseCheckpoint,
-  type Checkpoint,
-  type TerminalMode,
-} from '../features/terminal/checkpoint'
+import { modes, type Checkpoint, type TerminalMode } from '../features/terminal/checkpoint'
 import { useLearningStore } from '../features/learning/useLearningStore'
-import { compareOutputs, formatDifference } from '../features/sessions/session'
 import { downloadText } from '../infrastructure/export/exportReport'
 import PlainSummary from '../features/network-analysis/components/PlainSummary.vue'
 import OutputCard from '../features/network-analysis/components/OutputCard.vue'
 import AdapterCard from '../features/network-analysis/components/AdapterCard.vue'
 import EvidenceViewer from '../features/network-analysis/components/EvidenceViewer.vue'
 import type { EvidenceRange } from '../domain/types/diagnostic'
-const store = useTerminalStore(),
-  learning = useLearningStore(),
-  route = useRoute(),
-  router = useRouter()
-const consoleView = ref<InstanceType<typeof TerminalConsole>>()
+
+const store = useTerminalStore()
+const learning = useLearningStore()
 const workshop = useWorkshopStore()
+const route = useRoute()
+const router = useRouter()
+const consoleView = ref<InstanceType<typeof TerminalConsole>>()
 const allLabs = computed(() => [...terminalLabs, ...workshop.customLabs])
 const resetKey = ref(0)
 const search = ref('')
@@ -87,66 +87,56 @@ const mapState = computed(
     },
 )
 const selectedMode = ref<TerminalMode>(store.mode)
-const error = ref(''),
-  notice = ref(''),
-  busy = ref(false)
+const journalError = ref('')
+const restoreNotice = ref('')
 const evidence = ref<EvidenceRange>()
-const pending = ref<Checkpoint>()
-const consent = ref(false)
-const beforeId = ref(''),
-  afterId = ref('')
-const analyzable = computed(() => store.records.filter((r) => r.kind))
 const model = computed(() => store.analyzed?.result.parse.value)
-const differences = computed(() => {
-  const a = analyzable.value.find((r) => String(r.id) === beforeId.value)
-  const b = analyzable.value.find((r) => String(r.id) === afterId.value)
-  if (!a || !b) return { error: '', values: [] }
-  if (a.id === b.id || a.kind !== b.kind)
-    return { error: 'Выберите разные проверки одной команды.', values: [] }
-  // Pure existing analysis and semantic diff; no writes to live diagnostic stores.
-  const left = analyzeOutput(a.output, a.kind),
-    right = analyzeOutput(b.output, b.kind)
-  if (!left.parse.value || !right.parse.value)
-    return { error: 'Для сравнения нужны два структурированных результата.', values: [] }
-  if (
-    left.parse.value.kind === 'powershell' &&
-    right.parse.value.kind === 'powershell' &&
-    left.parse.value.cmdlet !== right.parse.value.cmdlet
-  )
-    return { error: 'Выберите один и тот же cmdlet PowerShell.', values: [] }
-  return { error: '', values: compareOutputs(left.parse.value, right.parse.value) }
-})
-import { analyzeOutput } from '../features/network-analysis/application/analyzeOutput'
+const debriefKey = computed(
+  () =>
+    `${store.attemptId}:${resetKey.value}:${store.feedback?.score}:${store.feedback?.checks.map((check) => `${check.id}:${check.met}`).join(',')}`,
+)
+const checkpointId = computed(() =>
+  workshop.ready && typeof route.query.checkpoint === 'string' ? route.query.checkpoint : undefined,
+)
+
+function queryMode(value: unknown): TerminalMode | undefined {
+  return modes.find((mode) => mode === value)
+}
 watch(
-  () => [route.query.lab, workshop.customLabs] as const,
-  ([id]) => {
+  () => [route.query.lab, route.query.mode, workshop.customLabs] as const,
+  ([id, requestedMode], previous) => {
     const lab = allLabs.value.find((l) => l.id === id)
-    // Router has already confirmed this navigation. A second prompt would desynchronise the URL.
-    if (lab && lab.id !== store.lab.id) restart(lab.id, true)
+    const mode = queryMode(requestedMode)
+    const navigationChanged = !previous || id !== previous[0] || requestedMode !== previous[1]
+    // Router already confirmed this navigation; a second prompt would desynchronise the URL.
+    if (lab && (lab.id !== store.lab.id || (navigationChanged && mode && mode !== store.mode)))
+      restart(lab.id, true, mode)
   },
   { immediate: true },
 )
 watch(
-  () => store.analyzed?.record.id,
+  () => store.analyzed?.record.recordId ?? store.analyzed?.record.id,
   () => {
     evidence.value = undefined
   },
 )
-function restart(id = store.lab.id, navigationConfirmed = false) {
-  if (!navigationConfirmed && !confirmDiscardForms()) return
+function restart(id = store.lab.id, navigationConfirmed = false, mode = selectedMode.value) {
+  if (!navigationConfirmed && !confirmDiscardForms()) {
+    selectedMode.value = store.mode
+    seed.value = store.variantSeed
+    return
+  }
   const definition =
     workshop.customLabs.find((l) => l.id === id) ??
     (id === store.lab.id && id.startsWith('USR-')
       ? store.environment.network?.definition
       : undefined)
-  store.start(id, selectedMode.value, definition, seed.value)
+  store.start(id, mode, definition, seed.value)
+  selectedMode.value = store.mode
   resetKey.value++
   evidence.value = undefined
-  beforeId.value = ''
-  afterId.value = ''
-  pending.value = undefined
-  error.value = ''
-  notice.value = ''
+  journalError.value = ''
+  restoreNotice.value = ''
 }
 function run(command: string) {
   const value = store.run(command)
@@ -166,96 +156,34 @@ function showHint() {
   if (store.hints < store.lab.hints.length) store.hints++
 }
 async function reloadJournals() {
+  journalError.value = ''
+  const attempt = store.attemptId,
+    version = resetKey.value
   try {
     await Promise.all([learning.reloadSaved(), workshop.reloadSaved()])
   } catch {
-    error.value = 'Перечитывание не удалось; текущая попытка доступна для экспорта.'
+    if (!disposed && attempt === store.attemptId && version === resetKey.value)
+      journalError.value = 'Перечитывание не удалось; текущая попытка доступна для экспорта.'
   }
 }
-async function finish() {
-  await store.finish()
-}
-async function local(action: 'save' | 'load' | 'delete') {
-  if (busy.value) return
-  if (action === 'save' && !consent.value) {
-    error.value = 'Подтвердите сохранение состояния учебной среды.'
-    return
-  }
-  busy.value = true
-  error.value = ''
-  notice.value = ''
-  const id = store.lab.id,
-    snapshot = store.checkpoint()
-  try {
-    const repository = await import('../features/terminal/repository')
-    if (action === 'save') {
-      await repository.saveCheckpoint(snapshot)
-      notice.value = 'Контрольная точка сохранена. Команды и вывод не записывались.'
-    } else if (action === 'load') {
-      const value = await repository.loadCheckpoint(id)
-      if (id === store.lab.id) {
-        pending.value = value
-        notice.value = value
-          ? 'Проверьте контрольную точку перед восстановлением.'
-          : 'Для этой лаборатории нет контрольной точки.'
-      }
-    } else {
-      await repository.deleteCheckpoint(id)
-      notice.value = 'Контрольная точка этой лаборатории удалена.'
-    }
-  } catch (cause) {
-    error.value =
-      cause instanceof Error && cause.message.startsWith('Лимит:')
-        ? cause.message
-        : 'Хранилище недоступно. Можно скачать контрольную точку JSON и импортировать позже.'
-  } finally {
-    busy.value = false
-  }
-}
-let readVersion = 0
-onBeforeUnmount(() => {
-  readVersion++
-})
-async function read(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const version = ++readVersion
-  pending.value = undefined
-  error.value = ''
-  try {
-    if (file.size > 65536) throw new Error('Файл превышает 64 KiB.')
-    const value = parseCheckpoint(await file.text())
-    if (version === readVersion) pending.value = value
-  } catch (cause) {
-    if (version === readVersion)
-      error.value = cause instanceof Error ? cause.message : 'Ошибка импорта.'
-  } finally {
-    ;(event.target as HTMLInputElement).value = ''
-  }
-}
-function restore() {
+function restore(checkpoint: Checkpoint) {
   if (!confirmDiscardForms()) return
-  if (!pending.value) return
-  store.restore(pending.value)
+  store.restore(checkpoint)
   selectedMode.value = store.mode
   seed.value = store.variantSeed
   resetKey.value++
-  beforeId.value = ''
-  afterId.value = ''
   evidence.value = undefined
-  pending.value = undefined
-  notice.value = 'Восстановлено состояние среды. История команд и разборы не сохранялись.'
+  restoreNotice.value = 'Восстановлено состояние среды. История команд и разборы не сохранялись.'
   void router.replace({ path: '/terminal', query: { lab: store.lab.id } })
-}
-function exportCheckpoint() {
-  downloadText(
-    JSON.stringify(store.checkpoint(), null, 2),
-    `workbench-${store.lab.id}.json`,
-    'application/json;charset=utf-8',
-  )
 }
 function exportResult() {
   if (!store.feedback || !store.finished) return
+  const debrief = terminalLearningDebrief(
+    store.feedback,
+    store.environment,
+    store.mode,
+    store.hints,
+  )
   downloadText(
     [
       '# Учебная терминальная лаборатория',
@@ -263,33 +191,44 @@ function exportResult() {
       'Виртуальная среда; синтетические данные. Оценка не является подтверждением квалификации.',
       `Результат: ${store.feedback.score}/100. Подсказок: ${store.hints}.`,
       ...store.feedback.checks.map((c) => `- [${c.met ? 'x' : ' '}] ${c.label}`),
+      ...debrief.gaps.map((gap) => `${gap.label}\n${gap.action}`),
       store.lab.explanation,
+      'Сопоставление причин требует исходной и актуальной проверки; отметки модели не заменяют объяснение по доказательствам.',
       'Введённые команды и исходный вывод в этот отчёт не включены.',
     ].join('\n\n'),
     'workbench-terminal-result.md',
   )
 }
-onMounted(async () => {
-  await Promise.all([learning.initialize(), workshop.initialize()])
-  if (typeof route.query.checkpoint === 'string' && route.query.checkpoint.length <= 80) {
-    try {
-      const repo = await import('../features/terminal/repository')
-      pending.value = await repo.loadCheckpoint(route.query.checkpoint)
-      if (!pending.value) error.value = 'Контрольная точка не найдена.'
-    } catch {
-      error.value = 'Не удалось прочитать выбранную контрольную точку.'
-    }
-  }
-  await nextTick()
-  if (store.records.length)
+let disposed = false
+onBeforeUnmount(() => {
+  disposed = true
+})
+onMounted(() => {
+  void Promise.all([learning.initialize(), workshop.initialize()]).catch(() => {
+    if (!disposed)
+      journalError.value = 'Не удалось открыть учебные журналы. Текущая среда доступна в памяти.'
+  })
+  const attempt = store.attemptId,
+    version = resetKey.value,
+    records = store.records
+  void nextTick().then(() => {
+    if (
+      disposed ||
+      attempt !== store.attemptId ||
+      version !== resetKey.value ||
+      records !== store.records ||
+      !records.length
+    )
+      return
     consoleView.value?.output(
-      store.records
+      records
         .map(
-          (r) =>
-            `${platform.value === 'Linux' ? 'student@lab:~$ ' : 'PS C:\\Lab> '}${r.command}\n${r.output}`,
+          (record) =>
+            `${platform.value === 'Linux' ? 'student@lab:~$ ' : 'PS C:\\Lab> '}${record.command}\n${record.output}`,
         )
         .join('\n'),
     )
+  })
 })
 </script>
 <template>
@@ -354,7 +293,7 @@ onMounted(async () => {
           <AppSelectOption value="practice">Самостоятельная практика</AppSelectOption>
           <AppSelectOption value="exam">Проверочная работа</AppSelectOption>
         </AppSelect></label
-      ><button class="button secondary" :disabled="busy || store.finishing" @click="restart()">
+      ><button class="button secondary" :disabled="store.finishing" @click="restart()">
         Начать заново</button
       ><RouterLink class="button ghost" to="/learning?view=journal">Журнал обучения</RouterLink>
     </div>
@@ -419,6 +358,7 @@ onMounted(async () => {
         >
       </div>
     </details>
+    <p v-if="journalError" class="form-error" role="alert">{{ journalError }}</p>
     <p v-if="learning.error" role="alert">{{ learning.error }}</p>
     <p v-if="learning.saving" role="status">Сохраняем учебный результат…</p>
   </section>
@@ -512,45 +452,11 @@ onMounted(async () => {
     <OutputCard v-else-if="model" :output="model" :revealed="true" @evidence="evidence = $event" />
     <EvidenceViewer :text="store.analyzed.record.output" :range="evidence" />
   </section>
-  <section v-if="analyzable.length >= 2" class="panel feature-section">
-    <h2>Сравнить учебные проверки до и после</h2>
-    <div class="form-grid">
-      <label
-        >Учебная проверка до<AppSelect
-          v-model="beforeId"
-          class="text-input"
-          aria-label="Учебная проверка до"
-        >
-          <AppSelectOption value="">Выберите проверку</AppSelectOption>
-          <AppSelectOption v-for="r in analyzable" :key="r.id" :value="String(r.id)">
-            {{ r.id }} · {{ r.command }} · состояние {{ r.revision }}
-          </AppSelectOption>
-        </AppSelect></label
-      ><label
-        >Учебная проверка после<AppSelect
-          v-model="afterId"
-          class="text-input"
-          aria-label="Учебная проверка после"
-        >
-          <AppSelectOption value="">Выберите проверку</AppSelectOption>
-          <AppSelectOption v-for="r in analyzable" :key="r.id" :value="String(r.id)">
-            {{ r.id }} · {{ r.command }} · состояние {{ r.revision }}
-          </AppSelectOption>
-        </AppSelect></label
-      >
-    </div>
-    <p v-if="differences.error" role="status">{{ differences.error }}</p>
-    <ul class="diff-list">
-      <li v-for="(d, index) in differences.values" :key="index">
-        <strong>{{ d.scope }} · {{ d.field }}</strong>
-        <p>До: {{ formatDifference(d.before, undefined, true) }}</p>
-        <p>После: {{ formatDifference(d.after, undefined, true) }}</p>
-      </li>
-    </ul>
-    <p v-if="beforeId && afterId && !differences.error && !differences.values.length">
-      Различий в поддерживаемых структурированных полях нет.
-    </p>
-  </section>
+  <TerminalComparisonPanel
+    :key="`${store.attemptId}:${resetKey}`"
+    :records="store.records"
+    :revision="store.environment.revision"
+  />
   <section id="terminal-finish" class="panel feature-section" tabindex="-1">
     <h2>Объяснить причину и проверить результат</h2>
     <fieldset :disabled="store.finished">
@@ -564,21 +470,26 @@ onMounted(async () => {
     <button
       class="button primary"
       :disabled="store.finished || store.diagnosis === undefined || store.finishing"
-      @click="finish"
+      @click="store.finish()"
     >
       {{ store.mode === 'exam' ? 'Завершить проверочную работу' : 'Проверить решение' }}
     </button>
-    <div v-if="store.feedback" class="terminal-feedback" role="status">
-      <h3>
+    <div v-if="store.feedback" class="terminal-feedback">
+      <h3 role="status">
         {{
           store.finished ? `Попытка завершена: ${store.feedback.score}/100` : 'Остались проверки'
         }}
       </h3>
-      <ul>
-        <li v-for="check in store.feedback.checks" :key="check.label">
-          {{ check.met ? '✓' : '○' }} {{ check.label }}
-        </li>
-      </ul>
+      <TerminalDebrief
+        :key="debriefKey"
+        :assessment="store.feedback"
+        :state="store.environment"
+        :mode="store.mode"
+        :hints="store.hints"
+        :finished="store.finished"
+        @focus-records="focusWorkspace('terminal-records')"
+        @repeat="restart(store.lab.id, false, $event)"
+      />
       <p v-if="store.finished">{{ store.lab.explanation }}</p>
       <p v-if="store.finished">
         {{
@@ -593,55 +504,6 @@ onMounted(async () => {
     </div>
   </section>
   <div id="terminal-report" tabindex="-1"><InvestigationPanel /></div>
-  <section class="panel feature-section">
-    <h2>Контрольная точка учебной среды</h2>
-    <p>
-      Можно сохранить состояние сети, DNS, кэша, проверок и попытки. История введённых команд и
-      вывод не сохраняются. По одной точке на лабораторию, всего до 50 точек; автоматической записи
-      нет.
-    </p>
-    <label class="checkbox-label"
-      ><input v-model="consent" type="checkbox" />Подтверждаю сохранение состояния учебной среды на
-      этом устройстве</label
-    >
-    <div class="button-row">
-      <button class="button secondary" :disabled="busy" @click="local('save')">
-        Сохранить контрольную точку</button
-      ><button class="button secondary" :disabled="busy" @click="local('load')">
-        Загрузить контрольную точку</button
-      ><button class="button ghost" :disabled="busy" @click="local('delete')">
-        Удалить контрольную точку</button
-      ><button class="button secondary" @click="exportCheckpoint">
-        Скачать контрольную точку JSON
-      </button>
-    </div>
-    <label
-      >Импорт контрольной точки<input
-        type="file"
-        accept=".json,application/json"
-        :disabled="busy"
-        @change="read"
-    /></label>
-    <div v-if="pending" class="terminal-checkpoint-preview">
-      <p>
-        Лаборатория:
-        {{
-          'network' in pending.environment
-            ? (pending.environment.network?.definition.title ??
-              terminalLabs.find((l) => l.id === pending!.environment.labId)?.title)
-            : terminalLabs.find((l) => l.id === pending!.environment.labId)?.title
-        }}
-        · DNS {{ pending.environment.dns }} · состояние {{ pending.environment.revision }} ·
-        {{ pending.finished ? 'завершена' : 'в процессе' }} · режим
-        {{
-          { guided: 'обучение', practice: 'практика', exam: 'проверочная работа' }[pending.mode]
-        }}.
-      </p>
-      <p>Восстановление заменит текущую учебную попытку и очистит её историю команд.</p>
-      <button class="button primary" @click="restore">Восстановить учебную среду</button
-      ><button class="button ghost" @click="pending = undefined">Отмена восстановления</button>
-    </div>
-    <p v-if="notice" role="status">{{ notice }}</p>
-    <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-  </section>
+  <p v-if="restoreNotice" role="status">{{ restoreNotice }}</p>
+  <TerminalCheckpointPanel :reset-key="resetKey" :checkpoint-id="checkpointId" @restore="restore" />
 </template>
