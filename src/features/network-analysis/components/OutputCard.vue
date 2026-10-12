@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Activity, ChevronRight, Route, Server } from '@lucide/vue'
 import type { ParsedOutput } from '../../../domain/types/outputs'
 import type { EvidenceRange } from '../../../domain/types/diagnostic'
-import { createAddressRedactor } from '../../../infrastructure/export/redact'
+import { createAddressRedactor } from '../../../domain/diagnostics/redact'
 import ResultPagination from '../../../shared/components/ResultPagination.vue'
 import ExtendedOutput from './ExtendedOutput.vue'
 

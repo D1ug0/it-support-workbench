@@ -1,8 +1,8 @@
 import type { AnalysisResult, CommandKind, ParseResult } from '../../../domain/types/diagnostic'
 import type { ParsedOutput } from '../../../domain/types/outputs'
-import { detectCommand } from '../../../infrastructure/parser/detectCommand'
-import { normalizeInput, validateInput } from '../../../infrastructure/parser/normalizeInput'
-import { parserRegistry } from '../../../infrastructure/parser/parserRegistry'
+import { detectCommand } from '../../../domain/diagnostics/parsers/detectCommand'
+import { normalizeInput, validateInput } from '../../../domain/diagnostics/parsers/normalizeInput'
+import { parserRegistry } from '../../../domain/diagnostics/parsers/parserRegistry'
 
 export function analyzeOutput(
   text: string,

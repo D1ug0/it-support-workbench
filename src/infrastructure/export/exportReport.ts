@@ -1,6 +1,6 @@
 import type { AnalysisResult } from '../../domain/types/diagnostic'
 import type { ParsedOutput } from '../../domain/types/outputs'
-import { createAddressRedactor } from './redact'
+import { createAddressRedactor } from '../../domain/diagnostics/redact'
 
 export function redactReport(
   result: AnalysisResult<ParsedOutput>,

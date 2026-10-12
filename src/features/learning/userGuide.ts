@@ -1,5 +1,5 @@
-import { workshopCourses } from '../workshop/courses'
-import type { SkillId } from '../workshop/skills'
+import { workshopCourses } from '../workshop/index'
+import type { SkillId } from '../workshop/index'
 import { foundationSkills } from './journey'
 
 export const guideIntroduction =

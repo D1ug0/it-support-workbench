@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { Cable, Wifi, Network, ChevronRight } from '@lucide/vue'
 import type { Adapter } from '../../../domain/types/network'
 import type { EvidenceRange } from '../../../domain/types/diagnostic'
-import { displayAddress } from '../../../infrastructure/export/redact'
+import { displayAddress } from '../../../domain/diagnostics/redact'
 
 const props = defineProps<{ adapter: Adapter; revealed: boolean; index: number }>()
 const emit = defineEmits<{ evidence: [range: EvidenceRange] }>()

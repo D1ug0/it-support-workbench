@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { practiceTasks, checkPractice } from './catalog'
 describe('independent practice', () => {
-  it('contains 24 distinct tasks with an answer and explanation', () => {
-    expect(practiceTasks).toHaveLength(24)
-    expect(new Set(practiceTasks.map((t) => t.id)).size).toBe(24)
+  it('contains the 27 distinct tasks in the current curriculum', () => {
+    expect(practiceTasks).toHaveLength(27)
+    expect(new Set(practiceTasks.map((t) => t.id)).size).toBe(27)
   })
   it.each(practiceTasks)('validates $id without accepting an empty answer', (task) => {
     expect(checkPractice(task, task.expected[0]!)).toMatchObject({ valid: true, correct: true })

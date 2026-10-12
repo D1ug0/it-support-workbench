@@ -1,7 +1,7 @@
 import { ref, watch, onBeforeUnmount, type ComputedRef } from 'vue'
-import type { WorkshopCourse } from '../workshop/courses'
-import { useWorkshopStore } from '../workshop/useWorkshopStore'
-import { taskErrorIds } from '../workshop/learningErrors'
+import type { WorkshopCourse } from '../workshop/index'
+import { useWorkshopStore } from '../workshop/model/index'
+import { taskErrorIds } from '../workshop/index'
 import { saveNotice } from '../../shared/persistence'
 
 /** First response belongs to one lesson session; late saves never change the next screen. */

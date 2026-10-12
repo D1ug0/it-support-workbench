@@ -16,7 +16,15 @@ const npmCli = process.env.npm_execpath
 if (!npmCli) throw new Error('Запускайте через npm run test:fixtures:real')
 const result = spawnSync(
   process.execPath,
-  [npmCli, 'exec', '--no', '--', 'vitest', 'run', 'src/infrastructure/parser/realFixtures.test.ts'],
+  [
+    npmCli,
+    'exec',
+    '--no',
+    '--',
+    'vitest',
+    'run',
+    'src/domain/diagnostics/parsers/realFixtures.test.ts',
+  ],
   { stdio: 'inherit', shell: false },
 )
 process.exit(result.status ?? 1)

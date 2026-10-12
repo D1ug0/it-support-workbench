@@ -1,4 +1,8 @@
-import { MAX_INPUT_BYTES, normalizeInput, validateInput } from '../parser/normalizeInput'
+import {
+  MAX_INPUT_BYTES,
+  normalizeInput,
+  validateInput,
+} from '../../domain/diagnostics/parsers/normalizeInput'
 export type FileEncoding = 'utf-8' | 'windows-1251' | 'ibm866'
 
 export function decodeText(bytes: Uint8Array, encoding: FileEncoding): string {

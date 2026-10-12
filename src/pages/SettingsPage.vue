@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import StorageStatus from '../features/workshop/StorageStatus.vue'
+import StorageStatus from '../features/workshop/ui/exchange/StorageStatus.vue'
 import { onMounted, ref } from 'vue'
 import OfflineControls from '../features/offline/OfflineControls.vue'
-import BackupPanel from '../features/workshop/BackupPanel.vue'
+import BackupPanel from '../features/workshop/ui/exchange/BackupPanel.vue'
 import { useAnalysisStore } from '../features/network-analysis/model/useAnalysisStore'
 import { useSessionStore } from '../features/sessions/useSessionStore'
 import { useLearningStore } from '../features/learning/useLearningStore'
@@ -18,7 +18,7 @@ import {
   listCheckpointSummaries,
   deleteCheckpoint,
 } from '../features/terminal/repository'
-import { useWorkshopStore } from '../features/workshop/useWorkshopStore'
+import { useWorkshopStore } from '../features/workshop/model/index'
 import { useTerminalStore } from '../features/terminal/useTerminalStore'
 const terminal = useTerminalStore(),
   workshop = useWorkshopStore()

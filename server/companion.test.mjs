@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createCompanion } from './companion.mjs'
-import { emptyWorkshop } from '../src/features/workshop/skills.ts'
+import { emptyWorkshop } from '../src/features/workshop/index.ts'
 async function withServer(fn, options = {}) {
   const app = createCompanion(options)
   try {

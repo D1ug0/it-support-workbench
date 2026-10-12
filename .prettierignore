@@ -3,5 +3,6 @@ dist
 coverage
 playwright-report
 test-results
+.workbench-data
 package-lock.json
 IT_SUPPORT_WORKBENCH_CODEX_SPEC.md

@@ -21,7 +21,7 @@ import {
   Settings,
   Compass,
 } from '@lucide/vue'
-import CommandPalette from '../shared/components/CommandPalette.vue'
+import CommandPalette from './components/CommandPalette.vue'
 import { version } from '../../package.json'
 
 const route = useRoute()

@@ -4,7 +4,7 @@ import type { TerminalAssessment } from './assessment'
 import type { LabState } from './engine'
 import type { TerminalMode } from './checkpoint'
 import { terminalLearningDebrief } from './learningDebrief'
-import { useWorkshopStore } from '../workshop/useWorkshopStore'
+import { useWorkshopStore } from '../workshop/model/index'
 import { useLearningClock } from '../learning/useLearningClock'
 const props = defineProps<{
   assessment: TerminalAssessment

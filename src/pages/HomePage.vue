@@ -9,7 +9,7 @@ import {
   Search,
   RotateCcw,
 } from '@lucide/vue'
-import ContinueLearning from '../features/workshop/ContinueLearning.vue'
+import ContinueLearning from '../features/workshop/ui/learning/ContinueLearning.vue'
 const steps = [
   { icon: BookOpen, title: 'Понять', text: 'Короткий материал и проверка нужного принципа' },
   {

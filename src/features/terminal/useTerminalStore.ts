@@ -9,9 +9,9 @@ import { assessLab, createEnvironment, executeCommand } from './engine'
 import { labIds, terminalLabs, type LabId } from './catalog'
 import { checkpointSchema, type Checkpoint, type TerminalMode } from './checkpoint'
 import { undoNetworkChange, type LabDefinition, type NetworkState } from './networkModel'
-import { learningPolicy } from '../workshop/learningPolicy'
+import { learningPolicy } from '../workshop/index'
 import { causeForLab } from './labIdentity'
-import { useWorkshopStore } from '../workshop/useWorkshopStore'
+import { useWorkshopStore } from '../workshop/model/index'
 import { reviewCommand, type CommandReview } from './review'
 export interface TerminalRecord {
   id: number

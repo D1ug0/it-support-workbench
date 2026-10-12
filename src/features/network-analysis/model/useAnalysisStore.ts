@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import type { AnalysisResult, EvidenceRange, CommandKind } from '../../../domain/types/diagnostic'
 import type { ParsedOutput } from '../../../domain/types/outputs'
-import { normalizeInput } from '../../../infrastructure/parser/normalizeInput'
+import { normalizeInput } from '../../../domain/diagnostics/parsers/normalizeInput'
 
 export const useAnalysisStore = defineStore('analysis', () => {
   const input = ref('')
@@ -45,7 +45,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     busy.value = true
     let current: Worker
     try {
-      current = new Worker(new URL('../application/analysis.worker.ts', import.meta.url), {
+      current = new Worker(new URL('../infrastructure/analysis.worker.ts', import.meta.url), {
         type: 'module',
       })
     } catch {

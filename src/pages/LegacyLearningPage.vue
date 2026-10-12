@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppSelect from '../shared/components/AppSelect.vue'
 import AppSelectOption from '../shared/components/AppSelectOption.vue'
-import ContinueLearning from '../features/workshop/ContinueLearning.vue'
+import ContinueLearning from '../features/workshop/ui/learning/ContinueLearning.vue'
 import {
   computed,
   onBeforeUnmount,
@@ -28,7 +28,9 @@ import PracticePanel from '../features/practice/PracticePanel.vue'
 import { practiceTasks } from '../features/practice/catalog'
 import LearningJournal from '../features/learning/LearningJournal.vue'
 import { labIds } from '../features/terminal/catalog'
-const WorkshopPanel = defineAsyncComponent(() => import('../features/workshop/WorkshopPanel.vue'))
+const WorkshopPanel = defineAsyncComponent(
+  () => import('../features/workshop/ui/WorkshopPanel.vue'),
+)
 const store = useLearningStore()
 onMounted(() => void store.initialize())
 const category = ref('Все')

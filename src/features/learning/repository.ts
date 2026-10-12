@@ -2,7 +2,11 @@ import Dexie from 'dexie'
 import type { Table } from 'dexie'
 import { progressSchema } from './progress'
 import type { LearningProgress } from './progress'
-import { assertStorageBudget, learningTables, workshopDb } from '../workshop/storage'
+import {
+  assertStorageBudget,
+  learningTables,
+  workshopDb,
+} from '../../infrastructure/learning-storage/database'
 const db = new Dexie('it-support-workbench-learning')
 db.version(1).stores({ progress: 'id' })
 export const legacyProgress: Table<

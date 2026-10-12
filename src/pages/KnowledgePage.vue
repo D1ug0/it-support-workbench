@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import FormatSupport from '../features/workshop/FormatSupport.vue'
+import FormatSupport from '../features/workshop/ui/FormatSupport.vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, ArrowUpRight, BookOpen, ChevronDown, Copy, Check } from '@lucide/vue'
