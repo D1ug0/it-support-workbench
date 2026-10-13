@@ -11,11 +11,12 @@ const error = ref('')
 let timer: ReturnType<typeof setTimeout> | undefined
 onBeforeUnmount(() => globalThis.clearTimeout(timer))
 async function copy(command: string) {
+  globalThis.clearTimeout(timer)
+  copied.value = false
+  error.value = ''
   try {
     await navigator.clipboard.writeText(command)
-    error.value = ''
     copied.value = true
-    globalThis.clearTimeout(timer)
     timer = setTimeout(() => (copied.value = false), 1800)
   } catch {
     error.value = 'Не удалось скопировать. Выделите команду вручную.'
@@ -36,5 +37,7 @@ async function copy(command: string) {
       }}
     </button>
   </div>
-  <p v-if="error" role="status" class="form-error">{{ error }}</p>
+  <p role="status" aria-atomic="true" :class="error ? 'form-error' : 'sr-only'">
+    {{ error || (copied ? 'Команда скопирована в буфер обмена.' : '') }}
+  </p>
 </template>
