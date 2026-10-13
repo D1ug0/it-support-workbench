@@ -7,9 +7,12 @@ const groups = [
   ['гит', 'git', 'ci/cd', 'конфликт', 'ветки'],
   ['резервная копия', 'бэкап', 'backup', 'восстановление'],
 ]
+function normalizeSearchValue(value: string) {
+  return value.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/\s+/g, ' ').trim()
+}
 export function matchesSearch(text: string, query: string) {
-  const normalized = text.toLocaleLowerCase('ru-RU'),
-    value = query.toLocaleLowerCase('ru-RU').trim()
+  const normalized = normalizeSearchValue(text),
+    value = normalizeSearchValue(query)
   if (!value || normalized.includes(value)) return true
   return groups.some(
     (group) =>
