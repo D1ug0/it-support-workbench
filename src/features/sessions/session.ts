@@ -1,7 +1,7 @@
 import type { AnalysisResult, EvidenceRange } from '../../domain/types/diagnostic'
 import type { ParsedOutput } from '../../domain/types/outputs'
 import { isIPAddress, isIPv4 } from '../../domain/network'
-import { createAddressRedactor } from '../../infrastructure/export/redact'
+import { createAddressRedactor } from '../../domain/diagnostics/redact'
 import { redactReport } from '../../infrastructure/export/exportReport'
 
 export interface SessionRecord {

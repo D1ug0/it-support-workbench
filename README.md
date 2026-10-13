@@ -4,13 +4,15 @@
 
 **Рабочая версия 0.7.0, 11.10.2026:** новый вход и маршрут L1 из пяти занятий, отдельный экран прогресса и авторская мастерская, единая рекомендация следующего действия, структурированное оценивание профессиональных инцидентов и история редакций отчётов. Обновлены ключевые материалы и контракты команд. [Путь ученика, правила и ограничения](docs/LEARNER_JOURNEY.md).
 
-Этот код ещё не опубликован. Тесты и проверка интерфейса в браузере для этого изменения отложены по просьбе пользователя; результаты сборки описаны в документе выше. Учебные баллы не подтверждают профессиональную квалификацию. Реальные Windows captures пока не получены.
+Этот код ещё не опубликован. Архитектурный рефакторинг и текущие локальные проверки описаны в [отчёте 12.10.2026](docs/ARCHITECTURE_AUDIT_2026_10_12.md). Учебные баллы не подтверждают профессиональную квалификацию. Реальные Windows captures пока не получены.
 
 ## Быстрый запуск
 
 Для ученика в меню есть **«Как пользоваться»**: результаты обучения, первые пять занятий, порядок прохождения, терминал, отчёты, прогресс и частые вопросы. Ссылки на инструкцию доступны на главной и в обучении; кнопка **«Скачать инструкцию»** сохраняет ту же общую инструкцию в Markdown без личных данных.
 
 Основное окружение — Node 24 LTS (минимум 24.15.0); `.nvmrc` и CI используют major 24. Альтернатива — Node 22 LTS от 22.22.2. Типы Node зафиксированы на major 22 как общий API-базис для обеих поддерживаемых версий. Для статического сайта Node нужен при разработке и сборке; опциональный companion запускается отдельно на Node.
+
+Linux/macOS с `nvm`:
 
 ```sh
 nvm install
@@ -19,11 +21,28 @@ npm ci
 npm run dev
 ```
 
+Windows с NVM for Windows (PowerShell из папки проекта):
+
+```powershell
+nvm install 24.21.0
+nvm use 24.21.0
+npm ci
+npm run dev
+```
+
+В NVM for Windows 1.x (включая 1.2.2) команды установки и переключения требуют явную версию; `.nvmrc` автоматически не читается. При переключении Windows может запросить права администратора. После установки проверьте `node --version`: нужен Node 24.15.0 или новее в ветке 24.
+
 Откройте <http://127.0.0.1:5173/> и нажмите **«Открыть мой маршрут»**. Пройдите первое занятие и связанную лабораторию. Для свободной практики доступен терминал, а для собственного вывода команды — анализатор в группе диагностических инструментов.
 
 ```sh
 npm run build
 npm run preview
+```
+
+Для браузерных тестов один раз установите движки Playwright:
+
+```sh
+npx playwright install chromium firefox webkit
 ```
 
 Production основного приложения — статические файлы `dist/`. Основные функции работают без аккаунта, сервера обработки, API-ключей и Docker. Для явной синхронизации учебного прогресса и опционального AI есть отдельный `npm run companion`: [настройка и границы](docs/COMPANION.md). Не открывайте `dist/index.html` напрямую через `file://`; используйте статический HTTP-сервер.
@@ -189,9 +208,11 @@ src/features/learning           вопросы, progress schema, opt-in reposito
 src/features/playbooks          чек-листы, Markdown-экспорт
 src/features/offline            явное управление Service Worker
 src/domain                     типы, IP/CIDR, диагностические правила
-src/infrastructure/parser       нормализация, detector, registry, парсеры
+src/domain/diagnostics/parsers   чистые нормализация, detector, registry, парсеры
 src/infrastructure/files        локальное чтение и декодирование
-src/infrastructure/export       маскирование, отчёты и download shell
+src/domain/diagnostics/redact.ts чистое обезличивание адресов
+src/infrastructure/export       отчёты и download shell
+src/infrastructure/learning-storage общая учебная IndexedDB, транзакции и бюджет
 src/fixtures                   вымышленные примеры Windows
 e2e                            сценарии production build
 docs                           архитектура, безопасность, тесты, roadmap
@@ -201,7 +222,7 @@ docs                           архитектура, безопасность,
 
 Иконки поставляются пакетом `@lucide/vue`: актуальный преемник указанного в ТЗ `lucide-vue-next`. Все точные версии закреплены в `package-lock.json`.
 
-Подробнее: [ARCHITECTURE](docs/ARCHITECTURE.md), [PARSERS](docs/PARSERS.md), [CONTRIBUTING](docs/CONTRIBUTING.md), [ROADMAP](docs/ROADMAP.md).
+Подробнее: [ARCHITECTURE](docs/ARCHITECTURE.md), [архитектурный аудит](docs/ARCHITECTURE_AUDIT_2026_10_12.md), [PARSERS](docs/PARSERS.md), [CONTRIBUTING](docs/CONTRIBUTING.md), [ROADMAP](docs/ROADMAP.md). `npm run check:architecture` автоматически проверяет границы модулей и слоёв.
 
 Для практического обучения: [PRACTICE.md](docs/PRACTICE.md).
 

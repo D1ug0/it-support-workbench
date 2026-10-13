@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ArrowRight, Check, Terminal, FileText } from '@lucide/vue'
-import type { WorkshopCourse } from '../workshop/courses'
-import { useWorkshopStore } from '../workshop/useWorkshopStore'
+import type { WorkshopCourse } from '../workshop/index'
+import { useWorkshopStore } from '../workshop/model/index'
 import { terminalLabs } from '../terminal/catalog'
-import MaterialCard from '../workshop/MaterialCard.vue'
+import MaterialCard from '../workshop/ui/learning/MaterialCard.vue'
 import { useLessonSession } from './useLessonSession'
 import { lessonJourney } from './journey'
 import { useLearningClock } from './useLearningClock'

@@ -1,6 +1,6 @@
-import { workshopCourses, type WorkshopCourse } from '../workshop/courses'
-import { trackSkills, type WorkshopProgress, type SkillId } from '../workshop/skills'
-import { isIndependentAttempt } from '../workshop/learningPolicy'
+import { workshopCourses, type WorkshopCourse } from '../workshop/index'
+import { trackSkills, type WorkshopProgress, type SkillId } from '../workshop/index'
+import { isIndependentAttempt } from '../workshop/index'
 import { causeForLab } from '../terminal/labIdentity'
 
 export const foundationSkills: readonly SkillId[] = [

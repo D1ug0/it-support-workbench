@@ -76,7 +76,7 @@ it('bounds transcript records and keeps only an explicitly selected analysis', (
 })
 
 it('keeps a delayed finish attached to its original attempt across a restart and records it once', async () => {
-  const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
+  const { useWorkshopStore } = await import('../workshop/model/index')
   const workshop = useWorkshopStore(),
     store = useTerminalStore()
   let release!: () => void
@@ -104,7 +104,7 @@ it('keeps a delayed finish attached to its original attempt across a restart and
   expect(useLearningStore().state.journal.at(-1)?.taskId).toBe(labIds[2])
 })
 it('shows failed persistence separately from a solved lab', async () => {
-  const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
+  const { useWorkshopStore } = await import('../workshop/model/index')
   vi.spyOn(useWorkshopStore(), 'record').mockResolvedValue({
     status: 'failed',
     error: 'QuotaExceededError',

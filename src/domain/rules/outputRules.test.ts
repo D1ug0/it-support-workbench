@@ -5,7 +5,7 @@ import {
   parseNslookup,
   parseTracert,
   parseRoutes,
-} from '../../infrastructure/parser/outputParsers'
+} from '../diagnostics/parsers/outputParsers'
 import { exportReport } from '../../infrastructure/export/exportReport'
 import { analyzeOutput } from '../../features/network-analysis/application/analyzeOutput'
 

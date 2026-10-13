@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import type { ParsedDnsRecords, ParsedPowerShell } from '../../../domain/types/outputs'
 import type { EvidenceRange } from '../../../domain/types/diagnostic'
-import { createAddressRedactor } from '../../../infrastructure/export/redact'
+import { createAddressRedactor } from '../../../domain/diagnostics/redact'
 const props = defineProps<{
   output: ParsedDnsRecords | ParsedPowerShell
   revealed: boolean

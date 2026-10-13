@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { decodeText, readTextFile } from './readTextFile'
-import { MAX_INPUT_BYTES } from '../parser/normalizeInput'
+import { MAX_INPUT_BYTES } from '../../domain/diagnostics/parsers/normalizeInput'
 
 describe('local file decoding', () => {
   it('decodes UTF8 BOM and CRLF', () => {

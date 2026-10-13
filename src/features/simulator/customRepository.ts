@@ -1,8 +1,12 @@
 import Dexie, { type Table } from 'dexie'
 import type { Scenario } from './engine'
 import { customScenarioSchema, mergeScenarios } from './custom'
-import { workshopDb as db, learningTables, assertStorageBudget } from '../workshop/storage'
-import { loadCollection } from '../workshop/collectionLoader'
+import {
+  workshopDb as db,
+  learningTables,
+  assertStorageBudget,
+} from '../../infrastructure/learning-storage/database'
+import { loadCollection } from '../../shared/persistence/collectionLoader'
 const legacyDb = new Dexie('it-support-workbench-scenarios')
 legacyDb.version(1).stores({ scenarios: 'id' })
 export const legacyScenarios: Table<Scenario, string> = legacyDb.table('scenarios')

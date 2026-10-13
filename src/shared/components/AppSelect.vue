@@ -1,16 +1,16 @@
 <script setup lang="ts" generic="T extends string | number | null = string">
-import { computed, ref } from 'vue'
 import { ChevronDown } from '@lucide/vue'
 import {
+  SelectContent,
+  SelectIcon,
+  SelectPortal,
   SelectRoot,
   SelectTrigger,
   SelectValue,
-  SelectIcon,
-  SelectPortal,
-  SelectContent,
   SelectViewport,
 } from 'reka-ui'
-import { encodeSelectValue, decodeSelectValue } from './selectValue'
+import { computed, ref } from 'vue'
+import { decodeSelectValue, encodeSelectValue } from './selectValue'
 
 defineOptions({ inheritAttrs: false })
 const props = defineProps<{

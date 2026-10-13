@@ -4,7 +4,7 @@ import { reactive } from 'vue'
 import { useLearningStore } from './useLearningStore'
 import { emptyProgress, recordAnswer } from './progress'
 import { writeProgress } from './repository'
-import { useWorkshopStore } from '../workshop/useWorkshopStore'
+import { useWorkshopStore } from '../workshop/model/index'
 vi.mock('./repository', () => ({
   readProgress: vi.fn(async () => undefined),
   writeProgress: vi.fn(async () => 1),

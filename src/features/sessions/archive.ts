@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { ParsedOutput } from '../../domain/types/outputs'
 import { isIPv4, isIPv6, maskToPrefix } from '../../domain/network'
-import { createAddressRedactor } from '../../infrastructure/export/redact'
+import { createAddressRedactor } from '../../domain/diagnostics/redact'
 import { canonicalAddress, targetAddress, type SessionRecord } from './session'
 export const ARCHIVE_FILE_BYTES = 2 * 1024 * 1024
 export const ARCHIVE_STORAGE_BYTES = 10 * 1024 * 1024

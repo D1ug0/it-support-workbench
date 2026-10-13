@@ -1,9 +1,9 @@
 import type { TerminalAssessment, TerminalCheckId } from './assessment'
 import type { LabState } from './engine'
 import type { TerminalMode } from './checkpoint'
-import { workshopCourses } from '../workshop/courses'
-import { emptyWorkshop, type WorkshopProgress } from '../workshop/skills'
-import { recommendNextTask } from '../workshop/recommendations'
+import { workshopCourses } from '../workshop/index'
+import { emptyWorkshop, type WorkshopProgress } from '../workshop/index'
+import { recommendNextTask } from '../workshop/application/recommendations'
 
 export type ProcessDrillId =
   'evidence' | 'baseline' | 'verification' | 'diagnosis' | 'minimal-change'

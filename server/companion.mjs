@@ -7,8 +7,8 @@ import { pathToFileURL, URL } from 'node:url'
 import process from 'node:process'
 import { Buffer } from 'node:buffer'
 import { z } from 'zod'
-import { workshopProgressSchema, emptyWorkshop } from '../src/features/workshop/skills.ts'
-import { workshopCourses } from '../src/features/workshop/courses.ts'
+import { workshopProgressSchema, emptyWorkshop } from '../src/features/workshop/index.ts'
+import { workshopCourses } from '../src/features/workshop/index.ts'
 
 const credentials = z
   .object({ name: z.string().regex(/^[a-z0-9_-]{3,40}$/), password: z.string().min(10).max(128) })

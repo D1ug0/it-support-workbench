@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useAnalysisStore } from '../network-analysis/model/useAnalysisStore'
 import { selectIPv4Routes } from '../../domain/routeSelection'
 import { isIPv4 } from '../../domain/network'
-import { createAddressRedactor } from '../../infrastructure/export/redact'
+import { createAddressRedactor } from '../../domain/diagnostics/redact'
 const store = useAnalysisStore()
 const target = ref('192.0.2.20')
 const revealed = ref(false)

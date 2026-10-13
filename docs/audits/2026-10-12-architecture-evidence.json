@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-12",
+  "baselineCommit": "2a10e23f7d4e49672586573f79a821c1467824d0",
+  "architecture": {
+    "files": 214,
+    "imports": 1014,
+    "featureDependencies": [
+      "academy -> learning",
+      "guide -> knowledge",
+      "knowledge -> academy",
+      "learning -> academy",
+      "learning -> knowledge",
+      "learning -> practice",
+      "learning -> simulator",
+      "learning -> terminal",
+      "learning -> workshop",
+      "network-analysis -> cases",
+      "playbooks -> knowledge",
+      "practice -> learning",
+      "terminal -> learning",
+      "terminal -> network-analysis",
+      "terminal -> sessions",
+      "terminal -> workshop",
+      "toolkit -> network-analysis",
+      "workshop -> academy",
+      "workshop -> learning",
+      "workshop -> network-analysis",
+      "workshop -> practice",
+      "workshop -> sessions",
+      "workshop -> simulator",
+      "workshop -> terminal"
+    ],
+    "cycles": [],
+    "errors": []
+  },
+  "unit": {
+    "before": {
+      "passed": 645,
+      "failed": 6,
+      "skipped": 1
+    },
+    "after": {
+      "passed": 657,
+      "failed": 0,
+      "skipped": 1
+    }
+  },
+  "checkerTests": {
+    "passed": 15,
+    "failed": 0
+  },
+  "companion": {
+    "passed": 12,
+    "failed": 0
+  },
+  "coverage": {
+    "scope": "configured pure-logic selection, not the whole repository",
+    "statements": 97.14,
+    "branches": 92.55,
+    "functions": 98.11,
+    "lines": 98.04,
+    "threshold": 85
+  },
+  "database": {
+    "sourceUnchanged": true,
+    "name": "it-support-workbench-workshop",
+    "version": 4,
+    "tables": 11,
+    "budgetMiB": 12,
+    "backupLimitMiB": 16
+  },
+  "browser": {
+    "baseline": {
+      "passed": 65,
+      "failed": 47,
+      "timeoutMs": 10000
+    },
+    "after": {
+      "passed": 65,
+      "failed": 47,
+      "timeoutMs": 30000
+    },
+    "regressions": [],
+    "changedStatuses": [],
+    "unchangedFailures": [
+      "academy.spec.ts :: old progress migrates and due advanced questions reuse the review quiz with opt-in persistence",
+      "analyzer.spec.ts :: demo → analyze → evidence → redacted download → clear",
+      "audit-fixes.spec.ts :: learning continuation renders persisted history by date with readable titles",
+      "audit-fixes.spec.ts :: one leave confirmation keeps the terminal URL and displayed lab consistent on accept and cancel",
+      "audit-fixes.spec.ts :: two real IndexedDB tabs protect an investigation draft and retain the rejected text",
+      "audit.spec.ts :: report editing keeps one ID, drafts survive reload, and unsaved changes block leaving",
+      "clarity.spec.ts :: guide links select empty-input format and preserve an existing diagnostic input",
+      "clarity.spec.ts :: suggested demo requires explicit loading and confirmation before replacing input",
+      "clarity.spec.ts :: clear workflow at /guide fits mobile and passes accessibility in both themes",
+      "clarity.spec.ts :: clear workflow at /analyzer?command=nslookup fits mobile and passes accessibility in both themes",
+      "clarity.spec.ts :: clear workflow at /knowledge?term=DNS fits mobile and passes accessibility in both themes",
+      "clarity.spec.ts :: clear workflow at /toolkit?practice=subnet fits mobile and passes accessibility in both themes",
+      "development.spec.ts :: independent practice validates input, locks attempts and persists journal/weekly goal only on opt-in",
+      "development.spec.ts :: session archive explicitly saves, redacts, restores after reload and round trips through import",
+      "evolution.spec.ts :: visual course and graph constructors produce persistent usable content",
+      "evolution.spec.ts :: complete backup restores atomically, rejects changed previews and keeps automatic saving off",
+      "evolution.spec.ts :: stand workflow saves only explicit notes and preserves older learning during migration",
+      "growth.spec.ts :: session explicitly groups outputs, correlates evidence and compares before/after privately",
+      "growth.spec.ts :: learning saves only after opt-in and supports retrying mistakes",
+      "growth.spec.ts :: offline cache is opt-in, assets-only and supports analysis offline at /",
+      "growth.spec.ts :: offline cache is opt-in, assets-only and supports analysis offline at /preview/site/",
+      "terminal.spec.ts :: DNS lab changes virtual settings, analyzes and compares outputs, records only one completion",
+      "terminal.spec.ts :: cache lab keeps authoritative DNS and client cache distinct, compares TCP before and after",
+      "terminal.spec.ts :: exam finalizes once and opt-in progress survives reload",
+      "terminal.spec.ts :: explicit checkpoint restore excludes typed commands and isolates real analyzer input",
+      "terminal.spec.ts :: xterm keyboard editing, completion and history execute through the virtual engine",
+      "visual-ui.spec.ts :: layout at 1440px in dark: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 1440px in light: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 1024px in dark: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 1024px in light: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 768px in dark: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 768px in light: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 390px in dark: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 390px in light: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 320px in dark: every main page and workshop",
+      "visual-ui.spec.ts :: layout at 320px in light: every main page and workshop",
+      "workshop.spec.ts :: baseline and lesson position persist only with explicit opt-in; opt-out survives reload",
+      "workshop.spec.ts :: custom lab editor saves a strict definition and survives reload without clearing analyzer",
+      "workshop.spec.ts :: new network workflow uses evidence, final HTTPS verification and explicit portfolio notes",
+      "workshop.spec.ts :: branching Git incident validates and exports a debrief; invalid links cannot save",
+      "workshop.spec.ts :: traces hide imported content until explicit reveal and enforce size/schema",
+      "workshop.spec.ts :: workshop is mobile accessible and never automatically contacts companion or AI",
+      "workshop.spec.ts :: another tab cannot overwrite a newer saved workshop revision",
+      "workshop.spec.ts :: teacher compares imported metadata in memory without replacing own progress",
+      "workshop.spec.ts :: companion UI requires consent and handles a stale remote revision without overwriting it",
+      "workshop.spec.ts :: settings restore an orphaned custom checkpoint only after preview and can delete it",
+      "workshop.spec.ts :: authored courses survive reload and self-check never changes built-in skill assessment"
+    ],
+    "failurePointDifferences": [],
+    "newWorkflows": {
+      "chromium": {
+        "startTime": "2026-10-12T09:39:42.708Z",
+        "duration": 4789.064,
+        "expected": 2,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "webkit": {
+        "startTime": "2026-10-12T09:41:15.724Z",
+        "duration": 7810.554999999999,
+        "expected": 2,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "firefox": {
+      "available": false,
+      "launchError": "spawn UNKNOWN",
+      "previousWindowsDiagnosis": "SideBySide/mozglue"
+    }
+  },
+  "build": {
+    "passed": true,
+    "offlineManifestFiles": 98,
+    "analysisWorkerUnchanged": true
+  },
+  "dev": {
+    "url": "http://127.0.0.1:5173/",
+    "routes": ["/learning", "/terminal?lab=TERM-DNS-SERVER", "/settings"],
+    "javascriptErrors": []
+  },
+  "formatCheck": {
+    "passed": true
+  }
+}

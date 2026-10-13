@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import AxeBuilder from '@axe-core/playwright'
-import type { WorkshopProgress } from '../src/features/workshop/skills'
+import type { WorkshopProgress } from '../src/features/workshop/index'
 
 const saveLabel = 'Сохранять навыки и результаты практикума на устройстве'
 const continuation = (page: Page) =>

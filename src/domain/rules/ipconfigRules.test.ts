@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { evaluateIpconfig } from './ipconfigRules'
-import { parseIpconfig } from '../../infrastructure/parser/ipconfigParser'
+import { parseIpconfig } from '../diagnostics/parsers/ipconfigParser'
 import { examples } from '../../fixtures'
 
 const rules = (text: string) => evaluateIpconfig(parseIpconfig(text))

@@ -5,7 +5,7 @@ import { writeFile, readFile, stat, link, chmod, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import process from 'node:process'
-import { workshopProgressSchema } from '../src/features/workshop/skills.ts'
+import { workshopProgressSchema } from '../src/features/workshop/index.ts'
 async function checksum(path) {
   const hash = createHash('sha256')
   for await (const chunk of createReadStream(path)) hash.update(chunk)

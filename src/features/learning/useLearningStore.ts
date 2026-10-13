@@ -1,5 +1,5 @@
-import { taskSkill } from '../workshop/competencies'
-import { taskErrorIds } from '../workshop/learningErrors'
+import { taskSkill } from '../workshop/application/competencies'
+import { taskErrorIds } from '../workshop/index'
 import type { SaveResult } from '../../shared/persistence'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
@@ -61,7 +61,7 @@ export const useLearningStore = defineStore('learning', () => {
     state.value = recordAnswer(state.value, id, correct, Date.now(), attemptId)
     // Reserve this snapshot immediately; the independent workshop journal may still be loading.
     const baseSave = enabled.value ? persist() : undefined
-    const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
+    const { useWorkshopStore } = await import('../workshop/model/index')
     const skill = taskSkill(id),
       at = new Date().toISOString()
     await useWorkshopStore().recordResult({
@@ -99,7 +99,7 @@ export const useLearningStore = defineStore('learning', () => {
     state.value = recordScenario(state.value, id, score, Date.now(), attemptId)
     const baseSave = enabled.value ? persist() : Promise.resolve<SaveResult>({ status: 'memory' })
     if (!terminalAttempt) {
-      const { useWorkshopStore } = await import('../workshop/useWorkshopStore')
+      const { useWorkshopStore } = await import('../workshop/model/index')
       const skill = taskSkill(id),
         at = new Date().toISOString()
       await useWorkshopStore().recordResult({

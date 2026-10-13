@@ -8,7 +8,7 @@ import { z } from 'zod'
 import {
   realFixtureManifestSchema,
   assertFixturePrivacy,
-} from '../src/infrastructure/parser/realFixtureManifest.ts'
+} from '../src/domain/diagnostics/parsers/realFixtureManifest.ts'
 
 const args = process.argv.slice(2)
 if (args.length !== 3 || args.includes('--help')) {
