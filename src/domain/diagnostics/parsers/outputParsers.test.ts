@@ -123,6 +123,65 @@ describe('Windows tracert', () => {
   })
 })
 describe('Windows route print', () => {
+  it.each(['0x10', '1e3', '+25', '4294967296', '9'.repeat(400)])(
+    'excludes unsupported IPv4 metric %s and retains valid rows',
+    (metric) => {
+      const result = parseRoutes(
+        `IPv4 Route Table\n0.0.0.0 0.0.0.0 192.0.2.1 192.0.2.10 ${metric}\n192.0.2.0 255.255.255.0 On-link 192.0.2.10 25`,
+      )
+      expect(result.status).toBe('partial')
+      expect(result.value?.ipv4Routes).toHaveLength(1)
+      expect(result.value?.ipv4Routes[0]?.line).toBe(3)
+      expect(result.warnings[0]).toMatchObject({
+        code: 'ROUTE_INVALID',
+        range: { startLine: 2, endLine: 2 },
+      })
+    },
+  )
+  it.each([
+    '0.0.0.0 0.0.0.0 ::1 192.0.2.10 25',
+    '0.0.0.0 0.0.0.0 В 192.0.2.10 25',
+    '0.0.0.0 0.0.0.0 On-link 192.0.2.10 25 extra',
+    '0.0.0.0 0.0.0.0 192.0.2.1 192.0.2.10',
+  ])('rejects malformed IPv4 row %s', (row) => {
+    expect(parseRoutes('IPv4 Route Table\n' + row).warnings[0]?.code).toBe('ROUTE_INVALID')
+  })
+  it('normalizes case and whitespace in the Russian on-link gateway', () => {
+    const result = parseRoutes('IPv4 Route Table\n192.0.2.0 255.255.255.0 в\tсети 192.0.2.10 25')
+    expect(result.status).toBe('ok')
+    expect(result.value?.ipv4Routes[0]?.gateway).toBe('on-link')
+  })
+  it.each([
+    '9007199254740993 25 ::/0 On-link',
+    '11 4294967296 ::/0 On-link',
+    '11 0x10 ::/0 On-link',
+    '11 25 ::/1e2 On-link',
+    '11 25 incomplete',
+  ])('rejects malformed IPv6 counters and prefixes %s', (row) => {
+    const result = parseRoutes('IPv6 Route Table\n' + row + '\n11 25 2001:db8::/64 On-link')
+    expect(result.status).toBe('partial')
+    expect(result.value?.ipv6Routes).toHaveLength(1)
+    expect(result.warnings[0]).toMatchObject({
+      code: 'ROUTE_V6_INVALID',
+      range: { startLine: 2, endLine: 2 },
+    })
+  })
+  it.each(['IPv4 Route Table', 'IPv6 Route Table', 'Persistent Routes:', 'Постоянные маршруты:'])(
+    'reports a missing wrapped IPv6 gateway before %s',
+    (heading) => {
+      const result = parseRoutes('IPv6 Route Table\n11 25 2001:db8::/64\n' + heading)
+      expect(result.warnings[0]).toMatchObject({
+        code: 'ROUTE_V6_INCOMPLETE',
+        range: { startLine: 2, endLine: 2 },
+      })
+    },
+  )
+  it('recovers the next valid IPv6 row after a missing wrapped gateway', () => {
+    const result = parseRoutes('IPv6 Route Table\n11 25 2001:db8::/64\n11 25 ::/0 2001:db8::1')
+    expect(result.status).toBe('partial')
+    expect(result.value?.ipv6Routes).toMatchObject([{ prefix: 0, line: 3 }])
+    expect(result.warnings[0]?.range).toEqual({ startLine: 2, endLine: 2 })
+  })
   it('rejects fractional IPv4 route metrics', () =>
     expect(parseRoutes('IPv4 Route Table\n0.0.0.0 0.0.0.0 192.0.2.1 192.0.2.10 2.5').status).toBe(
       'unsupported',

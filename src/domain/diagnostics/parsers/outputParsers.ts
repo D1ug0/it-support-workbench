@@ -2,6 +2,7 @@ import type { CommandKind, ParseResult, ParseWarning } from '../../types/diagnos
 import type { ParsedPing, ParsedNslookup, ParsedTracert, ParsedRoutes } from '../../types/outputs'
 import { isIPAddress, isIPv4, isIPv6, maskToPrefix } from '../../network'
 import { normalizeInput, validateInput } from './normalizeInput'
+import { parseDecimalCounter } from './numbers'
 
 function prepare(text: string, kind: CommandKind) {
   const normalized = normalizeInput(text)
@@ -248,55 +249,54 @@ export function parseRoutes(text: string): ParseResult<ParsedRoutes> {
   let section: 'v4' | 'v6' | undefined
   let persistent = false
   let pending: Omit<ParsedRoutes['ipv6Routes'][number], 'gateway'> | undefined
+  const flushPending = (message = 'Не найден шлюз строки IPv6-маршрута.') => {
+    if (!pending) return
+    warnings.push({ code: 'ROUTE_V6_INCOMPLETE', message, range: range(pending.line) })
+    pending = undefined
+  }
+  const isOnLink = (gateway: string) => /^(?:On-link|В\s+сети)$/i.test(gateway)
   lines.forEach((line, index) => {
     if (/IPv4 (?:Route Table|таблица маршрута)|Таблица маршрута IPv4/i.test(line)) {
+      flushPending()
       section = 'v4'
       persistent = false
-      pending = undefined
       return
     }
     if (/IPv6 (?:Route Table|таблица маршрута)|Таблица маршрута IPv6/i.test(line)) {
+      flushPending()
       section = 'v6'
       persistent = false
-      pending = undefined
       return
     }
     if (/Persistent Routes|Постоянные маршруты/i.test(line)) {
+      flushPending()
       persistent = true
       return
     }
     if (persistent || !section) return
-    const parts = line.trim().split(/\s+/)
-    if (section === 'v4' && /^\d+\./.test(parts[0] ?? '') && parts.length >= 5) {
-      const [destination, mask, gateway, networkInterface, metric] = parts
-      const prefix = maskToPrefix(mask ?? '')
+    if (section === 'v4' && /^\s*\d+\./.test(line)) {
+      const match = /^\s*(\S+)\s+(\S+)\s+(On-link|В\s+сети|\S+)\s+(\S+)\s+(\S+)\s*$/i.exec(line)
+      const [, destination = '', mask = '', gateway = '', networkInterface = '', metric = ''] =
+        match ?? []
+      const prefix = maskToPrefix(mask)
+      const met = parseDecimalCounter(metric)
       if (
-        destination &&
+        match &&
         isIPv4(destination) &&
         prefix !== undefined &&
-        gateway &&
-        (isIPAddress(gateway) || /^(?:On-link|В)$/i.test(gateway))
+        (isIPv4(gateway) || isOnLink(gateway)) &&
+        isIPv4(networkInterface) &&
+        met !== undefined
       ) {
-        const onLink = /^(?:On-link|В)$/i.test(gateway)
-        const offset = gateway === 'В' ? 1 : 0
-        const iface = parts[3 + offset] ?? networkInterface ?? ''
-        const met = Number(parts[4 + offset] ?? metric)
-        if (isIPv4(iface) && Number.isSafeInteger(met) && met >= 0)
-          value.ipv4Routes.push({
-            destination,
-            mask: mask!,
-            prefix,
-            gateway: onLink ? 'on-link' : gateway,
-            interface: iface,
-            metric: met,
-            line: index + 1,
-          })
-        else
-          warnings.push({
-            code: 'ROUTE_INVALID',
-            message: 'Интерфейс или метрика IPv4-маршрута не распознаны.',
-            range: range(index + 1),
-          })
+        value.ipv4Routes.push({
+          destination,
+          mask,
+          prefix,
+          gateway: isOnLink(gateway) ? 'on-link' : gateway,
+          interface: networkInterface,
+          metric: met,
+          line: index + 1,
+        })
       } else
         warnings.push({
           code: 'ROUTE_INVALID',
@@ -306,30 +306,32 @@ export function parseRoutes(text: string): ParseResult<ParsedRoutes> {
     } else if (section === 'v6') {
       if (pending) {
         const gateway = line.trim()
-        if (isIPv6(gateway) || /^(On-link|В сети)$/i.test(gateway)) {
+        if (isIPv6(gateway) || isOnLink(gateway)) {
           value.ipv6Routes.push({
             ...pending,
-            gateway: /^(On-link|В сети)$/i.test(gateway) ? 'on-link' : gateway,
+            gateway: isOnLink(gateway) ? 'on-link' : gateway,
           })
           pending = undefined
           return
         }
-        warnings.push({
-          code: 'ROUTE_V6_INCOMPLETE',
-          message: 'Не найден шлюз строки IPv6-маршрута.',
-          range: range(pending.line),
-        })
-        pending = undefined
+        flushPending()
       }
-      const match = /^\s*(\d+)\s+(\d+)\s+([^\s]+)\/(\d+)(?:\s+(.+))?$/.exec(line)
-      if (match) {
-        const address = match[3] ?? '',
-          prefix = Number(match[4]),
-          gateway = match[5]?.trim()
-        if (!isIPv6(address) || prefix > 128) {
+      if (/^\s*\d+\s/.test(line)) {
+        const match = /^\s*(\d+)\s+(\S+)\s+([^\s]+)\/(\S+)(?:\s+(.+))?$/.exec(line)
+        const interfaceIndex = parseDecimalCounter(match?.[1] ?? '')
+        const metric = parseDecimalCounter(match?.[2] ?? '')
+        const prefix = parseDecimalCounter(match?.[4] ?? '', 128)
+        const address = match?.[3] ?? '',
+          gateway = match?.[5]?.trim()
+        if (
+          !isIPv6(address) ||
+          prefix === undefined ||
+          interfaceIndex === undefined ||
+          metric === undefined
+        ) {
           warnings.push({
             code: 'ROUTE_V6_INVALID',
-            message: 'Некорректный IPv6-префикс исключён.',
+            message: 'Некорректный IPv6-маршрут исключён: проверьте префикс, индекс и метрику.',
             range: range(index + 1),
           })
           return
@@ -337,15 +339,15 @@ export function parseRoutes(text: string): ParseResult<ParsedRoutes> {
         const entry = {
           destination: address,
           prefix,
-          interfaceIndex: Number(match[1]),
-          metric: Number(match[2]),
+          interfaceIndex,
+          metric,
           line: index + 1,
         }
         if (!gateway) pending = entry
-        else if (isIPv6(gateway) || /^(On-link|В сети)$/i.test(gateway))
+        else if (isIPv6(gateway) || isOnLink(gateway))
           value.ipv6Routes.push({
             ...entry,
-            gateway: /^(On-link|В сети)$/i.test(gateway) ? 'on-link' : gateway,
+            gateway: isOnLink(gateway) ? 'on-link' : gateway,
           })
         else
           warnings.push({
@@ -356,12 +358,7 @@ export function parseRoutes(text: string): ParseResult<ParsedRoutes> {
       }
     }
   })
-  if (pending)
-    warnings.push({
-      code: 'ROUTE_V6_INCOMPLETE',
-      message: 'IPv6-маршрут обрезан.',
-      range: range(pending.line),
-    })
+  flushPending('IPv6-маршрут обрезан.')
   if (!value.ipv4Routes.length && !value.ipv6Routes.length)
     return {
       kind: 'route',
