@@ -30,17 +30,20 @@ export function parsePing(text: string): ParseResult<ParsedPing> {
       value.replies.push({ line: index + 1, outcome: 'unreachable' })
     else if (/^(?:Reply from|Ответ от)/i.test(line.trim())) {
       const time = /(?:time|время)\s*([=<])\s*(\d+)\s*(?:ms|мс)/i.exec(line)
-      if (time)
+      const timeMs = time ? parseDecimalCounter(time[2] ?? '') : undefined
+      if (timeMs !== undefined)
         value.replies.push({
           line: index + 1,
           outcome: 'reply',
-          timeMs: Number(time[2]),
-          lessThan: time[1] === '<',
+          timeMs,
+          lessThan: time?.[1] === '<',
         })
       else
         warnings.push({
-          code: 'PING_REPLY_FORMAT',
-          message: 'Строка ответа не содержит распознанного времени ICMP.',
+          code: time ? 'PING_REPLY_INVALID' : 'PING_REPLY_FORMAT',
+          message: time
+            ? 'Время ICMP-ответа превышает допустимый диапазон.'
+            : 'Строка ответа не содержит распознанного времени ICMP.',
           range: range(index + 1),
         })
     }
@@ -49,9 +52,13 @@ export function parsePing(text: string): ParseResult<ParsedPing> {
         line,
       )
     if (stats) {
-      const [sent, received, lost] = [Number(stats[1]), Number(stats[2]), Number(stats[3])]
+      const sent = parseDecimalCounter(stats[1] ?? '')
+      const received = parseDecimalCounter(stats[2] ?? '')
+      const lost = parseDecimalCounter(stats[3] ?? '')
       if (
-        [sent, received, lost].every(Number.isSafeInteger) &&
+        sent !== undefined &&
+        received !== undefined &&
+        lost !== undefined &&
         sent === received + lost &&
         sent > 0
       ) {
@@ -71,11 +78,15 @@ export function parsePing(text: string): ParseResult<ParsedPing> {
         line,
       )
     if (rtt) {
-      const [minimum, maximum, average] = [Number(rtt[1]), Number(rtt[2]), Number(rtt[3])]
+      const minimum = parseDecimalCounter(rtt[1] ?? '')
+      const maximum = parseDecimalCounter(rtt[2] ?? '')
+      const average = parseDecimalCounter(rtt[3] ?? '')
       if (
-        [minimum, maximum, average].every(Number.isSafeInteger) &&
-        minimum! <= average! &&
-        average! <= maximum!
+        minimum !== undefined &&
+        maximum !== undefined &&
+        average !== undefined &&
+        minimum <= average &&
+        average <= maximum
       ) {
         value.minimum = minimum
         value.maximum = maximum
@@ -198,20 +209,24 @@ export function parseTracert(text: string): ParseResult<ParsedTracert> {
     if (/Trace complete|Трассировка завершена/i.test(line)) value.completed = true
     const hop = /^\s*(\d+)\s+(.+)$/.exec(line)
     if (!hop) return
+    const hopNumber = parseDecimalCounter(hop[1] ?? '')
     let remainder = hop[2] ?? ''
     const times: Array<number | null> = []
     const lessThan: boolean[] = []
     for (let count = 0; count < 3; count++) {
       const match = /^\s*(\*|<?\s*\d+\s*(?:ms|мс))\s*/i.exec(remainder)
       if (!match) break
-      times.push(match[1] === '*' ? null : Number(match[1]?.replace(/[^\d]/g, '')))
+      const time =
+        match[1] === '*' ? null : parseDecimalCounter(match[1]?.replace(/[^\d]/g, '') ?? '')
+      if (time === undefined) break
+      times.push(time)
       lessThan.push(match[1]?.trim().startsWith('<') ?? false)
       remainder = remainder.slice(match[0].length)
     }
-    if (times.length !== 3) {
+    if (times.length !== 3 || hopNumber === undefined || hopNumber === 0) {
       warnings.push({
         code: 'TRACE_HOP_INVALID',
-        message: 'В строке перехода не найдены три результата проб.',
+        message: 'Нужны положительный номер перехода и три результата проб в допустимом диапазоне.',
         range: range(index + 1),
       })
       return
@@ -219,7 +234,7 @@ export function parseTracert(text: string): ParseResult<ParsedTracert> {
     const bracket = /\[([^\]]+)\]/.exec(remainder)
     const address = bracket?.[1] ?? remainder.trim().split(/\s/)[0]
     value.hops.push({
-      hop: Number(hop[1]),
+      hop: hopNumber,
       line: index + 1,
       times,
       lessThan,

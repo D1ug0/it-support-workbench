@@ -14,6 +14,36 @@ import routes from '../../../fixtures/route-en.txt?raw'
 import routesRu from '../../../fixtures/route-ru.txt?raw'
 
 describe('Windows ping', () => {
+  it.each(['4294967296', '9007199254740993', '9'.repeat(400)])(
+    'excludes out-of-range reply time %s with source evidence',
+    (time) => {
+      const result = parsePing(
+        `Reply from 192.0.2.20: time=${time}ms TTL=56\nReply from 192.0.2.20: time<1ms TTL=56\nPackets: Sent = 2, Received = 2, Lost = 0`,
+      )
+      expect(result.status).toBe('partial')
+      expect(result.value?.replies).toEqual([
+        { line: 2, outcome: 'reply', timeMs: 1, lessThan: true },
+      ])
+      expect(result.warnings[0]).toMatchObject({
+        code: 'PING_REPLY_INVALID',
+        range: { startLine: 1, endLine: 1 },
+      })
+    },
+  )
+  it('keeps valid statistics at the unsigned boundary and rejects larger RTT/counters', () => {
+    const result = parsePing(
+      'Reply from 192.0.2.20: time=0ms TTL=56\n' +
+        'Packets: Sent = 4294967295, Received = 4294967295, Lost = 0\n' +
+        'Minimum = 4294967296ms, Maximum = 4294967296ms, Average = 4294967296ms',
+    )
+    expect(result.value?.sent).toBe(4294967295)
+    expect(result.value?.average).toBeUndefined()
+    expect(result.value?.replies[0]?.timeMs).toBe(0)
+    expect(result.warnings[0]?.code).toBe('PING_RTT_INVALID')
+    expect(
+      parsePing('Packets: Sent = 4294967296, Received = 4294967296, Lost = 0').value,
+    ).toBeUndefined()
+  })
   it('rejects contradictory RTT and unsafe packet counters', () => {
     const rtt = parsePing(
       ping.replace(/Minimum[^\n]+/, 'Minimum = 9ms, Maximum = 2ms, Average = 5ms'),
@@ -88,6 +118,30 @@ describe('Windows nslookup', () => {
   })
 })
 describe('Windows tracert', () => {
+  it.each([
+    '0 1 ms 1 ms 1 ms 192.0.2.20',
+    '9007199254740993 1 ms 1 ms 1 ms 192.0.2.20',
+    '1 4294967296 ms 1 ms 1 ms 192.0.2.20',
+    `1 ${'9'.repeat(400)} ms 1 ms 1 ms 192.0.2.20`,
+  ])('excludes invalid hop numbers and timings without dropping valid hops: %s', (row) => {
+    const result = parseTracert(
+      'Tracing route to 192.0.2.20\n' + row + '\n2 <1 ms * 0 ms 192.0.2.20\nTrace complete.',
+    )
+    expect(result.status).toBe('partial')
+    expect(result.value?.hops).toEqual([
+      {
+        hop: 2,
+        line: 3,
+        times: [1, null, 0],
+        lessThan: [true, false, false],
+        address: '192.0.2.20',
+      },
+    ])
+    expect(result.warnings[0]).toMatchObject({
+      code: 'TRACE_HOP_INVALID',
+      range: { startLine: 2, endLine: 2 },
+    })
+  })
   it('preserves less-than RTT measurements in the parsed model and exported report', () => {
     const parsed = parseTracert(trace)
     expect(parsed.value?.hops[0]?.lessThan).toEqual([false, false, true])
