@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { isIPv4, isIPv6, maskToPrefix, prefixToMask, calculateSubnet } from './network'
+import {
+  isIPv4,
+  isIPv6,
+  maskToPrefix,
+  prefixToMask,
+  calculateSubnet,
+  canonicalAddress,
+} from './network'
 
 describe('IP validation', () => {
   it.each(['0.0.0.0', '255.255.255.255', '192.0.2.10', '169.254.12.1', '127.0.0.1'])(
@@ -42,6 +49,18 @@ describe('IP validation', () => {
   it.each([-1, 33, 1.5, NaN])('rejects prefix %s', (prefix) =>
     expect(() => prefixToMask(prefix)).toThrow(),
   )
+})
+describe('canonical address identity', () => {
+  it.each([
+    ['::', '0:0:0:0:0:0:0:0'],
+    ['FD00:0000:0::0001', 'fd00:0:0:0:0:0:0:1'],
+    ['::ffff:192.0.2.1', '0:0:0:0:0:ffff:c000:201'],
+    ['1:2:3:4:5:6:192.0.2.1', '1:2:3:4:5:6:c000:201'],
+    ['fe80::1%12', 'fe80:0:0:0:0:0:0:1%12'],
+    ['192.0.2.1', '192.0.2.1'],
+    ['[IPv6 1]', '[IPv6 1]'],
+    ['2001:db8:bad-address', '2001:db8:bad-address'],
+  ])('normalizes %s', (value, expected) => expect(canonicalAddress(value)).toBe(expected))
 })
 describe('CIDR calculator', () => {
   it('calculates network and broadcast', () =>

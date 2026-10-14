@@ -1,6 +1,6 @@
 import type { AnalysisResult, EvidenceRange } from '../../domain/types/diagnostic'
 import type { ParsedOutput } from '../../domain/types/outputs'
-import { isIPAddress, isIPv4 } from '../../domain/network'
+import { canonicalAddress, isIPAddress } from '../../domain/network'
 import { createAddressRedactor } from '../../domain/diagnostics/redact'
 import { redactReport } from '../../infrastructure/export/exportReport'
 
@@ -32,29 +32,8 @@ export interface OutputDifference {
   after: DifferenceValue[]
 }
 
-export function canonicalAddress(value: string): string {
-  if (!isIPAddress(value) || isIPv4(value)) return value
-  const [base = '', zone] = value.toLowerCase().split('%')
-  let text = base
-  if (text.includes('.')) {
-    const index = text.lastIndexOf(':')
-    const parts = text
-      .slice(index + 1)
-      .split('.')
-      .map(Number)
-    text = `${text.slice(0, index)}:${((parts[0]! << 8) | parts[1]!).toString(16)}:${((parts[2]! << 8) | parts[3]!).toString(16)}`
-  }
-  const halves = text.split('::')
-  const left = halves[0] ? halves[0].split(':') : []
-  const right = halves[1] ? halves[1].split(':') : []
-  const groups =
-    halves.length === 2
-      ? [...left, ...Array<string>(8 - left.length - right.length).fill('0'), ...right]
-      : left
-  return (
-    groups.map((group) => parseInt(group, 16).toString(16)).join(':') + (zone ? `%${zone}` : '')
-  )
-}
+// Preserve the session API while the shared network kernel owns address identity.
+export { canonicalAddress } from '../../domain/network'
 export function targetAddress(target?: string): string | undefined {
   if (target && /^\[IPv[46] [1-9]\d{0,5}\]$/.test(target)) return target
   const value = /\[([^\]]+)\]/.exec(target ?? '')?.[1] ?? target?.trim()
