@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Copy, Check } from '@lucide/vue'
 const props = defineProps<{ command: string; shell?: 'CMD' | 'PowerShell' }>()
 const shell = computed(
@@ -9,17 +9,30 @@ const shell = computed(
 const copied = ref(false)
 const error = ref('')
 let timer: ReturnType<typeof setTimeout> | undefined
-onBeforeUnmount(() => globalThis.clearTimeout(timer))
-async function copy(command: string) {
+let attempt = 0
+function resetFeedback() {
+  attempt++
   globalThis.clearTimeout(timer)
+  timer = undefined
   copied.value = false
   error.value = ''
+  return attempt
+}
+watch(() => props.command, resetFeedback, { flush: 'sync' })
+onBeforeUnmount(resetFeedback)
+async function copy(command: string) {
+  const currentAttempt = resetFeedback()
   try {
     await navigator.clipboard.writeText(command)
+    if (currentAttempt !== attempt) return
     copied.value = true
-    timer = setTimeout(() => (copied.value = false), 1800)
+    timer = setTimeout(() => {
+      copied.value = false
+      timer = undefined
+    }, 1800)
   } catch {
-    error.value = 'Не удалось скопировать. Выделите команду вручную.'
+    if (currentAttempt === attempt)
+      error.value = 'Не удалось скопировать. Выделите команду вручную.'
   }
 }
 </script>
