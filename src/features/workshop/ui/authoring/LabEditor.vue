@@ -130,6 +130,8 @@ async function remove(id: string) {
   if (busy.value || !window.confirm('Удалить выбранную авторскую лабораторию?')) return
   try {
     await store.removeLab(id)
+    expected.value = { ...expected.value, [id]: null }
+    pendingTokens.value = { ...pendingTokens.value, [id]: null }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Удаление не удалось.'
   }

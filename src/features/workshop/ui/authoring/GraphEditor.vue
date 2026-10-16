@@ -168,6 +168,7 @@ async function read(event: Event) {
 async function remove(id: string) {
   try {
     await store.removeGraph(id)
+    expected.value = { ...expected.value, [id]: null }
   } catch {
     error.value = 'Удаление не удалось.'
   }

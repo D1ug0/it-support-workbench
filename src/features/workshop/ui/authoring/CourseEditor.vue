@@ -128,6 +128,8 @@ async function remove(id: string) {
   busy.value = true
   try {
     await store.removeCourse(id)
+    expected.value = { ...expected.value, [id]: null }
+    pendingTokens.value = { ...pendingTokens.value, [id]: null }
   } catch {
     error.value = 'Удаление курса не удалось.'
   } finally {

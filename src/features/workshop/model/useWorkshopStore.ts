@@ -281,6 +281,10 @@ export function createWorkshopStore(repository: WorkshopRepository) {
     async function removeLab(id: string) {
       await initialize()
       await repository.deleteMaterial('labs', id, materialTokens.value.labs[id] ?? null)
+      materialTokens.value = {
+        ...materialTokens.value,
+        labs: { ...materialTokens.value.labs, [id]: null },
+      }
       customLabs.value = customLabs.value.filter((l) => l.id !== id)
     }
     async function saveCourses(values: CustomCourse[], expected?: MaterialTokens) {
@@ -307,6 +311,10 @@ export function createWorkshopStore(repository: WorkshopRepository) {
     async function removeCourse(id: string) {
       await initialize()
       await repository.deleteMaterial('courses', id, materialTokens.value.courses[id] ?? null)
+      materialTokens.value = {
+        ...materialTokens.value,
+        courses: { ...materialTokens.value.courses, [id]: null },
+      }
       customCourses.value = customCourses.value.filter((c) => c.id !== id)
     }
     async function saveGraph(value: IncidentGraph, expected?: MaterialTokens) {
@@ -329,6 +337,10 @@ export function createWorkshopStore(repository: WorkshopRepository) {
     async function removeGraph(id: string) {
       await initialize()
       await repository.deleteMaterial('graphs', id, materialTokens.value.graphs[id] ?? null)
+      materialTokens.value = {
+        ...materialTokens.value,
+        graphs: { ...materialTokens.value.graphs, [id]: null },
+      }
       customGraphs.value = customGraphs.value.filter((g) => g.id !== id)
     }
     async function saveReport(value: PortfolioReport) {

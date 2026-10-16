@@ -3,6 +3,10 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createWorkshopStore } from './useWorkshopStore'
 import type { WorkshopProgress } from '../domain/skills'
 import type { WorkshopRepository, WorkshopSnapshot } from '../application/workshopRepository'
+import { extendedLabs } from '../../terminal/labDefinitions'
+import { sampleGraph } from '../domain/graph'
+import { customCourseSchema } from '../domain/customCourses'
+import { workshopCourses } from '../domain/courses'
 
 function repository() {
   const fulfilled = <T>(value: T): PromiseFulfilledResult<T> => ({ status: 'fulfilled', value })
@@ -17,9 +21,9 @@ function repository() {
     saveProgress: vi.fn(async (_snapshot: WorkshopProgress, revision: number) => revision + 1),
     disableProgress: vi.fn(async () => undefined),
     clearProgress: vi.fn(async () => {}),
-    readMaterials: vi.fn(async () => []),
-    saveMaterials: vi.fn(async () => ({})),
-    deleteMaterial: vi.fn(async () => {}),
+    readMaterials: vi.fn<WorkshopRepository['readMaterials']>(async () => []),
+    saveMaterials: vi.fn<WorkshopRepository['saveMaterials']>(async () => ({})),
+    deleteMaterial: vi.fn<WorkshopRepository['deleteMaterial']>(async () => {}),
     saveReport: vi.fn(async (value) => value),
     removeReport: vi.fn(async () => {}),
   } satisfies WorkshopRepository
@@ -32,6 +36,51 @@ const event = (id: string) => ({
   at: '2026-10-12T10:00:00Z',
   score: 100,
   outcome: 'completed',
+})
+
+const lab = { ...extendedLabs[0]!, id: 'USR-00000000-0000-4000-8000-000000000005' }
+const course = customCourseSchema.parse({
+  ...workshopCourses[0],
+  schemaVersion: 1,
+  id: 'COURSE-' + 'A'.repeat(32),
+  labs: [],
+})
+const materialCases = [
+  { collection: 'labs', value: lab, save: 'saveLabs', remove: 'removeLab' },
+  { collection: 'courses', value: course, save: 'saveCourses', remove: 'removeCourse' },
+  { collection: 'graphs', value: sampleGraph, save: 'saveGraph', remove: 'removeGraph' },
+] as const
+
+describe('material deletion tokens', () => {
+  it.each(materialCases)('allows reimport after deleting $collection', async (entry) => {
+    const port = repository(),
+      store = createWorkshopStore(port)()
+    await store.initialize()
+    store.materialTokens[entry.collection] = { [entry.value.id]: 'previous-token' }
+    await store[entry.remove](entry.value.id)
+    if (entry.save === 'saveGraph') await store.saveGraph(entry.value)
+    else if (entry.save === 'saveLabs') await store.saveLabs([entry.value])
+    else await store.saveCourses([entry.value])
+    expect(port.deleteMaterial).toHaveBeenCalledWith(
+      entry.collection,
+      entry.value.id,
+      'previous-token',
+    )
+    expect(port.saveMaterials).toHaveBeenCalledWith(entry.collection, [entry.value], {
+      [entry.value.id]: null,
+    })
+  })
+  it.each(materialCases)('preserves the token when deleting $collection fails', async (entry) => {
+    const port = repository(),
+      store = createWorkshopStore(port)()
+    await store.initialize()
+    store.materialTokens[entry.collection] = { [entry.value.id]: 'previous-token' }
+    port.deleteMaterial.mockRejectedValueOnce(new Error('CAS conflict'))
+    await expect(store[entry.remove](entry.value.id)).rejects.toThrow('CAS conflict')
+    expect(store.tokensFor(entry.collection, [entry.value.id])).toEqual({
+      [entry.value.id]: 'previous-token',
+    })
+  })
 })
 beforeEach(() => setActivePinia(createPinia()))
 
