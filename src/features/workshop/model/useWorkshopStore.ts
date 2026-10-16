@@ -48,7 +48,8 @@ export function createWorkshopStore(repository: WorkshopRepository) {
       error = ref('')
     let initialization: Promise<void> | undefined,
       queue = Promise.resolve(),
-      revision = 0
+      revision = 0,
+      consentVersion = 0
     const problems = shallowRef<ProblemRecord[]>([])
     const materialTokens = shallowRef<Record<MaterialCollection, MaterialTokens>>({
       labs: {},
@@ -141,9 +142,12 @@ export function createWorkshopStore(repository: WorkshopRepository) {
       if (preference() === 'false') enabled.value = false
       if (!enabled.value) return Promise.resolve({ status: 'memory' })
       const snapshot = workshopProgressSchema.parse(state.value)
+      const consent = consentVersion
       pendingWrites.value++
       const operation = queue.then(async (): Promise<SaveResult> => {
         try {
+          if (preference() === 'false') enabled.value = false
+          if (!enabled.value || consent !== consentVersion) return { status: 'memory' }
           revision = await repository.saveProgress(snapshot, revision)
           error.value = ''
           return { status: 'saved' }
@@ -237,6 +241,10 @@ export function createWorkshopStore(repository: WorkshopRepository) {
       return persist()
     }
     async function toggle(value: boolean) {
+      if (!value) {
+        consentVersion++
+        enabled.value = false
+      }
       try {
         globalThis.localStorage?.setItem(preferenceKey, String(value))
       } catch {
