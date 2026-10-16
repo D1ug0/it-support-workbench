@@ -11,6 +11,7 @@ const features = {
     unit: ['src/features/workshop', 'src/features/learning'],
     browser: [
       'e2e/architecture.spec.ts',
+      'e2e/materials.spec.ts',
       'e2e/evolution.spec.ts',
       'e2e/audit.spec.ts',
       'e2e/audit-fixes.spec.ts',
