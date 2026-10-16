@@ -27,6 +27,28 @@ export function isIPv6(value: string): boolean {
 export const isIPAddress = (value: string) => isIPv4(value) || isIPv6(value)
 export const cleanAddress = (value: string) => value.replace(/\s*\([^)]*\)\s*$/, '').trim()
 
+/** Use one identity for compressed, expanded and IPv4-embedded forms of an IPv6 address. */
+export function canonicalAddress(value: string): string {
+  if (!isIPAddress(value) || isIPv4(value)) return value
+  const [base = '', zone] = value.toLowerCase().split('%')
+  let address = base
+  if (address.includes('.')) {
+    const index = address.lastIndexOf(':')
+    const embedded = ipv4ToNumber(address.slice(index + 1))
+    address = `${address.slice(0, index)}:${(embedded >>> 16).toString(16)}:${(embedded & 0xffff).toString(16)}`
+  }
+  const halves = address.split('::')
+  const left = halves[0] ? halves[0].split(':') : []
+  const right = halves[1] ? halves[1].split(':') : []
+  const groups =
+    halves.length === 2
+      ? [...left, ...Array<string>(8 - left.length - right.length).fill('0'), ...right]
+      : left
+  return (
+    groups.map((group) => parseInt(group, 16).toString(16)).join(':') + (zone ? `%${zone}` : '')
+  )
+}
+
 export function maskToPrefix(mask: string): number | undefined {
   if (!isIPv4(mask)) return undefined
   const bits = mask

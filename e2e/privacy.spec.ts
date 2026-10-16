@@ -68,3 +68,26 @@ test('binary file and oversized file are rejected', async ({ page }) => {
   })
   await expect(page.getByRole('alert')).toContainText('2 MiB')
 })
+
+test('equivalent private IPv6 addresses share one marker in the downloaded report', async ({
+  page,
+}) => {
+  await page.goto('/#/analyzer')
+  await page
+    .getByLabel('Вывод команды')
+    .fill(
+      'Server: private.example\nAddress: 192.0.2.53\n\n' +
+        'Name: private.example\nAddresses: FD12:ABCD::1\n fd12:abcd:0:0:0:0:0:0001',
+    )
+  await page.getByRole('button', { name: 'Проанализировать', exact: true }).click()
+  await expect(page.getByTestId('output-card')).toBeVisible()
+  await page.getByRole('button', { name: 'Отчёт', exact: true }).click()
+  const preview = page.getByTestId('report-preview')
+  await expect(preview).toContainText('Адрес: [IPv6 1]')
+  await expect(preview).not.toContainText('[IPv6 2]')
+  const downloading = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Скачать отчёт' }).click()
+  const report = await readFile((await (await downloading).path())!, 'utf-8')
+  expect(report).not.toMatch(/fd12|private\.example|IPv6 2/i)
+  expect(report.match(/\[IPv6 1\]/g)).toHaveLength(2)
+})

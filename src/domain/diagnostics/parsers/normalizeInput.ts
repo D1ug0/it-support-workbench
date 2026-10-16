@@ -6,14 +6,33 @@ export function normalizeInput(text: string): string {
 }
 export function validateInput(text: string): string | undefined {
   if (!text.trim()) return 'Вставьте вывод команды или загрузите пример.'
-  if (new TextEncoder().encode(text).length > MAX_INPUT_BYTES)
-    return 'Текст превышает лимит 2 MiB. Выберите меньший файл.'
+  // Every UTF-16 code unit contributes at least one UTF-8 byte.
+  if (text.length > MAX_INPUT_BYTES) return 'Текст превышает лимит 2 MiB. Выберите меньший файл.'
+  let bytes = 0
+  let lines = 1
+  let binary = false
   for (let index = 0; index < text.length; index++) {
     const code = text.charCodeAt(index)
-    if (code < 32 && ![9, 10, 12, 13].includes(code))
-      return 'Обнаружены бинарные данные. Нужен текстовый вывод команды.'
+    if (code < 32 && code !== 9 && code !== 10 && code !== 12 && code !== 13) binary = true
+    if (code === 10) lines++
+    if (code < 0x80) bytes++
+    else if (code < 0x800) bytes += 2
+    else if (
+      code >= 0xd800 &&
+      code <= 0xdbff &&
+      text.charCodeAt(index + 1) >= 0xdc00 &&
+      text.charCodeAt(index + 1) <= 0xdfff
+    ) {
+      bytes += 4
+      index++
+    } else {
+      // Unpaired surrogates become the three-byte replacement character, as in TextEncoder.
+      bytes += 3
+    }
+    if (bytes > MAX_INPUT_BYTES) return 'Текст превышает лимит 2 MiB. Выберите меньший файл.'
   }
-  if (text.split('\n').length > MAX_INPUT_LINES)
+  if (binary) return 'Обнаружены бинарные данные. Нужен текстовый вывод команды.'
+  if (lines > MAX_INPUT_LINES)
     return 'В тексте более 50 000 строк. Разделите вывод на несколько файлов.'
   return undefined
 }

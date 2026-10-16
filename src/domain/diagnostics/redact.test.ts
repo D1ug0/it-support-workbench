@@ -41,6 +41,27 @@ describe('safe report export', () => {
     expect(displayAddress('10.0.0.1', true)).toBe('10.0.0.1')
     expect(displayAddress('10.0.0.1', false)).toBe('[IPv4 1]')
   })
+  it('reuses markers for equivalent IPv6 spellings, including embedded IPv4', () => {
+    const redact = createAddressRedactor()
+    expect(redact('FD12:ABCD::1')).toBe('[IPv6 1]')
+    expect(redact('fd12:abcd:0:0:0:0:0:0001')).toBe('[IPv6 1]')
+    expect(redact('::ffff:10.0.0.1')).toBe('[IPv6 2]')
+    expect(redact('0:0:0:0:0:ffff:a00:1')).toBe('[IPv6 2]')
+    expect(redact('[IPv6 1]')).toBe('[IPv6 1]')
+  })
+  it('keeps scoped IPv6 addresses distinct and hides their zones', () => {
+    const redact = createAddressRedactor()
+    expect(redact('fe80::1%12')).toBe('[IPv6 1]')
+    expect(redact('FE80:0:0:0:0:0:0:1%12')).toBe('[IPv6 1]')
+    expect(redact('fe80::1%13')).toBe('[IPv6 2]')
+    expect(redact('2001:db8::1%PRIVATE')).toBe('[IPv6 3]')
+  })
+  it('allows only valid documentation addresses, in any valid IPv6 spelling', () => {
+    const redact = createAddressRedactor()
+    for (const value of ['192.0.2.1', '2001:0DB8:0:0:0:0:0:1']) expect(redact(value)).toBe(value)
+    for (const value of ['192.0.2.PRIVATE', '192.0.2.999', '2001:db8:PRIVATE', '2001:db80::1'])
+      expect(redact(value)).toMatch(/^\[IPv6 \d+\]$/)
+  })
   it('only includes raw text when provided explicitly', () => {
     const result = analyzeOutput(sensitive)
     expect(exportReport(result)).not.toContain('PRIVATE-HOST')

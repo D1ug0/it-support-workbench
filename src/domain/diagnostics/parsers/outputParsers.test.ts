@@ -14,6 +14,36 @@ import routes from '../../../fixtures/route-en.txt?raw'
 import routesRu from '../../../fixtures/route-ru.txt?raw'
 
 describe('Windows ping', () => {
+  it.each(['4294967296', '9007199254740993', '9'.repeat(400)])(
+    'excludes out-of-range reply time %s with source evidence',
+    (time) => {
+      const result = parsePing(
+        `Reply from 192.0.2.20: time=${time}ms TTL=56\nReply from 192.0.2.20: time<1ms TTL=56\nPackets: Sent = 2, Received = 2, Lost = 0`,
+      )
+      expect(result.status).toBe('partial')
+      expect(result.value?.replies).toEqual([
+        { line: 2, outcome: 'reply', timeMs: 1, lessThan: true },
+      ])
+      expect(result.warnings[0]).toMatchObject({
+        code: 'PING_REPLY_INVALID',
+        range: { startLine: 1, endLine: 1 },
+      })
+    },
+  )
+  it('keeps valid statistics at the unsigned boundary and rejects larger RTT/counters', () => {
+    const result = parsePing(
+      'Reply from 192.0.2.20: time=0ms TTL=56\n' +
+        'Packets: Sent = 4294967295, Received = 4294967295, Lost = 0\n' +
+        'Minimum = 4294967296ms, Maximum = 4294967296ms, Average = 4294967296ms',
+    )
+    expect(result.value?.sent).toBe(4294967295)
+    expect(result.value?.average).toBeUndefined()
+    expect(result.value?.replies[0]?.timeMs).toBe(0)
+    expect(result.warnings[0]?.code).toBe('PING_RTT_INVALID')
+    expect(
+      parsePing('Packets: Sent = 4294967296, Received = 4294967296, Lost = 0').value,
+    ).toBeUndefined()
+  })
   it('rejects contradictory RTT and unsafe packet counters', () => {
     const rtt = parsePing(
       ping.replace(/Minimum[^\n]+/, 'Minimum = 9ms, Maximum = 2ms, Average = 5ms'),
@@ -88,6 +118,30 @@ describe('Windows nslookup', () => {
   })
 })
 describe('Windows tracert', () => {
+  it.each([
+    '0 1 ms 1 ms 1 ms 192.0.2.20',
+    '9007199254740993 1 ms 1 ms 1 ms 192.0.2.20',
+    '1 4294967296 ms 1 ms 1 ms 192.0.2.20',
+    `1 ${'9'.repeat(400)} ms 1 ms 1 ms 192.0.2.20`,
+  ])('excludes invalid hop numbers and timings without dropping valid hops: %s', (row) => {
+    const result = parseTracert(
+      'Tracing route to 192.0.2.20\n' + row + '\n2 <1 ms * 0 ms 192.0.2.20\nTrace complete.',
+    )
+    expect(result.status).toBe('partial')
+    expect(result.value?.hops).toEqual([
+      {
+        hop: 2,
+        line: 3,
+        times: [1, null, 0],
+        lessThan: [true, false, false],
+        address: '192.0.2.20',
+      },
+    ])
+    expect(result.warnings[0]).toMatchObject({
+      code: 'TRACE_HOP_INVALID',
+      range: { startLine: 2, endLine: 2 },
+    })
+  })
   it('preserves less-than RTT measurements in the parsed model and exported report', () => {
     const parsed = parseTracert(trace)
     expect(parsed.value?.hops[0]?.lessThan).toEqual([false, false, true])
@@ -123,6 +177,65 @@ describe('Windows tracert', () => {
   })
 })
 describe('Windows route print', () => {
+  it.each(['0x10', '1e3', '+25', '4294967296', '9'.repeat(400)])(
+    'excludes unsupported IPv4 metric %s and retains valid rows',
+    (metric) => {
+      const result = parseRoutes(
+        `IPv4 Route Table\n0.0.0.0 0.0.0.0 192.0.2.1 192.0.2.10 ${metric}\n192.0.2.0 255.255.255.0 On-link 192.0.2.10 25`,
+      )
+      expect(result.status).toBe('partial')
+      expect(result.value?.ipv4Routes).toHaveLength(1)
+      expect(result.value?.ipv4Routes[0]?.line).toBe(3)
+      expect(result.warnings[0]).toMatchObject({
+        code: 'ROUTE_INVALID',
+        range: { startLine: 2, endLine: 2 },
+      })
+    },
+  )
+  it.each([
+    '0.0.0.0 0.0.0.0 ::1 192.0.2.10 25',
+    '0.0.0.0 0.0.0.0 В 192.0.2.10 25',
+    '0.0.0.0 0.0.0.0 On-link 192.0.2.10 25 extra',
+    '0.0.0.0 0.0.0.0 192.0.2.1 192.0.2.10',
+  ])('rejects malformed IPv4 row %s', (row) => {
+    expect(parseRoutes('IPv4 Route Table\n' + row).warnings[0]?.code).toBe('ROUTE_INVALID')
+  })
+  it('normalizes case and whitespace in the Russian on-link gateway', () => {
+    const result = parseRoutes('IPv4 Route Table\n192.0.2.0 255.255.255.0 в\tсети 192.0.2.10 25')
+    expect(result.status).toBe('ok')
+    expect(result.value?.ipv4Routes[0]?.gateway).toBe('on-link')
+  })
+  it.each([
+    '9007199254740993 25 ::/0 On-link',
+    '11 4294967296 ::/0 On-link',
+    '11 0x10 ::/0 On-link',
+    '11 25 ::/1e2 On-link',
+    '11 25 incomplete',
+  ])('rejects malformed IPv6 counters and prefixes %s', (row) => {
+    const result = parseRoutes('IPv6 Route Table\n' + row + '\n11 25 2001:db8::/64 On-link')
+    expect(result.status).toBe('partial')
+    expect(result.value?.ipv6Routes).toHaveLength(1)
+    expect(result.warnings[0]).toMatchObject({
+      code: 'ROUTE_V6_INVALID',
+      range: { startLine: 2, endLine: 2 },
+    })
+  })
+  it.each(['IPv4 Route Table', 'IPv6 Route Table', 'Persistent Routes:', 'Постоянные маршруты:'])(
+    'reports a missing wrapped IPv6 gateway before %s',
+    (heading) => {
+      const result = parseRoutes('IPv6 Route Table\n11 25 2001:db8::/64\n' + heading)
+      expect(result.warnings[0]).toMatchObject({
+        code: 'ROUTE_V6_INCOMPLETE',
+        range: { startLine: 2, endLine: 2 },
+      })
+    },
+  )
+  it('recovers the next valid IPv6 row after a missing wrapped gateway', () => {
+    const result = parseRoutes('IPv6 Route Table\n11 25 2001:db8::/64\n11 25 ::/0 2001:db8::1')
+    expect(result.status).toBe('partial')
+    expect(result.value?.ipv6Routes).toMatchObject([{ prefix: 0, line: 3 }])
+    expect(result.warnings[0]?.range).toEqual({ startLine: 2, endLine: 2 })
+  })
   it('rejects fractional IPv4 route metrics', () =>
     expect(parseRoutes('IPv4 Route Table\n0.0.0.0 0.0.0.0 192.0.2.1 192.0.2.10 2.5').status).toBe(
       'unsupported',
