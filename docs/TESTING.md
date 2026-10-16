@@ -15,7 +15,7 @@ npm run check:architecture
 node scripts/check-architecture.mjs --report .workbench-data/architecture.json
 ```
 
-Checker использует TypeScript AST для `.ts/.tsx/.js/.jsx/.mjs` и script-блоков `.vue`, проверяет публичные входы, направления между модулями, слои, runtime-циклы и native Node imports. Его 15 тестов включают lazy/type imports, фасады с транзитивным I/O, сырые таблицы в UI и запрет feature-зависимостей kernel. Правила и ограничения: [ARCHITECTURE.md](ARCHITECTURE.md).
+Checker использует TypeScript AST для `.ts/.tsx/.js/.jsx/.mjs` и script-блоков `.vue`, проверяет публичные входы, направления между модулями, слои, runtime-циклы и native Node imports. Его 19 тестов включают lazy/type imports, фасады с транзитивным I/O, обращения к браузерным API через строковые ключи и деструктуризацию, сырые таблицы в UI и запрет feature-зависимостей kernel. Правила и ограничения: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Тесты workshop находятся рядом с соответствующим слоем; проверки нескольких подсистем — в `src/features/workshop/__tests__`. Чистые парсеры и обезличивание находятся в `src/domain/diagnostics`, поэтому scope `check:feature -- parsers` использует новый путь. Настройки coverage перенесены вместе с исходниками; порог 85% сохранён.
 
