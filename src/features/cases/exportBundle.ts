@@ -1,18 +1,30 @@
 import type { LocalCase } from './schema'
-const limit = 2 * 1024 * 1024
+import { CASE_BUNDLE_MAX_BYTES, CASE_BUNDLE_MAX_CASES } from './schema'
+
 export function createCaseExports(cases: LocalCase[]) {
-  const encode = (items: LocalCase[]) => JSON.stringify({ schemaVersion: 1, cases: items }, null, 2)
-  const bytes = (text: string) => new TextEncoder().encode(text).length
-  const groups: LocalCase[][] = []
-  let group: LocalCase[] = []
+  const encoder = new TextEncoder()
+  const header = '{\n  "schemaVersion": 1,\n  "cases": [\n'
+  const footer = '\n  ]\n}'
+  const envelopeBytes = encoder.encode(header + footer).length
+  const groups: string[][] = []
+  let group: string[] = []
+  let groupBytes = envelopeBytes
   for (const item of cases) {
-    if (bytes(encode([item])) > limit)
+    // Serialize each case once; measuring a growing bundle on every iteration is quadratic.
+    const serialized = JSON.stringify(item, null, 2).replace(/^/gm, '    ')
+    const itemBytes = encoder.encode(serialized).length
+    if (envelopeBytes + itemBytes > CASE_BUNDLE_MAX_BYTES)
       throw new Error('Один кейс слишком велик для JSON-импорта. Скачайте его отчёт отдельно.')
-    if (group.length && bytes(encode([...group, item])) > limit) {
+    if (
+      group.length &&
+      (group.length === CASE_BUNDLE_MAX_CASES || groupBytes + 2 + itemBytes > CASE_BUNDLE_MAX_BYTES)
+    ) {
       groups.push(group)
       group = []
+      groupBytes = envelopeBytes
     }
-    group.push(item)
+    groupBytes += itemBytes + (group.length ? 2 : 0)
+    group.push(serialized)
   }
   if (group.length || !groups.length) groups.push(group)
   return groups.map((items, index) => ({
@@ -20,7 +32,9 @@ export function createCaseExports(cases: LocalCase[]) {
       groups.length === 1
         ? 'workbench-cases.json'
         : `workbench-cases-${index + 1}-of-${groups.length}.json`,
-    text: encode(items),
+    text: items.length
+      ? header + items.join(',\n') + footer
+      : JSON.stringify({ schemaVersion: 1, cases: [] }, null, 2),
     count: items.length,
   }))
 }

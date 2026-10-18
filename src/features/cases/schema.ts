@@ -1,4 +1,6 @@
 import { z } from 'zod'
+export const CASE_BUNDLE_MAX_BYTES = 2 * 1024 * 1024
+export const CASE_BUNDLE_MAX_CASES = 100
 export const caseSchema = z
   .object({
     id: z.uuid(),
@@ -18,13 +20,13 @@ export const caseSchema = z
   .strict()
 export type LocalCase = z.infer<typeof caseSchema>
 export const caseBundleSchema = z
-  .object({ schemaVersion: z.literal(1), cases: z.array(caseSchema).max(100) })
+  .object({ schemaVersion: z.literal(1), cases: z.array(caseSchema).max(CASE_BUNDLE_MAX_CASES) })
   .strict()
   .refine((bundle) => new Set(bundle.cases.map((item) => item.id)).size === bundle.cases.length, {
     message: 'Duplicate case IDs',
   })
 export function parseCaseBundle(text: string) {
-  if (new TextEncoder().encode(text).length > 2 * 1024 * 1024)
+  if (new TextEncoder().encode(text).length > CASE_BUNDLE_MAX_BYTES)
     throw new Error('Файл кейсов превышает 2 MiB.')
   let json: unknown
   try {
