@@ -86,6 +86,26 @@ describe('explicitly grouped evidence', () => {
       'Неоднозначное имя — поля не сопоставлены',
     )
   })
+  it('compares DNS query names without case or trailing-dot noise, preserving real changes', () => {
+    const original = analyzeOutput(fixture('nslookup')).parse.value!
+    if (original.kind !== 'nslookup') throw new Error('Invalid fixture')
+    const same = structuredClone(original)
+    same.queryName = original.queryName!.toUpperCase() + '.'
+    const snapshot = structuredClone(same)
+    expect(compareOutputs(original, same)).toEqual([])
+    expect(same).toEqual(snapshot)
+
+    const changed = { ...same, queryName: 'other.private.example' }
+    const differences = compareOutputs(original, changed)
+    expect(differences.map((item) => item.field)).toEqual(['Имя запроса'])
+    expect(formatDifference(differences[0]!.after)).toBe('Скрыто')
+    expect(formatDifference(differences[0]!.after, undefined, true)).toContain(
+      'other.private.example',
+    )
+    expect(
+      compareOutputs(original, { ...same, queryName: undefined }).map((item) => item.field),
+    ).toEqual(['Имя запроса'])
+  })
   it.each(['ping', 'nslookup', 'tracert', 'route'])(
     'compares %s and detects changed fields',
     (kind) => {

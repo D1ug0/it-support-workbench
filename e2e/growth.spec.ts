@@ -13,7 +13,7 @@ async function addRecord(
 ) {
   // Router navigation preserves the in-memory session. Navigating to the same
   // full URL may reload the document (WebKit), intentionally clearing it.
-  await page.getByRole('link', { name: 'Анализатор', exact: true }).click()
+  await page.getByRole('link', { name: 'Анализатор вывода', exact: true }).click()
   await page.getByLabel('Вывод команды').fill(text)
   await page.getByRole('button', { name: 'Проанализировать', exact: true }).click()
   await expect(page.locator('.session-add')).toBeVisible()
@@ -23,6 +23,30 @@ async function addRecord(
   await page.getByRole('button', { name: 'Добавить в сессию', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Проверка добавлена' })).toBeDisabled()
 }
+test('session comparison ignores equivalent DNS query spelling', async ({ page }) => {
+  await page.goto('/#/sessions')
+  await page.getByLabel('Название сессии').fill('DNS comparison')
+  await page.getByLabel('Контекст устройства').fill('Учебный ПК')
+  await page.getByLabel('Подтверждаю, что добавлю проверки', { exact: false }).check()
+  await page.getByRole('button', { name: 'Создать сессию', exact: true }).click()
+  for (const [label, hostname] of [
+    ['До', 'lab.example'],
+    ['После', 'LAB.EXAMPLE.'],
+  ])
+    await addRecord(
+      page,
+      `Server: dns.lab.example\nAddress: 192.0.2.53\nName: ${hostname}\nAddress: 192.0.2.20`,
+      label!,
+      '2026-10-09T12:00',
+    )
+  await page.getByRole('link', { name: 'Рабочие сессии', exact: true }).click()
+  await chooseOption(page, page.getByLabel('До', { exact: true }), { label: 'До · nslookup' })
+  await chooseOption(page, page.getByLabel('После', { exact: true }), { label: 'После · nslookup' })
+  await expect(
+    page.getByText('Различий в поддерживаемых полях не найдено.', { exact: false }),
+  ).toBeVisible()
+  await expect(page.locator('.diff-list article')).toHaveCount(0)
+})
 test('session explicitly groups outputs, correlates evidence and compares before/after privately', async ({
   page,
 }) => {

@@ -175,6 +175,7 @@ const plain = (value: unknown): DifferenceValue[] => [
 ]
 const ips = (values: string[]): DifferenceValue[] =>
   values.map((value) => ({ value: canonicalAddress(value), address: true }))
+const dnsName = (value: string) => value.toLowerCase().replace(/\.$/, '')
 export function compareOutputs(before: ParsedOutput, after: ParsedOutput): OutputDifference[] {
   if (before.kind !== after.kind)
     throw new Error('Для сравнения выберите два вывода одной команды.')
@@ -268,8 +269,18 @@ export function compareOutputs(before: ParsedOutput, after: ParsedOutput): Outpu
     add(
       'DNS',
       'Имя запроса',
-      [{ value: before.queryName ?? 'Не определено', sensitive: true }],
-      [{ value: after.queryName ?? 'Не определено', sensitive: true }],
+      [
+        {
+          value: before.queryName === undefined ? 'Не определено' : dnsName(before.queryName),
+          sensitive: true,
+        },
+      ],
+      [
+        {
+          value: after.queryName === undefined ? 'Не определено' : dnsName(after.queryName),
+          sensitive: true,
+        },
+      ],
     )
     add('DNS', 'Результат', plain(before.outcome), plain(after.outcome))
     add(
@@ -333,8 +344,8 @@ export function compareOutputs(before: ParsedOutput, after: ParsedOutput): Outpu
       items.map((r) => ({
         value: JSON.stringify([
           r.type,
-          r.name.toLowerCase().replace(/\.$/, ''),
-          r.target?.toLowerCase().replace(/\.$/, ''),
+          dnsName(r.name),
+          r.target === undefined ? undefined : dnsName(r.target),
           r.address ? canonicalAddress(r.address) : undefined,
           r.text,
           r.preference,
