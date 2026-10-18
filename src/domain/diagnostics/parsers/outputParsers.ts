@@ -129,16 +129,6 @@ export function parseNslookup(text: string): ParseResult<ParsedNslookup> {
   let section: 'server' | 'answer' | undefined
   let continuation = false
   lines.forEach((line, index) => {
-    if (/non-existent domain|NXDOMAIN|несуществующ|не существует/i.test(line)) {
-      value.outcome = 'nxdomain'
-      value.eventLines.push(index + 1)
-    } else if (/server failed|SERVFAIL|сбой сервера/i.test(line)) {
-      value.outcome = 'servfail'
-      value.eventLines.push(index + 1)
-    } else if (/timed out|timeout|превышен интервал|истек срок/i.test(line)) {
-      if (value.outcome === 'unknown') value.outcome = 'timeout'
-      value.eventLines.push(index + 1)
-    }
     const label = /^\s*(Server|Сервер|Name|Имя|Address(?:es)?|Адрес(?:а)?)\s*:\s*(.*)$/i.exec(line)
     if (label) {
       const key = (label[1] ?? '').toLowerCase(),
@@ -166,6 +156,17 @@ export function parseNslookup(text: string): ParseResult<ParsedNslookup> {
           })
       }
       return
+    }
+    // Label contents are data: a hostname may contain timeout, SERVFAIL or NXDOMAIN.
+    if (/non-existent domain|NXDOMAIN|несуществующ|не существует/i.test(line)) {
+      value.outcome = 'nxdomain'
+      value.eventLines.push(index + 1)
+    } else if (/server failed|SERVFAIL|сбой сервера/i.test(line)) {
+      value.outcome = 'servfail'
+      value.eventLines.push(index + 1)
+    } else if (/timed out|timeout|превышен интервал|истек срок/i.test(line)) {
+      if (value.outcome === 'unknown') value.outcome = 'timeout'
+      value.eventLines.push(index + 1)
     }
     if (continuation && section === 'answer' && isIPAddress(line.trim())) {
       value.addresses.push({ value: line.trim(), line: index + 1 })

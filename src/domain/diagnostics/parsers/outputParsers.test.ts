@@ -92,6 +92,27 @@ describe('Windows ping', () => {
   })
 })
 describe('Windows nslookup', () => {
+  it.each(['timeout.example', 'servfail.example', 'nxdomain.example'])(
+    'does not interpret %s in server/query labels as a DNS error',
+    (hostname) => {
+      for (const [server, query] of [
+        ['Server', 'Name'],
+        ['Сервер', 'Имя'],
+      ]) {
+        const text = `${server}: ${hostname}\nAddress: 192.0.2.53\n${query}: ${hostname}`
+        const incomplete = parseNslookup(text)
+        expect(incomplete.status).toBe('partial')
+        expect(incomplete.value?.outcome).toBe('unknown')
+        expect(incomplete.value?.eventLines).toEqual([])
+        expect(incomplete.warnings[0]?.code).toBe('DNS_INCOMPLETE')
+
+        const answer = parseNslookup(text + '\nAddress: 192.0.2.20')
+        expect(answer.status).toBe('ok')
+        expect(answer.value?.outcome).toBe('answer')
+        expect(answer.value?.eventLines).toEqual([4])
+      }
+    },
+  )
   it.each([lookup, lookupRu])('distinguishes server address from answer', (text) => {
     const p = parseNslookup(text)
     expect(p.status).toBe('ok')

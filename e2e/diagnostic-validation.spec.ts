@@ -1,5 +1,17 @@
 import { expect, test } from '@playwright/test'
 
+test('DNS status words in hostnames do not fabricate a DNS failure', async ({ page }) => {
+  await page.goto('/#/analyzer')
+  await page
+    .getByLabel('Вывод команды')
+    .fill('Server: servfail.example\nAddress: 192.0.2.53\nName: timeout.example')
+  await page.getByRole('button', { name: 'Проанализировать', exact: true }).click()
+  const output = page.getByTestId('output-card')
+  await expect(output).toContainText('UNKNOWN')
+  await expect(output).not.toContainText('SERVFAIL')
+  await expect(page.getByText('Ответ или статус запроса отсутствует.')).toBeVisible()
+})
+
 test('IPv6 gateways are rejected in IPv4 PowerShell fields', async ({ page }) => {
   await page.goto('/#/analyzer')
   await page.getByLabel('Вывод команды').fill(
