@@ -163,6 +163,39 @@ describe('typed DNS and PowerShell', () => {
     if (result.value?.cmdlet === 'Get-NetIPConfiguration')
       expect(result.value.interfaces.map((i) => i.index)).toEqual([2])
   })
+  it('rejects IPv6 in IPv4DefaultGateway without dropping the next interface or mixed DNS', () => {
+    const result = parsePowerShell(
+      '[\n' +
+        JSON.stringify({
+          InterfaceIndex: 1,
+          InterfaceAlias: 'bad',
+          IPv4Address: ['192.0.2.10'],
+          IPv4DefaultGateway: [{ NextHop: '2001:db8::1' }],
+        }) +
+        ',\n' +
+        JSON.stringify({
+          InterfaceIndex: 2,
+          InterfaceAlias: 'ok',
+          IPv4Address: ['192.0.2.20'],
+          IPv4DefaultGateway: [{ NextHop: '192.0.2.1' }],
+          DNSServer: { ServerAddresses: ['192.0.2.53', '2001:db8::53'] },
+        }) +
+        '\n]',
+    )
+    expect(result.status).toBe('partial')
+    expect(result.warnings[0]).toMatchObject({
+      code: 'PS_INTERFACE_INVALID',
+      range: { startLine: 2, endLine: 2 },
+    })
+    if (result.value?.cmdlet !== 'Get-NetIPConfiguration') throw new Error('wrong cmdlet')
+    expect(result.value.interfaces).toHaveLength(1)
+    expect(result.value.interfaces[0]).toMatchObject({
+      index: 2,
+      gateways: ['192.0.2.1'],
+      dns: ['192.0.2.53', '2001:db8::53'],
+      line: 3,
+    })
+  })
   it('redacted reports never expose domain, TXT, interface aliases or private IP', () => {
     for (const text of [
       JSON.stringify([mx, { Name: 'secret.example', Type: 16, Strings: ['PRIVATE-TXT'] }]),

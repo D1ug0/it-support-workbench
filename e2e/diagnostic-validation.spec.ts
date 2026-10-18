@@ -1,5 +1,32 @@
 import { expect, test } from '@playwright/test'
 
+test('IPv6 gateways are rejected in IPv4 PowerShell fields', async ({ page }) => {
+  await page.goto('/#/analyzer')
+  await page.getByLabel('Вывод команды').fill(
+    JSON.stringify([
+      {
+        InterfaceIndex: 1,
+        InterfaceAlias: 'bad',
+        IPv4Address: ['192.0.2.10'],
+        IPv4DefaultGateway: [{ NextHop: '2001:db8::1' }],
+      },
+      {
+        InterfaceIndex: 2,
+        InterfaceAlias: 'ok',
+        IPv4Address: ['192.0.2.20'],
+        IPv4DefaultGateway: [{ NextHop: '192.0.2.1' }],
+      },
+    ]),
+  )
+  await page.getByRole('button', { name: 'Проанализировать', exact: true }).click()
+  const records = page.getByTestId('output-card').locator('.extended-record')
+  await expect(records).toHaveCount(1)
+  await expect(records.first()).toContainText('Интерфейс 2')
+  await expect(
+    page.getByText('Интерфейс пропущен: нужны InterfaceIndex, InterfaceAlias и валидные адреса.'),
+  ).toBeVisible()
+})
+
 test('non-decimal SRV fields are excluded with evidence while valid records remain', async ({
   page,
 }) => {

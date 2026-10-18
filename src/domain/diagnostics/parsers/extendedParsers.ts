@@ -353,6 +353,7 @@ export function parsePowerShell(raw: string): ParseResult<ParsedPowerShell> {
         !dns ||
         !ipv4.every(isIPv4) ||
         !ipv6.every(isIPv6) ||
+        !gateways.every(isIPv4) ||
         !Object.hasOwn(row, 'IPv4Address')
       ) {
         warnings.push({
