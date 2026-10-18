@@ -1,5 +1,21 @@
 import { expect, test } from '@playwright/test'
 
+test('non-decimal SRV fields are excluded with evidence while valid records remain', async ({
+  page,
+}) => {
+  const record = (port: string) =>
+    '_ldap._tcp.lab.example SRV service location:\n' +
+    ` priority = 0\n weight = 100\n port = ${port}\n svr hostname = dc.lab.example`
+  await page.goto('/#/analyzer')
+  await page.getByLabel('Вывод команды').fill(record('0x185') + '\n\n' + record('389'))
+  await page.getByRole('button', { name: 'Проанализировать', exact: true }).click()
+  const records = page.getByTestId('output-card').locator('.extended-record')
+  await expect(records).toHaveCount(1)
+  await expect(records.first()).toContainText('Port: 389')
+  await expect(records.first()).toContainText('Строка записи 7')
+  await expect(page.getByText('SRV-блок неполный; запись не используется.')).toBeVisible()
+})
+
 for (const { name, text, message } of [
   {
     name: 'oversized UTF-8 input',

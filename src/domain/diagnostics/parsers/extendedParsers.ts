@@ -2,6 +2,7 @@ import type { ParseResult, ParseWarning } from '../../types/diagnostic'
 import type { ParsedDnsRecords, ParsedPowerShell, DnsRecord } from '../../types/outputs'
 import { isIPAddress, isIPv4, isIPv6 } from '../../network'
 import { normalizeInput, validateInput } from './normalizeInput'
+import { parseDecimalCounter } from './numbers'
 const object = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
 const integer = (v: unknown, max = 65535): v is number =>
@@ -220,8 +221,8 @@ export function parseDnsRecords(raw: string): ParseResult<ParsedDnsRecords> {
         }
         const key = keys[field[1]!.toLowerCase()]!
         if (key === 'target') {
-          if (name(field[2])) srv.target = field[2]
-        } else srv[key] = Number(field[2])
+          srv.target = name(field[2]) ? field[2] : undefined
+        } else srv[key] = parseDecimalCounter(field[2]!, 65535)
         return
       }
       const textStart = /^\s*(\S+)\s+(?:text|текст)\s*=\s*(.*)$/i.exec(line)
