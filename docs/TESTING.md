@@ -15,9 +15,13 @@ npm run check:architecture
 node scripts/check-architecture.mjs --report .workbench-data/architecture.json
 ```
 
-Checker использует TypeScript AST для `.ts/.tsx/.js/.jsx/.mjs` и script-блоков `.vue`, проверяет публичные входы, направления между модулями, слои, runtime-циклы и native Node imports. Его 15 тестов включают lazy/type imports, фасады с транзитивным I/O, сырые таблицы в UI и запрет feature-зависимостей kernel. Правила и ограничения: [ARCHITECTURE.md](ARCHITECTURE.md).
+Checker использует TypeScript AST для `.ts/.tsx/.js/.jsx/.mjs` и script-блоков `.vue`, проверяет публичные входы, направления между модулями, слои, runtime-циклы и native Node imports. Его 19 тестов включают lazy/type imports, фасады с транзитивным I/O, обращения к браузерным API через строковые ключи и деструктуризацию, сырые таблицы в UI и запрет feature-зависимостей kernel. Правила и ограничения: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Тесты workshop находятся рядом с соответствующим слоем; проверки нескольких подсистем — в `src/features/workshop/__tests__`. Чистые парсеры и обезличивание находятся в `src/domain/diagnostics`, поэтому scope `check:feature -- parsers` использует новый путь. Настройки coverage перенесены вместе с исходниками; порог 85% сохранён.
+
+`useWorkshopStore.test.ts` проверяет отмену ожидающих записей после opt-out, быстрое повторное включение, отключение из другой вкладки и токены удалённых материалов. `materials.spec.ts` проходит через настоящий UI: сохранить лабораторию/курс/граф → удалить → сохранить тот же материал → reload. Он включён в `check:feature -- workshop --browser`; отдельно для двух движков: `npm exec --no -- playwright test e2e/materials.spec.ts --project=chromium --project=webkit`.
+
+`companion.test.ts` проверяет отмену слишком большого ответа по заголовку и фактическому числу байтов, включая отказ отмены потока. Протокол пяти исправлений от 16.10.2026: [результаты и ограничения](audits/2026-10-16-reliability.md).
 
 ## Точечный разбор DNS-ошибок
 

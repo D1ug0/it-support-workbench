@@ -70,6 +70,33 @@ describe('explicit companion transport', () => {
     await expect(client.health()).rejects.toThrow('слишком большой')
     await expect(client.health()).rejects.toThrow('256 KiB')
   })
+  it.each([
+    { declared: true, cancelFails: false },
+    { declared: true, cancelFails: true },
+    { declared: false, cancelFails: false },
+    { declared: false, cancelFails: true },
+  ])(
+    'cancels oversized responses (declared=$declared, cancel fails=$cancelFails)',
+    async ({ declared, cancelFails }) => {
+      const cancel = vi.fn(() => {
+        if (cancelFails) throw new Error('Stream cancellation failed')
+      })
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(declared ? 1 : 262145))
+        },
+        cancel,
+      })
+      const { client } = setup([
+        new Response(body, {
+          headers: declared ? { 'Content-Length': '262145' } : {},
+        }),
+      ])
+      await expect(client.health()).rejects.toThrow(declared ? 'слишком большой' : '256 KiB')
+      expect(cancel).toHaveBeenCalledTimes(1)
+      expect(body.locked).toBe(false)
+    },
+  )
   it('clears bearer token after logout and blocks requests after close', async () => {
     const { client, fetcher } = setup([
       response(login),

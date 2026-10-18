@@ -40,6 +40,29 @@ export function forbiddenGlobalAccesses(file, source) {
       if (node.expression.getText(ast) === 'globalThis' && names.has(node.name.text))
         violations.add(node.name.text)
     }
+    if (ts.isElementAccessExpression(node) && ts.isIdentifier(node.expression)) {
+      if (names.has(node.expression.text)) violations.add(node.expression.text)
+      if (
+        node.expression.text === 'globalThis' &&
+        ts.isStringLiteralLike(node.argumentExpression) &&
+        names.has(node.argumentExpression.text)
+      )
+        violations.add(node.argumentExpression.text)
+    }
+    if (ts.isVariableDeclaration(node) && node.initializer && ts.isIdentifier(node.initializer)) {
+      if (names.has(node.initializer.text)) violations.add(node.initializer.text)
+      if (node.initializer.text === 'globalThis' && ts.isObjectBindingPattern(node.name)) {
+        for (const binding of node.name.elements) {
+          const key = binding.propertyName ?? binding.name
+          if (
+            !binding.dotDotDotToken &&
+            (ts.isIdentifier(key) || ts.isStringLiteralLike(key)) &&
+            names.has(key.text)
+          )
+            violations.add(key.text)
+        }
+      }
+    }
     if (
       (ts.isCallExpression(node) || ts.isNewExpression(node)) &&
       ts.isIdentifier(node.expression) &&
@@ -149,7 +172,7 @@ export function checkGraph(input, config = { publicEntries, featureDependencies 
     if (nativeSeen.has(file)) return
     nativeSeen.add(file)
     for (const ref of nodes.get(file)?.references ?? []) {
-      if (ref.typeOnly || ref.kind !== 'static' || !ref.target) continue
+      if (ref.typeOnly || !['static', 'dynamic'].includes(ref.kind) || !ref.target) continue
       if (ref.target.endsWith('.ts') && !ref.specifier.endsWith('.ts'))
         fail(file, `native Node import needs .ts extension: ${ref.specifier}`)
       native(ref.target)

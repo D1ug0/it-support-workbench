@@ -65,4 +65,40 @@ describe('worker lifecycle', () => {
     expect(store.error).toContain('Worker')
     expect(store.busy).toBe(false)
   })
+  it('recovers immediately when posting input to the worker fails', () => {
+    vi.stubGlobal(
+      'Worker',
+      class extends FakeWorker {
+        postMessage = vi.fn(() => {
+          throw new DOMException('Cannot clone input', 'DataCloneError')
+        })
+      },
+    )
+    const store = useAnalysisStore()
+    store.setInput('Private diagnostic input')
+    expect(() => store.analyze()).not.toThrow()
+    expect(store.busy).toBe(false)
+    expect(store.error).toContain('передать текст')
+    expect(store.input).toBe('Private diagnostic input')
+    expect(workers[0]?.terminated).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+    vi.stubGlobal('Worker', FakeWorker)
+    store.analyze()
+    expect(store.busy).toBe(true)
+    workers[1]!.onmessage?.(new MessageEvent('message', { data: analyzeOutput(examples[0]!.text) }))
+    expect(store.result?.parse.status).toBe('ok')
+    expect(store.error).toBe('')
+  })
+  it('terminates active work and ignores late responses after the store is disposed', () => {
+    const store = useAnalysisStore()
+    store.analyze()
+    store.$dispose()
+    expect(workers[0]?.terminated).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+    workers[0]!.onmessage?.(new MessageEvent('message', { data: analyzeOutput(examples[0]!.text) }))
+    workers[0]!.onerror?.()
+    expect(store.result).toBeUndefined()
+    expect(store.error).toBe('')
+    expect(store.busy).toBe(false)
+  })
 })

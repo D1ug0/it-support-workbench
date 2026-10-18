@@ -120,6 +120,36 @@ test('detects direct browser I/O in pure modules without matching comments or st
     ['localStorage', 'fetch'],
   )
 })
+test('detects literal computed browser access and destructured global APIs', () => {
+  assert.deepEqual(
+    forbiddenGlobalAccesses(
+      'logic.ts',
+      `globalThis['fetch']('/api'); window['location'];
+       const { localStorage: storage, indexedDB } = globalThis;
+       const send = fetch; const { getItem } = sessionStorage`,
+    ),
+    ['fetch', 'window', 'localStorage', 'indexedDB', 'sessionStorage'],
+  )
+})
+test('allows pure global utilities, type queries and similarly named object properties', () => {
+  assert.deepEqual(
+    forbiddenGlobalAccesses(
+      'logic.ts',
+      `const { crypto, TextEncoder } = globalThis;
+       const { fetch } = options; const value = options['localStorage'];
+       type Browser = typeof window;
+       const label = "globalThis['fetch']('/api')"`,
+    ),
+    [],
+  )
+})
+test('computed browser access is rejected through a public facade', () => {
+  const graph = [
+    node('src/features/a/application/logic.ts', [ref('src/features/b/index.ts')]),
+    node('src/features/b/index.ts', [], `const { localStorage: storage } = globalThis`),
+  ]
+  assert.match(checkGraph(graph, config).join(), /impure browser I\/O through.*localStorage/)
+})
 test('detects unresolved imports and unsupported aliases', () => {
   const graph = [
     node('src/features/a/domain/logic.ts', [
@@ -177,6 +207,19 @@ test('native companion imports require .ts extensions through the entire public 
       ref('src/features/a/index.ts', { specifier: '../src/features/a/index.ts' }),
     ]),
     node('src/features/a/index.ts', [ref('src/features/a/domain/value.ts')]),
+  ]
+  assert.match(checkGraph(graph, config).join(), /native Node import needs .ts extension/)
+  graph[1].references[0].specifier += '.ts'
+  assert.deepEqual(checkGraph(graph, config), [])
+})
+test('native companion lazy imports require explicit .ts extensions too', () => {
+  const graph = [
+    node('server/entry.mjs', [
+      ref('src/features/a/index.ts', { specifier: '../src/features/a/index.ts' }),
+    ]),
+    node('src/features/a/index.ts', [
+      ref('src/features/a/domain/rules.ts', { kind: 'dynamic', specifier: './domain/rules' }),
+    ]),
   ]
   assert.match(checkGraph(graph, config).join(), /native Node import needs .ts extension/)
   graph[1].references[0].specifier += '.ts'

@@ -85,8 +85,10 @@ export class CompanionClient {
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     })
-    if (Number(response.headers.get('content-length') ?? 0) > 262144)
+    if (Number(response.headers.get('content-length') ?? 0) > 262144) {
+      await response.body?.cancel().catch(() => {})
       throw new Error('Ответ сервиса слишком большой.')
+    }
     const reader = response.body?.getReader()
     if (!reader) throw new Error('Пустой ответ сервиса.')
     const decoder = new TextDecoder()
@@ -98,7 +100,7 @@ export class CompanionClient {
         if (done) break
         size += value.byteLength
         if (size > 262144) {
-          await reader.cancel()
+          await reader.cancel().catch(() => {})
           throw new Error('Ответ сервиса превышает 256 KiB.')
         }
         text += decoder.decode(value, { stream: true })

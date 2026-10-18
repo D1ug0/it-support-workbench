@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
+import { onScopeDispose, ref, shallowRef } from 'vue'
 import type { AnalysisResult, EvidenceRange, CommandKind } from '../../../domain/types/diagnostic'
 import type { ParsedOutput } from '../../../domain/types/outputs'
 import { normalizeInput } from '../../../domain/diagnostics/parsers/normalizeInput'
@@ -23,6 +23,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     timeout = undefined
     busy.value = false
   }
+  onScopeDispose(cancel)
   function setInput(text: string, label = 'Вставленный текст') {
     cancel()
     input.value = normalizeInput(text)
@@ -68,7 +69,12 @@ export const useAnalysisStore = defineStore('analysis', () => {
       error.value = 'Обработка заняла слишком много времени. Уменьшите объём вывода.'
       cancel()
     }, 15_000)
-    current.postMessage({ text: input.value, mode: mode.value })
+    try {
+      current.postMessage({ text: input.value, mode: mode.value })
+    } catch {
+      error.value = 'Не удалось передать текст в Worker. Попробуйте повторить анализ.'
+      cancel()
+    }
   }
   return {
     input,
